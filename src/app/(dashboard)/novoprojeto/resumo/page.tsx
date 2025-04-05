@@ -1,0 +1,228 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { db } from "@/firebase/firebaseConfig";
+import { doc, getDoc } from "firebase/firestore";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faBolt,
+  faFileInvoice,
+  faPerson,
+  faRulerCombined,
+  faSackDollar,
+  faSolarPanel,
+} from "@fortawesome/free-solid-svg-icons";
+
+export default function ResumoProjetoPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const clienteId = searchParams.get("clienteId");
+  const projetoId = searchParams.get("projetoId");
+
+  const [projeto, setProjeto] = useState<any>(null);
+  const [clientes, setClientes] = useState<any>(null);
+
+  // Estado para controle do alerta
+  const [showAlerta, setShowAlerta] = useState(false);
+
+  useEffect(() => {
+    const fetchProjeto = async () => {
+      if (!clienteId || !projetoId) return;
+
+      // Buscar dados do projeto
+      const projetoRef = doc(db, "clientes", clienteId, "projetos", projetoId);
+      const projetoSnap = await getDoc(projetoRef);
+
+      if (projetoSnap.exists()) {
+        setProjeto(projetoSnap.data());
+      }
+
+      // Buscar dados do cliente (nome, telefone)
+      const clienteRef = doc(db, "clientes", clienteId);
+      const clienteSnap = await getDoc(clienteRef);
+
+      if (clienteSnap.exists()) {
+        setClientes(clienteSnap.data());
+      }
+    };
+
+    fetchProjeto();
+  }, [clienteId, projetoId]);
+
+  if (!projeto) {
+    return (
+      <div className="text-white p-10">Carregando dados do projeto...</div>
+    );
+  }
+
+  const handleSalvar = () => {
+    if (!projeto) return;
+
+      // Salva o alerta no localStorage
+  localStorage.setItem("alertaHome", "Projeto salvo com sucesso");
+
+    // Lista de campos obrigatórios para validar
+    const camposObrigatorios = [
+      "consumoMedioMes",
+      "consumoMedioDia",
+      "qtdPlacas",
+      "potenciaPlaca",
+      "geracaoMensal",
+      "potenciaPico",
+      "excedente",
+      "areaMinimaTotal",
+      "potenciaInversor",
+      "totalComImposto",
+      "totalSemImposto",
+    ];
+
+    const camposFaltando = camposObrigatorios.filter(
+      (campo) => !projeto[campo]
+    );
+
+    if (camposFaltando.length > 0) {
+      alert(
+        `Existem campos não preenchidos no projeto:\n${camposFaltando.join(
+          ", "
+        )}`
+      );
+      return;
+    }
+
+    setShowAlerta(true); // mostra alerta de sucesso
+    // Se tudo ok, redireciona para a tela inicial
+    router.push("/home");
+  };
+
+  return (
+    <section className="text-white h-[675px] px-6 py-6 space-y-8">
+      <h1 className="text-3xl font-bold text-center">
+        <span className="text-3xl mr-2 text-[#ffc400]">
+          <FontAwesomeIcon icon={faFileInvoice} />
+        </span>
+        Resumo do Projeto Solar
+      </h1>
+      <div className="">
+        <div className="grid grid-cols-2 gap-6">
+          {/* 🧍 Dados do Cliente */}
+          <div className="bg-[#1a1a1a] rounded-xl shadow-2xl p-6 space-y-2">
+            <h2 className="text-lg font-semibold text-amber-400 mb-3 border-b border-gray-600 pb-2">
+              <span className="mr-2 text-[#d3b793] text-xl">
+                <FontAwesomeIcon icon={faPerson} />
+              </span>
+              Dados do Cliente
+            </h2>
+            <p>
+              <strong>Nome:</strong> {clientes?.nomeCliente}
+            </p>
+            <p>
+              <strong>Telefone:</strong> {clientes?.telefone}
+            </p>
+            <p>
+              <strong>Projeto:</strong> {projeto.nomeProjeto || "Não informado"}
+            </p>
+            {/* ⚡ Consumo de Energia */}
+            <h2 className="text-lg font-semibold text-amber-400 mb-3 border-b border-gray-600 pb-2">
+              <span className="mr-2 text-[#FACC15] text-xl">
+                <FontAwesomeIcon icon={faBolt} />
+              </span>
+              Consumo
+            </h2>
+            <p>
+              <strong>Consumo médio mensal:</strong> {projeto.consumoMedioMes}{" "}
+              kWh
+            </p>
+            <p>
+              <strong>Consumo médio diário:</strong> {projeto.consumoMedioDia}{" "}
+              kWh
+            </p>
+            {/* Area minima */}
+            <h2 className="text-lg font-semibold text-amber-400 mb-3 border-b border-gray-600 pb-2">
+              <span className="mr-2 text-[#60A5FA] text-xl">
+                <FontAwesomeIcon icon={faRulerCombined} />
+              </span>
+              Área Mínima Requerida
+            </h2>
+            <p>
+              <strong>Área mínima total:</strong> {projeto.areaMinimaTotal} m²
+            </p>
+            <p>
+              <strong>Dimensão da placa:</strong> {projeto.comprimento}m x{" "}
+              {projeto.largura}m
+            </p>
+          </div>
+          {/* ☀️ Sistema Solar */}
+          <div className="bg-[#1a1a1a] rounded-xl shadow-xl p-6 space-y-2">
+            <h2 className="text-lg font-semibold text-amber-400 mb-3 border-b border-gray-600 pb-2">
+              <span className="mr-2 text-[#404ece] text-xl">
+                <FontAwesomeIcon icon={faSolarPanel} />
+              </span>
+              Sistema Solar
+            </h2>
+            <p>
+              <strong>Modo:</strong>{" "}
+              {projeto.modo === "manual" ? "Manual" : "Recomendado"}
+            </p>
+            <p>
+              <strong>Qtd. de placas:</strong> {projeto.qtdPlacas}
+            </p>
+            <p>
+              <strong>Potência da placa:</strong> {projeto.potenciaPlaca} W
+            </p>
+            <p>
+              <strong>Geração mensal:</strong> {projeto.geracaoMensal} kWh
+            </p>
+            <p>
+              <strong>Potência pico:</strong> {projeto.potenciaPico} kW
+            </p>
+            <p>
+              <strong>Excedente:</strong> {projeto.excedente}%
+            </p>
+            <p>
+              <strong>Potência mínima do inversor:</strong>{" "}
+              {projeto.potenciaInversor || projeto.potenciaInversorManual} kW
+            </p>
+            {/* quanto vou pagar */}
+            <h2 className="text-lg font-semibold text-amber-400 my-3 border-b border-gray-600 pb-2">
+              <span className="mr-2 text-[#fff781] text-xl">
+                <FontAwesomeIcon icon={faSackDollar} />
+              </span>
+              Quanto vou pagar ?
+            </h2>
+            <p>
+              <strong>Total com imposto:</strong> R$
+              {projeto.totalComImposto.toFixed(2)}
+            </p>
+            <p>
+              <strong>Total sem imposto:</strong> R$
+              {projeto.totalSemImposto.toFixed(2)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end items-center gap-6 mt-20">
+        <button
+          type="button"
+          onClick={() =>
+            router.push(
+              `/novoprojeto/estimativa?clienteId=${clienteId}&projetoId=${projetoId}`
+            )
+          }
+          className="btn btn-outline w-40"
+        >
+          Voltar
+        </button>
+
+        <button
+          onClick={handleSalvar}
+          type="button"
+          className="btn w-40 bg-emerald-500 hover:bg-emerald-600 transition-colors duration-200 shadow-md hover:shadow-lg"
+        >
+          <p className="text-white font-semibold">Salvar</p>
+        </button>
+      </div>
+    </section>
+  );
+}
