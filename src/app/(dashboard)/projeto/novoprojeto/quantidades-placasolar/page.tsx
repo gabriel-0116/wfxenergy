@@ -61,28 +61,31 @@ export default function QuantidadePlacasPage() {
   const potenciaValida = !isNaN(potenciaNumerica) && potenciaNumerica > 0;
 
   // Cálculos automáticos (Recomendado)
-  const qtdPlacas = potenciaValida
-    ? Math.ceil(
-        (((consumoMedioDia * 1.1) / irradiacaoSolar) * 1000) / potenciaNumerica
-      )
+const producaoMensalPorModulo =
+  potenciaValida
+    ? (potenciaNumerica / 1000) * irradiacaoSolar * 30 * 0.8
     : 0;
 
-  const geracaoMensal = potenciaValida
-    ? ((qtdPlacas * potenciaNumerica * 30 * irradiacaoSolar) / 1000) * 0.8
+const qtdPlacas = potenciaValida
+  ? Math.ceil(consumoMedioMes / producaoMensalPorModulo)
+  : 0;
+
+const geracaoMensal = potenciaValida
+  ? producaoMensalPorModulo * qtdPlacas
+  : 0;
+
+const potenciaPico = potenciaValida
+  ? (qtdPlacas * potenciaNumerica) / 1000
+  : 0;
+
+const excedente =
+  potenciaValida && consumoMedioMes > 0
+    ? ((geracaoMensal - consumoMedioMes) / consumoMedioMes) * 100
     : 0;
 
-  const potenciaPico = potenciaValida
-    ? (qtdPlacas * potenciaNumerica) / 1000
-    : 0;
-
-  const excedente =
-    potenciaValida && consumoMedioMes > 0
-      ? ((geracaoMensal - consumoMedioMes) / consumoMedioMes) * 100
-      : 0;
-  
-  const potenciaInversor = potenciaValida
-      ? (((qtdPlacas * potenciaNumerica) / 1000) / 1.2) 
-      : 0;
+const potenciaInversor = potenciaValida
+  ? potenciaPico / 1.2
+  : 0;
 
   // Cálculos manuais
   const geracaoMensalManual = potenciaValida
@@ -135,7 +138,7 @@ export default function QuantidadePlacasPage() {
       }
 
       router.push(
-        `/novoprojeto/area-minima?clienteId=${clienteId}&projetoId=${projetoId}`
+        `/projeto/novoprojeto/area-minima?clienteId=${clienteId}&projetoId=${projetoId}`
       );
     } catch (error) {
       console.error("Erro ao salvar:", error);
@@ -382,7 +385,7 @@ export default function QuantidadePlacasPage() {
       <BottomNavButtons
   onBack={() =>
     router.push(
-      `/novoprojeto/consumo?clienteId=${clienteId}&projetoId=${projetoId}`
+      `/projeto/novoprojeto/consumo?clienteId=${clienteId}&projetoId=${projetoId}`
     )
   }
   onNext={handleSubmit}

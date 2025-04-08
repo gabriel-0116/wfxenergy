@@ -35,6 +35,7 @@ export default function Sidebar() {
   const menuItems = [
     { label: "Início", href: "/home", icon: faHouse },
     { label: "Clientes", href: "/clientes", icon: faUser },
+    { label: "Projetos", href: "/projeto", icon: faFolderOpen },
     { label: "Precificação", href: "/precificacao", icon: faCalculator },
     { label: "Proposta Comercial", href: "/proposta", icon: faFileSignature },
     { label: "Contrato", href: "/contrato", icon: faFileContract },

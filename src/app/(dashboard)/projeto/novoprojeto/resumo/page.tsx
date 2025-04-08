@@ -13,6 +13,7 @@ import {
   faSackDollar,
   faSolarPanel,
 } from "@fortawesome/free-solid-svg-icons";
+import { nomesLegiveisProjeto } from "@/utils/nomesLegiveis";
 
 export default function ResumoProjetoPage() {
   const router = useRouter();
@@ -72,24 +73,26 @@ export default function ResumoProjetoPage() {
       "potenciaPico",
       "excedente",
       "areaMinimaTotal",
-      "potenciaInversor",
       "totalComImposto",
       "totalSemImposto",
+      projeto?.modo === "manual" ? "potenciaInversorManual" : "potenciaInversor",
     ];
 
     const camposFaltando = camposObrigatorios.filter(
-      (campo) => !projeto[campo]
+      (campo) => projeto[campo] === undefined || projeto[campo] === null
     );
 
     if (camposFaltando.length > 0) {
-      alert(
-        `Existem campos não preenchidos no projeto:\n${camposFaltando.join(
-          ", "
-        )}`
+      const nomesFaltando = camposFaltando.map(
+        (campo) => nomesLegiveisProjeto[campo] || campo
       );
-      return;
-    }
-
+          alert(
+            `Existem campos não preenchidos na projeto:\n- ${nomesFaltando.join(
+              "\n- "
+            )}`
+          );
+          return;
+        }
     setShowAlerta(true); // mostra alerta de sucesso
     // Se tudo ok, redireciona para a tela inicial
     router.push("/home");
@@ -207,7 +210,7 @@ export default function ResumoProjetoPage() {
           type="button"
           onClick={() =>
             router.push(
-              `/novoprojeto/estimativa?clienteId=${clienteId}&projetoId=${projetoId}`
+              `/projeto/novoprojeto/estimativa?clienteId=${clienteId}&projetoId=${projetoId}`
             )
           }
           className="btn btn-outline w-40"

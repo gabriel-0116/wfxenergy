@@ -6,32 +6,21 @@ import { db } from "@/firebase/firebaseConfig";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import BottomNavButtons from "@/components/BottomNavButtons";
 
-// Função que gera os nomes dos últimos 12 meses
-const gerarUltimos12Meses = () => {
-  const meses: string[] = [];
-  const dataAtual = new Date();
-
-  for (let i = 0; i < 12; i++) {
-    const data = new Date(dataAtual.getFullYear(), dataAtual.getMonth() - i, 1);
-    const nomeMes = data.toLocaleDateString("pt-BR", {
-      month: "long",
-      year: "numeric",
-    });
-    meses.push(nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1));
-  }
-
-  return meses.reverse();
-};
 
 export default function ConsumoPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-
+  
   const clienteId = searchParams.get("clienteId");
   const projetoId = searchParams.get("projetoId");
+  
+  // Função que gera os nomes "Período 1" até "Período 12"
+  const gerar12Periodos = () => {
+    return Array.from({ length: 12 }, (_, i) => `Período ${i + 1}`);
+  };
 
-  const meses = gerarUltimos12Meses();
-
+  const periodos = gerar12Periodos();
+  
   // Estado para armazenar o consumo mensal digitado
   const [consumoMensal, setConsumoMensal] = useState<string[]>(
     Array(12).fill("")
@@ -100,37 +89,62 @@ export default function ConsumoPage() {
   
       // 🔄 Redireciona corretamente após salvar
       router.push(
-        `/novoprojeto/quantidades-placasolar?clienteId=${clienteId}&projetoId=${projetoId}`
+        `/projeto/novoprojeto/quantidades-placasolar?clienteId=${clienteId}&projetoId=${projetoId}`
       );
     } catch (error) {
       console.error("Erro ao salvar consumo:", error);
       alert("Erro ao salvar os dados. Tente novamente.");
     }
-  };  
+  };
+
+  const replicarValor = () => {
+    const primeiroValor = consumoMensal[0];
+  
+    // Verifica se tem algo pra replicar
+    if (!primeiroValor) {
+      alert("Digite um valor no Período 1 para replicar.");
+      return;
+    }
+  
+    setConsumoMensal(Array(12).fill(primeiroValor));
+  };
 
   return (
     <section className="text-white flex justify-center items-center h-[675px] shadow-2xl ">
       <div className="p-6 rounded-xl shadow-2xl max-w-3xl w-full space-y-4 bg-[#1a1a1a]">
         <div onSubmit={handleSubmit}>
           <h2 className="text-2xl font-bold text-center mb-6">
-            Informe o consumo dos últimos 12 meses (kWh)
+            Informe o consumo dos últimos 12 Períodos (kWh)
           </h2>
 
           {/* Inputs dos meses */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {meses.map((mes, index) => (
-              <div key={index}>
-                <label className="block mb-1 text-sm font-medium">{mes}</label>
-                <input
-                  type="number"
-                  min={0}
-                  className="input input-sm input-bordered w-full"
-                  value={consumoMensal[index]}
-                  onChange={(e) => handleChange(index, e.target.value)}
-                  required
-                />
-              </div>
-            ))}
+          {periodos.map((periodo, index) => (
+  <div key={index}>
+    <label className="block mb-1 text-sm font-medium">{periodo}</label>
+    <div className="flex gap-2">
+      <input
+        type="number"
+        min={0}
+        className="input input-sm input-bordered w-full"
+        value={consumoMensal[index]}
+        onChange={(e) => handleChange(index, e.target.value)}
+        required
+      />
+
+      {/* Botão de replicar só no primeiro período */}
+      {index === 0 && (
+        <button
+          type="button"
+          onClick={replicarValor}
+          className="btn btn-sm bg-orange-500 text-white font-normal hover:bg-orange-700"
+        >
+          Replicar
+        </button>
+      )}
+    </div>
+  </div>
+))}
           </div>
 
           {/* Totais calculados */}
@@ -143,7 +157,7 @@ export default function ConsumoPage() {
           {/* Botões */}
           <BottomNavButtons
             onBack={() =>
-              router.push("/novoprojeto")
+              router.push("/projeto/novoprojeto")
             }
             onNext={handleSubmit}
           />

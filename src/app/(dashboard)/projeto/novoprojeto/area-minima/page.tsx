@@ -62,7 +62,7 @@ export default function AreaMinima() {
     console.log("✅ Área mínima salva:", areaTotal, "m²");
 
     router.push(
-      `/novoprojeto/estimativa?clienteId=${clienteId}&projetoId=${projetoId}`
+      `/projeto/novoprojeto/estimativa?clienteId=${clienteId}&projetoId=${projetoId}`
     );
   };
 
@@ -150,7 +150,7 @@ export default function AreaMinima() {
         <BottomNavButtons
   onBack={() =>
     router.push(
-      `/novoprojeto/quantidades-placasolar?clienteId=${clienteId}&projetoId=${projetoId}`
+      `/projeto/novoprojeto/quantidades-placasolar?clienteId=${clienteId}&projetoId=${projetoId}`
     )
   }
   onNext={handleSubmit}

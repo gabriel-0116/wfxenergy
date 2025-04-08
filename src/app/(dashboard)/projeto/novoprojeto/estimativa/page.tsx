@@ -60,7 +60,7 @@ export default function EstimativaPage() {
     try {
       await updateDoc(ref, estimativaData);
       router.push(
-        `/novoprojeto/resumo?clienteId=${clienteId}&projetoId=${projetoId}`
+        `/projeto/novoprojeto/resumo?clienteId=${clienteId}&projetoId=${projetoId}`
       );
     } catch (error) {
       console.error("Erro ao salvar estimativa:", error);
@@ -190,7 +190,7 @@ export default function EstimativaPage() {
 
 
           <div className="form-control w-44">
-            <label className="label text-sm text-white">Imposto (%):</label>
+            <label className="label text-sm text-white mb-2">Imposto (%):</label>
             <input
               type="number"
               step="1"
@@ -264,7 +264,7 @@ export default function EstimativaPage() {
         <BottomNavButtons
           onBack={() =>
             router.push(
-              `/novoprojeto/area-minima?clienteId=${clienteId}&projetoId=${projetoId}`
+              `/projeto/novoprojeto/area-minima?clienteId=${clienteId}&projetoId=${projetoId}`
             )
           }
           onNext={handleSubmit}

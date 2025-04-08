@@ -144,7 +144,7 @@ export default function NovoProjetoPage() {
 
       // 4️⃣ Redireciona para o Step 1, passando clienteId e projetoId via URL
       router.push(
-        `/novoprojeto/consumo?clienteId=${clienteId}&projetoId=${projetoRef.id}`
+        `/projeto/novoprojeto/consumo?clienteId=${clienteId}&projetoId=${projetoRef.id}`
       );
     } catch (error) {
       console.error("Erro ao criar projeto:", error);
