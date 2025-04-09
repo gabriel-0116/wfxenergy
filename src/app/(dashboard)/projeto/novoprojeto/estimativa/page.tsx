@@ -231,7 +231,7 @@ export default function EstimativaPage() {
               <li className="mt-2">
                 Tarifa Mínima: R$ {tarifaMinima.toFixed(2)}
               </li>
-              <li>Iluminação Pública: R$ {iluminacaoPublica.toFixed(2)}</li>
+              <li>CIP (Iluminação Pública): R$ {iluminacaoPublica.toFixed(2)}</li>
             </ul>
           </div>
 
@@ -242,7 +242,7 @@ export default function EstimativaPage() {
             </h2>
             <ul className="text-sm space-y-2">
               <li>Fio B Calculado por kWh: R$ {fioBCalculado.toFixed(4)}</li>
-              <li>Fio B Total a Pagar: R$ {fioBaPagar.toFixed(2)}</li>
+              <li>Fio B (Distribuição): R$ {fioBaPagar.toFixed(2)}</li>
             </ul>
           </div>
 
