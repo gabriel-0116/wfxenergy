@@ -108,12 +108,14 @@ export default function EstimativaPage() {
   const consumoTempoReal = geracaoMedia - injecaoEstimada;
   const fioBCalculado = fioBNum * (percentualFioBNum / 100);
   const fioBaPagar = injecaoEstimada * fioBCalculado;
-  const consumoAPagar = (consumoMedio - geracaoMedia) * valorKWhNum;
-  const totalSemImposto = consumoAPagar + iluminacaoPublica;
+  const consumoConcessionaria = (consumoMedio - consumoTempoReal);
+  const consumoAPagar = consumoConcessionaria * valorKWhNum;
+  const injecaoPaga = (valorKWhNum - fioBCalculado) * injecaoEstimada;
+  const totalSemImposto = (consumoAPagar + fioBaPagar + iluminacaoPublica) - injecaoPaga;
   const totalComImposto = totalSemImposto + totalSemImposto * (percentualImpostoNum / 100);
 
   return (
-    <section className="text-white h-[675px]">
+    <section className="text-white h-[850px]">
       <div className="bg-[#1a1a1a] rounded-2xl shadow-2xl border border-base-300 p-8 max-w-7xl mx-auto space-y-8">
         <h1 className="text-3xl font-bold text-center text-white">
           <span className="text-emerald-500">
@@ -244,21 +246,51 @@ export default function EstimativaPage() {
             </ul>
           </div>
 
-          {/* Card 4 */}
-          <div className="bg-[#272727] shadow-2xl rounded-xl p-5">
-            <h2 className="text-xl font-bold mb-2 text-[#63a2e9] border-b border-gray-400 pb-2">
-              Conta Final Estimada
-            </h2>
-            <ul className="text-sm space-y-2">
-              <li>Consumo Utilizado a Pagar: R$ {consumoAPagar.toFixed(2)}</li>
-              <li>
-                Conta Estimada Sem Impostos: R$ {totalSemImposto.toFixed(2)}
-              </li>
-              <li>
-                Conta Estimada Com Impostos: R$ {totalComImposto.toFixed(2)}
-              </li>
-            </ul>
-          </div>
+         {/* Card 4 - Conta Final Estimada */}
+<div className="bg-[#272727] shadow-2xl rounded-xl p-5 space-y-4">
+  <h2 className="text-xl font-bold mb-2 text-[#63a2e9] border-b border-gray-400 pb-2">
+    Cálculo da Conta Estimada
+  </h2>
+
+  <p className="text-sm text-gray-300">
+    <span className="font-semibold">Fórmula:</span> <br />
+    (Consumo da Concessionária + Fio B + CIP) – Crédito por Injeção
+  </p>
+
+  <hr className="border-gray-600" />
+
+  <ul className="text-sm space-y-2">
+    <li>
+      <span className="text-white font-normal">Consumo da Concessionária:</span>{" "}
+      <span className="text-white font-medium">+ R$ {consumoAPagar.toFixed(2)}</span>
+    </li>
+    <li>
+      <span className="text-white font-normal">Fio B (Distribuição):</span>{" "}
+      <span className="text-white font-medium">+ R$ {fioBaPagar.toFixed(2)}</span>
+    </li>
+    <li>
+      <span className="text-white font-normal">CIP (Iluminação Pública):</span>{" "}
+      <span className="text-white font-medium">+ R$ {iluminacaoPublica.toFixed(2)}</span>
+    </li>
+    <li>
+      <span className="text-white font-normal">Crédito por Energia Injetada:</span>{" "}
+      <span className="text-white font-medium">– R$ {injecaoPaga.toFixed(2)}</span>
+    </li>
+  </ul>
+
+  <hr className="border-gray-600" />
+<div className="flex text-center">
+  <div className="text-lg font-semibold text-yellow-400 flex items-center gap-2 mr-5">
+    Total Sem Imposto:{" "}
+    <span className="text-white">R$ {totalSemImposto.toFixed(2)}</span>
+  </div>
+  <div className="text-lg font-semibold text-yellow-400 flex items-center gap-2">
+    Total Com Imposto:{" "}
+    <span className="text-white">R$ {totalComImposto.toFixed(2)}</span>
+  </div>
+  </div>
+</div>
+
         </div>
 
         <BottomNavButtons

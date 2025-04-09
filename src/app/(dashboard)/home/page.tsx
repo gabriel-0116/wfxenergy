@@ -140,7 +140,7 @@ useEffect(() => {
           Pronto para iniciar um novo Projeto ?
           </h3>
           <button
-            onClick={() => router.push("/novoprojeto")}
+            onClick={() => router.push("/projeto/novoprojeto")}
             className="flex items-center justify-self-center gap-2 bg-[#6E2279] hover:bg-[#551861] transition-colors px-6 py-2 rounded-lg text-white font-semibold shadow-md hover:scale-[1.02] duration-300 cursor-pointer"
           >
             <FontAwesomeIcon icon={faPlus} />

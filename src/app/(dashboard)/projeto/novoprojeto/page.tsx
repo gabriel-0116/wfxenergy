@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   collection,
   query,
@@ -9,23 +9,32 @@ import {
   getDocs,
   addDoc,
   Timestamp,
+  doc, 
+  getDoc,
 } from "firebase/firestore";
 import { auth, db } from "@/firebase/firebaseConfig";
 import { IMaskInput } from "react-imask";
 
 export default function NovoProjetoPage() {
+  const router = useRouter(); // hook para redirecionar o usuário
+
   // Estados para os inputs do formulário
   const [nomeCliente, setNomeCliente] = useState("");
   const [telefone, setTelefone] = useState("");
   const [nomeProjeto, setNomeProjeto] = useState("");
+  const searchParams = useSearchParams();
 
+  const clienteIdFromUrl = searchParams.get("clienteId");
+const projetoIdFromUrl = searchParams.get("projetoId");
+  
   // Estados para autocomplete
   const [sugestoes, setSugestoes] = useState<string[]>([]); // nomes sugeridos
   const [clientes, setClientes] = useState<
     { nomeCliente: string; telefone: string; id: string }[]
   >([]); // clientes completos
+  
+  const [dadosEditados, setDadosEditados] = useState(false);
 
-  const router = useRouter(); // hook para redirecionar o usuário
 
   // 🔍 Efeito que roda toda vez que o nome do cliente muda
   useEffect(() => {
@@ -100,6 +109,13 @@ export default function NovoProjetoPage() {
     }
 
     try {
+      // Se clienteId e projetoId já vieram pela URL, só redireciona direto
+if (clienteIdFromUrl && projetoIdFromUrl && !dadosEditados) {
+  router.push(
+    `/projeto/novoprojeto/consumo?clienteId=${clienteIdFromUrl}&projetoId=${projetoIdFromUrl}`
+  );
+  return;
+}
       // 1️⃣ Verifica se o cliente já existe no banco
 
       // Cria uma referência à coleção "clientes"
@@ -152,8 +168,47 @@ export default function NovoProjetoPage() {
     }
   };
 
+  useEffect(() => {
+    const carregarDados = async () => {
+      // Só tenta buscar se os parâmetros vieram na URL
+      if (!clienteIdFromUrl || !projetoIdFromUrl) return;
+  
+      try {
+        // 🔹 Busca os dados do cliente
+        const clienteDocRef = doc(db, "clientes", clienteIdFromUrl);
+        const clienteSnap = await getDoc(clienteDocRef);
+  
+        if (clienteSnap.exists()) {
+          const clienteData = clienteSnap.data();
+          setNomeCliente(clienteData.nomeCliente || "");
+          setTelefone(clienteData.telefone || "");
+        }
+  
+        // 🔹 Busca os dados do projeto (opcional, só se quiser preencher o nome)
+        const projetoDocRef = doc(
+          db,
+          "clientes",
+          clienteIdFromUrl,
+          "projetos",
+          projetoIdFromUrl
+        );
+        const projetoSnap = await getDoc(projetoDocRef);
+  
+        if (projetoSnap.exists()) {
+          const projetoData = projetoSnap.data();
+          setNomeProjeto(projetoData.nomeProjeto || "");
+        }
+      } catch (error) {
+        console.error("Erro ao carregar dados do cliente/projeto:", error);
+      }
+    };
+  
+    carregarDados();
+  }, [clienteIdFromUrl, projetoIdFromUrl]);
+  
+
   return (
-    <div className="text-white flex justify-center items-center h-[620px] shadow-2xl">
+    <div className="text-white flex justify-center items-center h-[780px] shadow-2xl">
       <div className="p-8 rounded-xl shadow-2xl max-w-xl space-y-6 w-full">
         <h2 className="text-2xl font-bold text-center">Novo Projeto</h2>
 
@@ -164,7 +219,10 @@ export default function NovoProjetoPage() {
             placeholder="Nome do cliente"
             className="input input-bordered w-full"
             value={nomeCliente}
-            onChange={(e) => setNomeCliente(e.target.value)}
+            onChange={(e) => {
+              setNomeCliente(e.target.value);
+              setDadosEditados(true);
+            }}
             required
           />
           {/* Lista de sugestões (dropdown) */}
@@ -189,7 +247,10 @@ export default function NovoProjetoPage() {
           placeholder="Telefone"
           value={telefone}
           className="input input-bordered w-full"
-          onAccept={(value: any) => setTelefone(value)}
+          onAccept={(value: any) => {
+            setTelefone(value);
+            setDadosEditados(true);
+          }}
           required
         />
 

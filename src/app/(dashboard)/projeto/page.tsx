@@ -32,6 +32,10 @@ type ClienteComProjetos = {
 export default function ProjetoPage() {
   const router = useRouter();
 
+  const handleVerProjeto = (clienteId: string, projetoId: string) => {
+    router.push(`/projeto/novoprojeto/consumo?clienteId=${clienteId}&projetoId=${projetoId}`)
+  }
+
   // Estado para armazenar os clientes com seus projetos
   const [clientesComProjetos, setClientesComProjetos] = useState<
     ClienteComProjetos[]
@@ -196,15 +200,13 @@ export default function ProjetoPage() {
 
                             {/* Botão de ação */}
                             <button
-                              onClick={() =>
-                                router.push(
-                                  `/novoprojeto/resumo?clienteId=${cliente.id}&projetoId=${proj.id}`
-                                )
-                              }
-                              className="btn btn-sm text-blue-400 border-white hover:bg-blue-400 hover:text-white transition ease-in"
-                            >
-                              Ver Projeto
-                            </button>
+  onClick={() =>
+    router.push(`/projeto/novoprojeto/consumo?clienteId=${cliente.id}&projetoId=${proj.id}`)
+  }
+  className="btn btn-outline btn-primary btn-sm"
+>
+  Ver Projeto
+</button>
                           </div>
                         </td>
                       </tr>

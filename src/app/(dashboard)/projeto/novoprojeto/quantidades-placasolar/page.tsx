@@ -44,7 +44,7 @@ export default function QuantidadePlacasPage() {
   
         // Dados do projeto (modo anterior)
         if (data.potenciaPlaca) setPotenciaPlaca(data.potenciaPlaca.toString());
-        if (data.qtdPlacas) setQtdManual(data.qtdPlacas); // usado nos dois modos
+        if (data.qtdPlacasManual) setQtdManual(data.qtdPlacasManual); // usado nos dois modos
         if (data.modo) setModoSelecionado(data.modo);
         if (data.valorIrradiacao) {
           setUsarIrradiacaoPersonalizada(true);
@@ -87,6 +87,9 @@ const potenciaInversor = potenciaValida
   ? potenciaPico / 1.2
   : 0;
 
+  const excedenteUnidade = 
+    geracaoMensal - consumoMedioMes
+
   // Cálculos manuais
   const geracaoMensalManual = potenciaValida
     ? ((qtdManual * potenciaNumerica * 30 * irradiacaoSolar) / 1000) * 0.8
@@ -104,6 +107,9 @@ const potenciaInversor = potenciaValida
   const potenciaInversorManual = potenciaValida
       ? (((qtdManual * potenciaNumerica) / 1000) / 1.2)
       : 0;
+      
+      const excedenteUnidadeMensal = 
+      geracaoMensalManual - consumoMedioMes
 
   // Envia os dados salvos com base no modo selecionado
   const handleSubmit = async () => {
@@ -118,7 +124,7 @@ const potenciaInversor = potenciaValida
       if (modoSelecionado === "manual") {
         await updateDoc(projetoRef, {
           modo: "manual",
-          qtdPlacas: qtdManual,
+          qtdPlacasManual: qtdManual, 
           potenciaPlaca: potenciaNumerica,
           geracaoMensal: parseFloat(geracaoMensalManual.toFixed(2)),
           potenciaPico: parseFloat(potenciaPicoManual.toFixed(2)),
@@ -281,8 +287,13 @@ const potenciaInversor = potenciaValida
                   </span>
                 </p>
                 <p>
-                  Excedente:{" "}
+                  Excedente (%):{" "}
                   <span className="font-semibold">{excedente.toFixed(1)}%</span>
+                </p>
+
+                <p>
+                  Excedente (kWh):{" "}
+                  <span className="font-semibold">{excedenteUnidade.toFixed(1)} kWh</span>
                 </p>
 
               </div>
@@ -370,10 +381,14 @@ const potenciaInversor = potenciaValida
                   </span>
                 </p>
                 <p>
-                  Excedente:{" "}
+                  Excedente (%):{" "}
                   <span className="font-semibold">
                     {excedenteManual.toFixed(1)}%
                   </span>
+                </p>
+                <p>
+                  Excedente (kWh):{" "}
+                  <span className="font-semibold">{excedenteUnidadeMensal.toFixed(1)} kWh</span>
                 </p>
               </div>
             </div>

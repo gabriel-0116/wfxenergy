@@ -109,12 +109,20 @@ export default function ConsumoPage() {
     setConsumoMensal(Array(12).fill(primeiroValor));
   };
 
+  const handleVoltar = () => {
+    if (clienteId && projetoId) {
+      router.push(`/projeto/novoprojeto?clienteId=${clienteId}&projetoId=${projetoId}`)
+    } else {
+      router.push("/projeto/novoprojeto") // fallback caso esteja vazio
+    }
+  }
+
   return (
     <section className="text-white flex justify-center items-center h-[675px] shadow-2xl ">
       <div className="p-6 rounded-xl shadow-2xl max-w-3xl w-full space-y-4 bg-[#1a1a1a]">
         <div onSubmit={handleSubmit}>
           <h2 className="text-2xl font-bold text-center mb-6">
-            Informe o consumo dos últimos 12 Períodos (kWh)
+            Informe o consumo dos últimos 12 períodos (kWh)
           </h2>
 
           {/* Inputs dos meses */}
@@ -146,7 +154,6 @@ export default function ConsumoPage() {
   </div>
 ))}
           </div>
-
           {/* Totais calculados */}
           <div className="flex justify-between font-semibold text-sm px-1 mt-4">
             <p>Total: {total.toFixed(2)} kWh</p>
@@ -156,9 +163,7 @@ export default function ConsumoPage() {
 
           {/* Botões */}
           <BottomNavButtons
-            onBack={() =>
-              router.push("/projeto/novoprojeto")
-            }
+            onBack={handleVoltar}
             onNext={handleSubmit}
           />
         </div>

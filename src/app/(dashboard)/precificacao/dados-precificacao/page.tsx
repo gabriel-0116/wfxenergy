@@ -14,6 +14,7 @@ export default function dadosPrecificacao() {
   const clienteId = searchParams.get("clienteId");
   const projetoId = searchParams.get("projetoId");
   const router = useRouter()
+  const precificacaoId = searchParams.get("precificacaoId");
 
   // Dados vindos do banco e inputs editáveis
   const [quantidadePlacas, setQuantidadePlacas] = useState<number>(0);
@@ -167,7 +168,10 @@ const [qtdParcelas, setQtdParcelas] = useState(1); // número de parcelas
   }, [clienteId, projetoId]);
 
   const salvarPrecificacao = async () => {
-    if (!clienteId || !projetoId) return;
+    if (!clienteId || !projetoId || !precificacaoId) {
+      console.error("IDs ausentes:", { clienteId, projetoId, precificacaoId });
+      return;
+    }
   
     // VALIDAÇÃO dos campos obrigatórios da precificação
     const camposObrigatorios: { nome: string; valor: any }[] = [
@@ -231,7 +235,7 @@ const [qtdParcelas, setQtdParcelas] = useState(1); // número de parcelas
       );
   
       await setDoc(
-        doc(db, `clientes/${clienteId}/projetos/${projetoId}/precificacao`, projetoId),
+        doc(db, `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}/dadosPrecificacao`, precificacaoId),
         {
           kitFotovoltaico,
           valorProjeto,
