@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { AuthProvider } from "../context/AuthProvider";
 import { AlertProvider } from "../context/AlertContext";
 import "./globals.css";
+import { ConfirmProvider } from "@/context/ConfirmContext";
 
 export const metadata: Metadata = {
   title: "WFX Energy",
@@ -23,8 +24,8 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           <AlertProvider>
-            {children}
-            </AlertProvider>
+            <ConfirmProvider>{children}</ConfirmProvider>
+          </AlertProvider>
         </AuthProvider>
 
         {/* 🔹 Rodapé sempre fixo no final */}
