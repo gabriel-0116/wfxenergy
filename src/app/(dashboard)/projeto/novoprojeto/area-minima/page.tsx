@@ -14,8 +14,8 @@ export default function AreaMinima() {
   const projetoId = searchParams.get("projetoId");
 
   const [modoManual, setModoManual] = useState(false);
-  const [comprimento, setComprimento] = useState(2.36);
-  const [largura, setLargura] = useState(1.14);
+  const [comprimento, setComprimento] = useState(2.43);
+  const [largura, setLargura] = useState(1.23);
   const [qtdPlacas, setQtdPlacas] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -23,32 +23,32 @@ export default function AreaMinima() {
   useEffect(() => {
     async function fetchProjeto() {
       if (!clienteId || !projetoId) return;
-  
+
       const ref = doc(db, "clientes", clienteId, "projetos", projetoId);
       const snap = await getDoc(ref);
-  
+
       if (snap.exists()) {
         const data = snap.data();
-  
+
         const qtd = data.qtdPlacas ?? data.qtdPlacasManual;
         setQtdPlacas(qtd);
-  
+
         // 🟩 Sempre tenta restaurar os valores salvos (mesmo se estiver no modo padrão)
         setModoManual(data.modoManualDimensao || false);
-        setComprimento(data.comprimento ?? 2.36);
-        setLargura(data.largura ?? 1.14);
+        setComprimento(data.comprimento ?? 2.43);
+        setLargura(data.largura ?? 1.23);
       }
-  
+
       setLoading(false);
     }
-  
+
     fetchProjeto();
   }, [clienteId, projetoId]);
 
   const handleSubmit = async () => {
     if (!clienteId || !projetoId || !qtdPlacas) return;
 
-    const areaTotal = Number((largura * comprimento * qtdPlacas).toFixed(2));
+    const areaTotal = Math.ceil(largura * comprimento * qtdPlacas);
 
     const ref = doc(db, "clientes", clienteId, "projetos", projetoId);
 
@@ -81,9 +81,9 @@ export default function AreaMinima() {
                 Dimensões padrão da placa solar
               </h2>
               <p>
-                <strong>Comprimento:</strong> 2,36 metros
+                <strong>Comprimento:</strong> 2,43 metros
                 <br />
-                <strong>Largura:</strong> 1,14 metros
+                <strong>Largura:</strong> 1,23 metros
               </p>
             </div>
           </div>
@@ -136,11 +136,12 @@ export default function AreaMinima() {
           {qtdPlacas && (
             <div className="mt-6 text-center bg-[#272727] shadow-2xl card p-10">
               <h1 className="mb-4">
-                Quantidade de placas selecionadas: <span className="font-bold">{qtdPlacas}</span>
+                Quantidade de placas selecionadas:{" "}
+                <span className="font-bold">{qtdPlacas}</span>
               </h1>
               <p>Área mínima calculada: </p>
               <p className="font-bold text-xl mt-1">
-                {(comprimento * largura * qtdPlacas).toFixed(2)} m²
+                {Math.ceil(comprimento * largura * qtdPlacas)} m²
               </p>
             </div>
           )}
@@ -148,13 +149,13 @@ export default function AreaMinima() {
 
         {/* Botões */}
         <BottomNavButtons
-  onBack={() =>
-    router.push(
-      `/projeto/novoprojeto/quantidades-placasolar?clienteId=${clienteId}&projetoId=${projetoId}`
-    )
-  }
-  onNext={handleSubmit}
-/>
+          onBack={() =>
+            router.push(
+              `/projeto/novoprojeto/quantidades-placasolar?clienteId=${clienteId}&projetoId=${projetoId}`
+            )
+          }
+          onNext={handleSubmit}
+        />
       </div>
     </div>
   );

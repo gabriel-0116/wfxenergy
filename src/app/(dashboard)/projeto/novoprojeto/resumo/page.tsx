@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { db } from "@/firebase/firebaseConfig";
-import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/firebase/firebaseConfig";
+import { addDoc, doc, getDoc, collection, Timestamp } from "firebase/firestore";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBolt,
@@ -57,13 +57,20 @@ export default function ResumoProjetoPage() {
     );
   }
 
-  const handleSalvar = () => {
+  const handleSalvar = async () => {
     if (!projeto) return;
-
-      // Salva o alerta no localStorage
-  localStorage.setItem("alertaHome", "Projeto salvo com sucesso");
-
-    // Lista de campos obrigatórios para validar
+  
+    // ✅ Verifica se usuário está logado
+    const user = auth.currentUser;
+    if (!user) {
+      alert('Usuário não autenticado!');
+      return;
+    }
+  
+    // 👉 Salva o alerta no localStorage (para exibir na home)
+    localStorage.setItem("alertaHome", "Projeto salvo com sucesso");
+  
+    // 📌 Lista de campos obrigatórios para validação
     const camposObrigatorios = [
       "consumoMedioMes",
       "consumoMedioDia",
@@ -76,26 +83,50 @@ export default function ResumoProjetoPage() {
       "totalComImposto",
       "totalSemImposto",
       projeto?.modo === "manual" ? "potenciaInversorManual" : "potenciaInversor",
+      projeto?.modo === "manual" ? "excedenteUnidadeManual" : "excedenteUnidade",
     ];
-
+  
+    // 🚨 Filtra os campos faltando
     const camposFaltando = camposObrigatorios.filter(
       (campo) => projeto[campo] === undefined || projeto[campo] === null
     );
-
+  
     if (camposFaltando.length > 0) {
       const nomesFaltando = camposFaltando.map(
         (campo) => nomesLegiveisProjeto[campo] || campo
       );
-          alert(
-            `Existem campos não preenchidos na projeto:\n- ${nomesFaltando.join(
-              "\n- "
-            )}`
-          );
-          return;
+      alert(
+        `Existem campos não preenchidos no projeto:\n- ${nomesFaltando.join("\n- ")}`
+      );
+      return;
+    }
+  
+    try {
+      // ✅ Cria nova precificação em subcoleção do projeto
+      const precificacaoRef = await addDoc(
+        collection(db, `clientes/${clienteId}/projetos/${projetoId}/precificacao`),
+        {
+          clienteId,
+          projetoId,
+          clienteNome: projeto.nomeCliente || 'Sem nome',
+          criadoEm: Timestamp.now(),
+          criadoPor: user.uid,
+          status: 'emAndamento',
         }
-    setShowAlerta(true); // mostra alerta de sucesso
-    // Se tudo ok, redireciona para a tela inicial
-    router.push("/home");
+      );
+  
+      const precificacaoId = precificacaoRef.id;
+  
+      setShowAlerta(true); // mostra alerta de sucesso
+  
+      // ✅ Redireciona para a tela de dados da precificação com IDs
+      router.push(
+        `/precificacao/dados-precificacao?clienteId=${clienteId}&projetoId=${projetoId}&precificacaoId=${precificacaoId}`
+      );
+    } catch (error) {
+      console.error("Erro ao criar precificação:", error);
+      alert("Erro ao criar precificação. Tente novamente.");
+    }
   };
 
   return (
@@ -186,6 +217,12 @@ export default function ResumoProjetoPage() {
               <strong>Potência mínima do inversor:</strong>{" "}
               {projeto.potenciaInversor || projeto.potenciaInversorManual} kW
             </p>
+            <p>
+  <strong>Excedente Unidade:</strong>{" "}
+  {projeto.modo === "manual"
+    ? `${projeto.excedenteUnidadeManual?.toFixed(1) ?? "---"} kWh`
+    : `${projeto.excedenteUnidade?.toFixed(1) ?? "---"} kWh`}
+</p>
             {/* quanto vou pagar */}
             <h2 className="text-lg font-semibold text-amber-400 my-3 border-b border-gray-600 pb-2">
               <span className="mr-2 text-[#fff781] text-xl">

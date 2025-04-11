@@ -16,6 +16,19 @@ export default function dadosPrecificacao() {
   const router = useRouter()
   const precificacaoId = searchParams.get("precificacaoId");
 
+// 🔁 Importante: adicione no início do seu componente
+const [consumoMedioMes, setConsumoMedioMes] = useState<number | null>(null)
+const [consumoMedioDia, setConsumoMedioDia] = useState<number | null>(null)
+const [modo, setModo] = useState<string | null>(null)
+const [qtdPlacas, setQtdPlacas] = useState<number | null>(null)
+const [qtdPlacasManual, setQtdPlacasManual] = useState<number | null>(null)
+const [potenciaInversor, setPotenciaInversor] = useState<number | null>(null)
+const [potenciaInversorManual, setPotenciaInversorManual] = useState<number | null>(null)
+const [areaMinima, setAreaMinima] = useState<number | null>(null)
+const [totalComImposto, setTotalComImposto] = useState<number | null>(null)
+const [potenciaPlaca, setPotenciaPlaca] = useState<number | null>(null)
+const [potenciaPico, setPotenciaPico] = useState<number | null>(null)
+
   // Dados vindos do banco e inputs editáveis
   const [quantidadePlacas, setQuantidadePlacas] = useState<number>(0);
   const [kitFotovoltaico, setKitFotovoltaico] = useState(""); // em string por causa do input de texto
@@ -41,12 +54,28 @@ export default function dadosPrecificacao() {
 const [juros, setJuros] = useState(0); // valor de juros (%)
 const [qtdParcelas, setQtdParcelas] = useState(1); // número de parcelas
 
-  const [parcelaSelecionada, setParcelaSelecionada] = useState<number | null>(0);
+const [parcelaSelecionada, setParcelaSelecionada] = useState<number | "avista" | null>(0);
 
   const custoEletricista = quantidadePlacas * valorEletricistaUnit;
   const custoInfra = quantidadePlacas * valorInfraUnit;
   const custoComissao = editComissao ? quantidadePlacas * valorComissaoUnit : 0;
+  
+  const [opcoesFinanciamento, setOpcoesFinanciamento] = useState([
+    { parcelas: 12, taxa: 2.3 },
+    { parcelas: 18, taxa: 2.5 },
+    { parcelas: 24, taxa: 2.7 },
+    { parcelas: 36, taxa: 2.9 },
+    { parcelas: 48, taxa: 3.1 },
+    { parcelas: 60, taxa: 3.3 },
+    { parcelas: 72, taxa: 3.5 },
+  ]);
 
+  const atualizarTaxa = (index: number, novaTaxa: number) => {
+    const novaLista = [...opcoesFinanciamento];
+    novaLista[index].taxa = novaTaxa;
+    setOpcoesFinanciamento(novaLista);
+  };
+  
   const totalCusto =
     parseFloat(kitFotovoltaico || "0") +
     valorProjeto +
@@ -57,11 +86,12 @@ const [qtdParcelas, setQtdParcelas] = useState(1); // número de parcelas
 
   // Valor de venda é calculado com margem sobre o kit + duplicação do eletricista + valores fixos
   const valorVendaKit =
-    parseFloat(kitFotovoltaico || "0") +
-    (margemLucroBruta / 100) * parseFloat(kitFotovoltaico || "0");
+  parseFloat(kitFotovoltaico || "0") +
+  (margemLucroBruta / 100) * parseFloat(kitFotovoltaico || "0") -
+  desconto;
 
   const valorLucroKit =
-    valorVendaKit - parseFloat(kitFotovoltaico || "0") - desconto;
+  valorVendaKit - parseFloat(kitFotovoltaico || "0");
 
   const valorVendaEletricista = custoEletricista * 2;
 
@@ -83,16 +113,6 @@ const [qtdParcelas, setQtdParcelas] = useState(1); // número de parcelas
     totalVenda / (margemLucroBruta / 100) / quantidadePlacas;
 
   const faturamentoLiquidoPorModulo = totalLucro - quantidadePlacas;
-
-  const opcoesFinanciamento = [
-    { parcelas: 12, taxa: 2.3 },
-    { parcelas: 18, taxa: 2.5 },
-    { parcelas: 24, taxa: 2.7 },
-    { parcelas: 36, taxa: 2.9 },
-    { parcelas: 48, taxa: 3.1 },
-    { parcelas: 60, taxa: 3.3 },
-    { parcelas: 72, taxa: 3.5 },
-  ];
 
   const valorFinanciado = totalVenda - entrada;
 
@@ -118,6 +138,37 @@ const [qtdParcelas, setQtdParcelas] = useState(1); // número de parcelas
     };
   });
 
+  useEffect(() => {
+    const buscarProjeto = async () => {
+      if (!clienteId || !projetoId) return;
+  
+      const docRef = doc(db, `clientes/${clienteId}/projetos/${projetoId}`);
+      const snap = await getDoc(docRef);
+  
+      if (snap.exists()) {
+        const data = snap.data();
+  
+        // Já existia
+        if (data.qtdPlacas) setQuantidadePlacas(data.qtdPlacas);
+  
+        // 👇 Adiciona os novos estados aqui
+        if (data.consumoMedioMes) setConsumoMedioMes(data.consumoMedioMes);
+        if (data.consumoMedioDia) setConsumoMedioDia(data.consumoMedioDia);
+        if (data.modo) setModo(data.modo);
+        if (data.qtdPlacas) setQtdPlacas(data.qtdPlacas);
+        if (data.qtdPlacasManual) setQtdPlacasManual(data.qtdPlacasManual);
+        if (data.potenciaPlaca) setPotenciaPlaca(data.potenciaPlaca);
+        if (data.potenciaInversor) setPotenciaInversor(data.potenciaInversor);
+        if (data.potenciaPico) setPotenciaPico(data.potenciaPico)
+        if (data.potenciaInversorManual) setPotenciaInversorManual(data.potenciaInversorManual);
+        if (data.areaMinimaTotal) setAreaMinima(data.areaMinimaTotal);
+        if (data.totalComImposto) setTotalComImposto(data.totalComImposto);
+      }
+    }
+  
+    buscarProjeto();
+  }, [clienteId, projetoId]);
+
   // BUSCAR DADOS DO FIRESTORE
   useEffect(() => {
     const buscarProjeto = async () => {
@@ -136,15 +187,16 @@ const [qtdParcelas, setQtdParcelas] = useState(1); // número de parcelas
 
   useEffect(() => {
     const carregarPrecificacao = async () => {
-      if (!clienteId || !projetoId) return;
+      if (!clienteId || !projetoId || !precificacaoId) return;
   
-      const docRef = doc(db, `clientes/${clienteId}/projetos/${projetoId}/precificacao`, projetoId);
+      // Caminho correto para buscar os dados salvos
+      const docRef = doc(db, `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}/dadosPrecificacao`, precificacaoId);
       const snap = await getDoc(docRef);
   
       if (snap.exists()) {
         const data = snap.data();
   
-        // Preenche os campos com os dados do banco (usa fallback padrão se vazio)
+        // Agora sim, recuperando o kitFotovoltaico salvo corretamente
         setKitFotovoltaico(data.kitFotovoltaico || "");
         setValorProjeto(data.valorProjeto || 0);
         setValorPlacaAdvertencia(data.valorPlacaAdvertencia || 0);
@@ -165,7 +217,8 @@ const [qtdParcelas, setQtdParcelas] = useState(1); // número de parcelas
     };
   
     carregarPrecificacao();
-  }, [clienteId, projetoId]);
+  }, [clienteId, projetoId, precificacaoId]); // ⬅ adicione o `precificacaoId` como dependência
+  
 
   const salvarPrecificacao = async () => {
     if (!clienteId || !projetoId || !precificacaoId) {
@@ -230,9 +283,19 @@ const [qtdParcelas, setQtdParcelas] = useState(1); // número de parcelas
     }
 
     try {
-      const financiamentoSelecionado = dadosParcelas.find(
-        (p) => p.parcelas === parcelaSelecionada
-      );
+      const financiamentoSelecionado =
+  parcelaSelecionada === "avista"
+    ? {
+        parcelas: 1,
+        taxa: 0,
+        valorParcela: totalVenda,
+        totalPago: totalVenda,
+        jurosReais: 0,
+        jurosPercentual: 0,
+        valorFinalProjeto: totalVenda,
+        lucroFinal: totalVenda - totalCusto - valorComissaoInterna,
+      }
+    : dadosParcelas.find((p) => p.parcelas === parcelaSelecionada);
   
       await setDoc(
         doc(db, `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}/dadosPrecificacao`, precificacaoId),
@@ -302,6 +365,44 @@ const [qtdParcelas, setQtdParcelas] = useState(1); // número de parcelas
       <h1 className="text-2xl font-bold mb-6 text-center text-white">
         Precificação
       </h1>
+      {/* 🔷 PAINEL DE RESUMO DO PROJETO (acima da precificação) */}
+<div className="bg-[#1a1a1a] p-4 rounded-xl mb-6 shadow-2xl border border-[#1a1a1a] text-sm text-white">
+  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-center">
+    <div>
+      <span className="text-gray-400">Consumo Médio Mês:</span><br />
+      <strong>{consumoMedioMes ?? '---'} kWh</strong>
+    </div>
+    <div>
+      <span className="text-gray-400">Consumo Médio Dia:</span><br />
+      <strong>{consumoMedioDia ?? '---'} kWh</strong>
+    </div>
+    <div>
+      <span className="text-gray-400">Qtd. de Placas:</span><br />
+      <strong>{modo === 'manual' ? qtdPlacasManual ?? '---' : qtdPlacas ?? '---'}</strong>
+    </div>
+    <div>
+      <span className="text-gray-400">Potência da Placa</span><br />
+      <strong>{potenciaPlaca ?? '---'} kW</strong>
+    </div>
+    <div>
+      <span className="text-gray-400">Potência Inversor:</span><br />
+      <strong>{modo === 'manual' ? potenciaInversorManual ?? '---' : potenciaInversor ?? '---'} kW</strong>
+    </div>
+    <div>
+      <span className="text-gray-400">Potência de Pico:</span><br />
+      <strong>{modo === 'manual' ? potenciaInversorManual ?? '---' : potenciaInversor ?? '---'} kW</strong>
+    </div>
+    <div>
+      <span className="text-gray-400">Área Mínima:</span><br />
+      <strong>{areaMinima ?? '---'} m²</strong>
+    </div>
+    <div>
+      <span className="text-gray-400">Total c/ Imposto:</span><br />
+      <strong>R$ {totalComImposto?.toFixed(2) ?? '---'}</strong>
+    </div>
+  </div>
+</div>
+
       <div className="flex justify-between mb-6">
         {/* CARD DE AJUSTE DE VALORES */}
         <div className="bg-[#1a1a1a] p-5 rounded-2xl shadow-xl w-full max-w-md border border-base-300">
@@ -368,7 +469,7 @@ const [qtdParcelas, setQtdParcelas] = useState(1); // número de parcelas
             {/* COMISSÃO */}
             <div className="flex items-center justify-between">
               <div className="flex flex-col text-sm text-white">
-                <span className="font-semibold">Comissão</span>
+                <span className="font-semibold">Comissão (Indicação)</span>
                 <span className="text-xs text-gray-400">
                   Valor padrão: R$ 50,00
                 </span>
@@ -734,7 +835,6 @@ const [qtdParcelas, setQtdParcelas] = useState(1); // número de parcelas
             <input
               type="number"
               min={0}
-              max={valorProjeto}
               step="100"
               value={entrada}
               onChange={(e) =>
@@ -760,50 +860,56 @@ const [qtdParcelas, setQtdParcelas] = useState(1); // número de parcelas
       Pagamento Fornecedor
     </h2>
     <table className="w-full text-sm text-white flex-grow">
-      <tbody>
-        <tr className="border-b border-gray-600">
-          <td className="px-4 py-2 font-medium bg-zinc-800">Juros (R$)</td>
-          <td className="px-4 py-2 text-right bg-zinc-900">
-            <input
-              type="number"
-              step="0.01"
-              value={juros}
-              onChange={(e) =>
-                setJuros(parseFloat(e.target.value) || 0)
-              }
-              className="bg-transparent border border-gray-500 px-2 py-1 w-24 text-right rounded"
-            />
-          </td>
-        </tr>
-        <tr className="border-b border-gray-600">
-          <td className="px-4 py-2 font-medium bg-zinc-800">Qtd. Parcelas</td>
-          <td className="px-4 py-2 text-right bg-zinc-900">
-            <input
-              type="number"
-              min={1}
-              value={qtdParcelas}
-              onChange={(e) =>
-                setQtdParcelas(parseInt(e.target.value) || 1)
-              }
-              className="bg-transparent border border-gray-500 px-2 py-1 w-24 text-right rounded"
-            />
-          </td>
-        </tr>
-        <tr className="border-b border-gray-600">
-          <td className="px-4 py-2 font-medium bg-zinc-800">Valor da Parcela</td>
-          <td className="px-4 py-2 text-right bg-zinc-900">
-            R$ {parseFloat(kitFotovoltaico || "0").toFixed(2)}
-          </td>
-        </tr>
-        <tr>
-          <td className="px-4 py-2 font-medium bg-zinc-800">Total</td>
-          <td className="px-4 py-2 text-right bg-zinc-900">
-            R${" "}
-            {((parseFloat(kitFotovoltaico || "0") * qtdParcelas) + juros).toFixed(2)}
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <tbody>
+    {/* Campo: Juros */}
+    <tr className="border-b border-gray-600">
+      <td className="px-4 py-2 font-medium bg-zinc-800">Juros (R$)</td>
+      <td className="px-4 py-2 text-right bg-zinc-900">
+        <input
+          type="number"
+          step="0.01"
+          value={juros}
+          onChange={(e) => setJuros(parseFloat(e.target.value) || 0)}
+          className="bg-transparent border border-gray-500 px-2 py-1 w-24 text-right rounded"
+        />
+      </td>
+    </tr>
+
+    {/* Campo: Qtd. Parcelas */}
+    <tr className="border-b border-gray-600">
+      <td className="px-4 py-2 font-medium bg-zinc-800">Qtd. Parcelas</td>
+      <td className="px-4 py-2 text-right bg-zinc-900">
+        <input
+          type="number"
+          min={1}
+          value={qtdParcelas}
+          onChange={(e) => setQtdParcelas(parseInt(e.target.value) || 1)}
+          className="bg-transparent border border-gray-500 px-2 py-1 w-24 text-right rounded"
+        />
+      </td>
+    </tr>
+
+    {/* Valor da Parcela */}
+    <tr className="border-b border-gray-600">
+      <td className="px-4 py-2 font-medium bg-zinc-800">Valor da Parcela</td>
+      <td className="px-4 py-2 text-right bg-zinc-900">
+        R${" "}
+        {(
+          (parseFloat(kitFotovoltaico || "0") + juros) /
+          (qtdParcelas || 1)
+        ).toFixed(2)}
+      </td>
+    </tr>
+
+    {/* Total */}
+    <tr>
+      <td className="px-4 py-2 font-medium bg-zinc-800">Total</td>
+      <td className="px-4 py-2 text-right bg-zinc-900">
+        R$ {(parseFloat(kitFotovoltaico || "0") + juros).toFixed(2)}
+      </td>
+    </tr>
+  </tbody>
+</table>
   </div>
 </div>
 
@@ -823,46 +929,86 @@ const [qtdParcelas, setQtdParcelas] = useState(1); // número de parcelas
             </tr>
           </thead>
           <tbody className="text-center">
-            {dadosParcelas.map((item) => {
-              const isSelecionado = parcelaSelecionada === item.parcelas;
+          <tr
+  className={`${
+    parcelaSelecionada === "avista"
+     ? "bg-green-700 font-semibold"
+            : "odd:bg-zinc-800 even:bg-zinc-700"
+  }`}
+>
+  <td>
+    <input
+      type="checkbox"
+      className="checkbox checkbox-sm"
+      checked={parcelaSelecionada === "avista"}
+      onChange={() =>
+        setParcelaSelecionada(
+          parcelaSelecionada === "avista" ? null : "avista"
+        )
+      }
+    />
+  </td>
+  <td>À Vista</td>
+  <td>0%</td>
+  <td>R$ {totalVenda.toFixed(2)}</td>
+  <td>R$ {totalVenda.toFixed(2)}</td>
+  <td>R$ 0,00</td>
+  <td>0%</td>
+  <td>R$ {totalVenda.toFixed(2)}</td>
+  <td>R$ {(totalVenda - totalCusto - valorComissaoInterna).toFixed(2)}</td>
+</tr>
+  {dadosParcelas.map((item, index) => {
+    const isSelecionado = parcelaSelecionada === item.parcelas;
 
-              return (
-                <tr
-                  key={item.parcelas}
-                  className={`text-white ${
-                    isSelecionado
-                      ? "bg-green-700 font-semibold"
-                      : "odd:bg-zinc-800 even:bg-zinc-700"
-                  }`}
-                >
-                  <td>
-                    <input
-                      type="checkbox"
-                      className="checkbox checkbox-sm"
-                      checked={isSelecionado}
-                      onChange={() =>
-                        setParcelaSelecionada(
-                          parcelaSelecionada === item.parcelas
-                            ? null
-                            : item.parcelas
-                        )
-                      }
-                    />
-                  </td>
-                  <td>{item.parcelas}</td>
-                  <td>{item.taxa.toFixed(1)}%</td>
-                  <td>R$ {item.valorParcela.toFixed(2)}</td>
-                  <td>R$ {item.totalPago.toFixed(2)}</td>
-                  <td>R$ {item.jurosReais.toFixed(2)}</td>
-                  <td>{item.jurosPercentual.toFixed(0)}%</td>
-                  <td>R$ {item.valorFinalProjeto.toFixed(2)}</td>
-                  <td>
-                    R$ {item.lucroFinal.toFixed(2)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
+    return (
+      <tr
+        key={item.parcelas}
+        className={`text-white ${
+          isSelecionado
+            ? "bg-green-700 font-semibold"
+            : "odd:bg-zinc-800 even:bg-zinc-700"
+        }`}
+      >
+        <td>
+          <input
+            type="checkbox"
+            className="checkbox checkbox-sm"
+            checked={isSelecionado}
+            onChange={() =>
+              setParcelaSelecionada(
+                parcelaSelecionada === item.parcelas ? null : item.parcelas
+              )
+            }
+          />
+        </td>
+        <td>{item.parcelas}</td>
+
+        {/* Campo editável de taxa de juros */}
+        <td>
+          <input
+            type="number"
+            step="0.1"
+            value={opcoesFinanciamento[index].taxa}
+            onChange={(e) =>
+              atualizarTaxa(index, parseFloat(e.target.value) || 0)
+            }
+            className={`bg-transparent border border-gray-500 px-2 py-1 w-16 text-center rounded text-white ${
+              isSelecionado
+                ? "bg-green-700 font-semibold border-white"
+                : ""
+            }`}
+          />
+        </td>
+        <td>R$ {item.valorParcela.toFixed(2)}</td>
+        <td>R$ {item.totalPago.toFixed(2)}</td>
+        <td>R$ {item.jurosReais.toFixed(2)}</td>
+        <td>{item.jurosPercentual.toFixed(0)}%</td>
+        <td>R$ {item.valorFinalProjeto.toFixed(2)}</td>
+        <td>R$ {item.lucroFinal.toFixed(2)}</td>
+      </tr>
+    );
+  })}
+</tbody>
         </table>
       </div>
       <div className="flex justify-end items-center gap-6 mt-20">

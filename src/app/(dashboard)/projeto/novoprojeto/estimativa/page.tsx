@@ -7,12 +7,15 @@ import { doc, getDoc, updateDoc } from "firebase/firestore";
 import BottomNavButtons from "@/components/BottomNavButtons";
 import { faDollarSign } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useAlert } from "@/context/AlertContext";
 
 export default function EstimativaPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const clienteId = searchParams.get("clienteId");
   const projetoId = searchParams.get("projetoId");
+
+  const { showAlert } = useAlert();
 
   // estados convertidos para string para permitir apagar input sem erro
   const [tipoLigacao, setTipoLigacao] = useState("");
@@ -35,6 +38,18 @@ export default function EstimativaPage() {
   const percentualInjecaoNum = parseFloat(percentualInjecao || "0");
 
   const handleSubmit = async () => {
+    if (
+      !tipoLigacao ||
+      valorKWh === "" ||
+      fioB === "" ||
+      percentualFioB === "" ||
+      percentualInjecao === "" ||
+      percentualImposto === ""
+    ) {
+      showAlert("Preencha todos os campos obrigatórios.", "warning");
+      return;
+    }
+
     if (!clienteId || !projetoId) return;
 
     const ref = doc(db, "clientes", clienteId, "projetos", projetoId);
@@ -64,6 +79,7 @@ export default function EstimativaPage() {
       );
     } catch (error) {
       console.error("Erro ao salvar estimativa:", error);
+      showAlert("Erro ao salvar estimativa.", "error");
     }
   };
 
@@ -108,11 +124,13 @@ export default function EstimativaPage() {
   const consumoTempoReal = geracaoMedia - injecaoEstimada;
   const fioBCalculado = fioBNum * (percentualFioBNum / 100);
   const fioBaPagar = injecaoEstimada * fioBCalculado;
-  const consumoConcessionaria = (consumoMedio - consumoTempoReal);
+  const consumoConcessionaria = consumoMedio - consumoTempoReal;
   const consumoAPagar = consumoConcessionaria * valorKWhNum;
   const injecaoPaga = (valorKWhNum - fioBCalculado) * injecaoEstimada;
-  const totalSemImposto = (consumoAPagar + fioBaPagar + iluminacaoPublica) - injecaoPaga;
-  const totalComImposto = totalSemImposto + totalSemImposto * (percentualImpostoNum / 100);
+  const totalSemImposto =
+    consumoAPagar + fioBaPagar + iluminacaoPublica - injecaoPaga;
+  const totalComImposto =
+    totalSemImposto + totalSemImposto * (percentualImpostoNum / 100);
 
   return (
     <section className="text-white h-[850px]">
@@ -124,85 +142,119 @@ export default function EstimativaPage() {
           Quanto vou pagar ?
         </h1>
         <div className="flex flex-wrap justify-center gap-6">
-          <div className="form-control w-44">
-            <label className="label text-sm text-white mb-2">Tipo de Ligação:</label>
-            <select
-              className="select select-sm select-bordered bg-base-200 text-white"
-              value={tipoLigacao}
-              onChange={(e) => setTipoLigacao(e.target.value)}
-            >
-              <option disabled value="">
-                Selecione
-              </option>
-              <option>Monofásico</option>
-              <option>Bifásico</option>
-              <option>Trifásico</option>
-            </select>
-          </div>
+  {/* Tipo de Ligação */}
+  <div className="form-control w-44">
+    <label className="label text-sm text-white mb-2">Tipo de Ligação:</label>
+    <select
+      className={`select select-sm select-bordered bg-base-200 text-white ${
+        tipoLigacao === "" ? "border-red-500" : ""
+      }`}
+      value={tipoLigacao}
+      onChange={(e) => setTipoLigacao(e.target.value)}
+    >
+      <option disabled value="">
+        Selecione
+      </option>
+      <option>Monofásico</option>
+      <option>Bifásico</option>
+      <option>Trifásico</option>
+    </select>
+    {tipoLigacao === "" && (
+      <span className="text-red-400 text-xs mt-1">Campo obrigatório</span>
+    )}
+  </div>
 
-          <div className="form-control w-44">
-            <label className="label text-sm text-white mb-2">
-              Valor do kWh (TUSD + TE):
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              className="input input-sm input-bordered bg-base-200 text-white"
-              value={valorKWh}
-              onChange={(e) => setValorKWh(e.target.value)}
-            />
-          </div>
+  {/* Valor do kWh */}
+  <div className="form-control w-44">
+    <label className="label text-sm text-white mb-2">
+      Valor do kWh (TUSD + TE):
+    </label>
+    <input
+      type="number"
+      step="0.01"
+      className={`input input-sm input-bordered bg-base-200 text-white ${
+        valorKWh === "" ? "border-red-500" : ""
+      }`}
+      value={valorKWh}
+      onChange={(e) => setValorKWh(e.target.value)}
+    />
+    {valorKWh === "" && (
+      <span className="text-red-400 text-xs mt-1">Campo obrigatório</span>
+    )}
+  </div>
 
-          <div className="form-control w-44">
-            <label className="label text-sm text-white mb-2">Fio B (R$/kWh):</label>
-            <input
-              type="number"
-              step="0.01"
-              className="input input-sm input-bordered bg-base-200 text-white"
-              value={fioB}
-              onChange={(e) => setFioB(e.target.value)}
-            />
-          </div>
+  {/* Fio B */}
+  <div className="form-control w-44">
+    <label className="label text-sm text-white mb-2">Fio B (R$/kWh):</label>
+    <input
+      type="number"
+      step="0.01"
+      className={`input input-sm input-bordered bg-base-200 text-white ${
+        fioB === "" ? "border-red-500" : ""
+      }`}
+      value={fioB}
+      onChange={(e) => setFioB(e.target.value)}
+    />
+    {fioB === "" && (
+      <span className="text-red-400 text-xs mt-1">Campo obrigatório</span>
+    )}
+  </div>
 
-          <div className="form-control w-44">
-            <label className="label text-sm text-white mb-2">
-              Fio B % (Ano Atual):
-            </label>
-            <input
-              type="number"
-              step="1"
-              className="input input-sm input-bordered bg-base-200 text-white"
-              value={percentualFioB}
-              onChange={(e) => setPercentualFioB(e.target.value)}
-            />
-          </div>
+  {/* Fio B % */}
+  <div className="form-control w-44">
+    <label className="label text-sm text-white mb-2">
+      Fio B % (Ano Atual):
+    </label>
+    <input
+      type="number"
+      step="1"
+      className={`input input-sm input-bordered bg-base-200 text-white ${
+        percentualFioB === "" ? "border-red-500" : ""
+      }`}
+      value={percentualFioB}
+      onChange={(e) => setPercentualFioB(e.target.value)}
+    />
+    {percentualFioB === "" && (
+      <span className="text-red-400 text-xs mt-1">Campo obrigatório</span>
+    )}
+  </div>
 
-          <div className="form-control w-44">
-            <label className="label text-sm text-white mb-2">
-              Injeção Estimada (%):
-            </label>
-            <input
-              type="number"
-              step="1"
-              className="input input-sm input-bordered bg-base-200 text-white"
-              value={percentualInjecao}
-              onChange={(e) => setPercentualInjecao(e.target.value)}
-            />
-          </div>
+  {/* Injeção Estimada */}
+  <div className="form-control w-44">
+    <label className="label text-sm text-white mb-2">
+      Injeção Estimada (%):
+    </label>
+    <input
+      type="number"
+      step="1"
+      className={`input input-sm input-bordered bg-base-200 text-white ${
+        percentualInjecao === "" ? "border-red-500" : ""
+      }`}
+      value={percentualInjecao}
+      onChange={(e) => setPercentualInjecao(e.target.value)}
+    />
+    {percentualInjecao === "" && (
+      <span className="text-red-400 text-xs mt-1">Campo obrigatório</span>
+    )}
+  </div>
 
-
-          <div className="form-control w-44">
-            <label className="label text-sm text-white mb-2">Imposto (%):</label>
-            <input
-              type="number"
-              step="1"
-              className="input input-sm input-bordered bg-base-200 text-white"
-              value={percentualImposto}
-              onChange={(e) => setPercentualImposto(e.target.value)}
-            />
-          </div>
-        </div>
-
+  {/* Imposto */}
+  <div className="form-control w-44">
+    <label className="label text-sm text-white mb-2">Imposto (%):</label>
+    <input
+      type="number"
+      step="1"
+      className={`input input-sm input-bordered bg-base-200 text-white ${
+        percentualImposto === "" ? "border-red-500" : ""
+      }`}
+      value={percentualImposto}
+      onChange={(e) => setPercentualImposto(e.target.value)}
+    />
+    {percentualImposto === "" && (
+      <span className="text-red-400 text-xs mt-1">Campo obrigatório</span>
+    )}
+  </div>
+</div>
         {/* Cards lado a lado responsivos */}
         <div className="grid grid-cols-2 gap-6">
           {/* Card 1 */}
@@ -231,7 +283,9 @@ export default function EstimativaPage() {
               <li className="mt-2">
                 Tarifa Mínima: R$ {tarifaMinima.toFixed(2)}
               </li>
-              <li>CIP (Iluminação Pública): R$ {iluminacaoPublica.toFixed(2)}</li>
+              <li>
+                CIP (Iluminação Pública): R$ {iluminacaoPublica.toFixed(2)}
+              </li>
             </ul>
           </div>
 
@@ -246,51 +300,70 @@ export default function EstimativaPage() {
             </ul>
           </div>
 
-         {/* Card 4 - Conta Final Estimada */}
-<div className="bg-[#272727] shadow-2xl rounded-xl p-5 space-y-4">
-  <h2 className="text-xl font-bold mb-2 text-[#63a2e9] border-b border-gray-400 pb-2">
-    Cálculo da Conta Estimada
-  </h2>
+          {/* Card 4 - Conta Final Estimada */}
+          <div className="bg-[#272727] shadow-2xl rounded-xl p-5 space-y-4">
+            <h2 className="text-xl font-bold mb-2 text-[#63a2e9] border-b border-gray-400 pb-2">
+              Cálculo da Conta Estimada
+            </h2>
 
-  <p className="text-sm text-gray-300">
-    <span className="font-semibold">Fórmula:</span> <br />
-    (Consumo da Concessionária + Fio B + CIP) – Crédito por Injeção
-  </p>
+            <p className="text-sm text-gray-300">
+              <span className="font-semibold">Fórmula:</span> <br />
+              (Consumo da Concessionária + Fio B + CIP) – Crédito por Injeção
+            </p>
 
-  <hr className="border-gray-600" />
+            <hr className="border-gray-600" />
 
-  <ul className="text-sm space-y-2">
-    <li>
-      <span className="text-white font-normal">Consumo da Concessionária:</span>{" "}
-      <span className="text-white font-medium">+ R$ {consumoAPagar.toFixed(2)}</span>
-    </li>
-    <li>
-      <span className="text-white font-normal">Fio B (Distribuição):</span>{" "}
-      <span className="text-white font-medium">+ R$ {fioBaPagar.toFixed(2)}</span>
-    </li>
-    <li>
-      <span className="text-white font-normal">CIP (Iluminação Pública):</span>{" "}
-      <span className="text-white font-medium">+ R$ {iluminacaoPublica.toFixed(2)}</span>
-    </li>
-    <li>
-      <span className="text-white font-normal">Crédito por Energia Injetada:</span>{" "}
-      <span className="text-white font-medium">– R$ {injecaoPaga.toFixed(2)}</span>
-    </li>
-  </ul>
+            <ul className="text-sm space-y-2">
+              <li>
+                <span className="text-white font-normal">
+                  Consumo da Concessionária:
+                </span>{" "}
+                <span className="text-white font-medium">
+                  + R$ {consumoAPagar.toFixed(2)}
+                </span>
+              </li>
+              <li>
+                <span className="text-white font-normal">
+                  Fio B (Distribuição):
+                </span>{" "}
+                <span className="text-white font-medium">
+                  + R$ {fioBaPagar.toFixed(2)}
+                </span>
+              </li>
+              <li>
+                <span className="text-white font-normal">
+                  CIP (Iluminação Pública):
+                </span>{" "}
+                <span className="text-white font-medium">
+                  + R$ {iluminacaoPublica.toFixed(2)}
+                </span>
+              </li>
+              <li>
+                <span className="text-white font-normal">
+                  Crédito por Energia Injetada:
+                </span>{" "}
+                <span className="text-white font-medium">
+                  – R$ {injecaoPaga.toFixed(2)}
+                </span>
+              </li>
+            </ul>
 
-  <hr className="border-gray-600" />
-<div className="flex text-center">
-  <div className="text-lg font-semibold text-yellow-400 flex items-center gap-2 mr-5">
-    Total Sem Imposto:{" "}
-    <span className="text-white">R$ {totalSemImposto.toFixed(2)}</span>
-  </div>
-  <div className="text-lg font-semibold text-yellow-400 flex items-center gap-2">
-    Total Com Imposto:{" "}
-    <span className="text-white">R$ {totalComImposto.toFixed(2)}</span>
-  </div>
-  </div>
-</div>
-
+            <hr className="border-gray-600" />
+            <div className="flex text-center">
+              <div className="text-lg font-semibold text-yellow-400 flex items-center gap-2 mr-5">
+                Total Sem Imposto:{" "}
+                <span className="text-white">
+                  R$ {totalSemImposto.toFixed(2)}
+                </span>
+              </div>
+              <div className="text-lg font-semibold text-yellow-400 flex items-center gap-2">
+                Total Com Imposto:{" "}
+                <span className="text-white">
+                  R$ {totalComImposto.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <BottomNavButtons

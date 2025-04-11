@@ -20,7 +20,7 @@ export default function NovoClienteLayout({ children }: { children: ReactNode })
   const [potenciaInversor, setPotenciaInversor] = useState<number | null>(null)
   const [potenciaInversorManual, setPotenciaInversorManual] = useState<number | null>(null)
   const [areaMinima, setAreaMinima] = useState<number | null>(null)
-  const [totalSemImposto, setTotalSemImposto] = useState<number | null>(null)
+  const [totalComImposto, setTotalComImposto] = useState<number | null>(null)
 
   useEffect(() => {
     if (!clienteId || !projetoId) return
@@ -41,7 +41,7 @@ export default function NovoClienteLayout({ children }: { children: ReactNode })
           if (data.potenciaInversor !== undefined) setPotenciaInversor(data.potenciaInversor)
           if (data.potenciaInversorManual !== undefined) setPotenciaInversorManual(data.potenciaInversorManual)
           if (data.areaMinimaTotal !== undefined) setAreaMinima(data.areaMinimaTotal)
-          if (data.totalSemImposto !== undefined) setTotalSemImposto(data.totalSemImposto)
+          if (data.totalComImposto !== undefined) setTotalComImposto(data.totalSemImposto)
         }
       },
       (error) => {
@@ -96,7 +96,7 @@ export default function NovoClienteLayout({ children }: { children: ReactNode })
     {
       label: 'Estimativa',
       path: 'estimativa',
-      resumo: totalSemImposto !== null ? `R$ ${totalSemImposto.toFixed(2)}` : '',
+      resumo: totalComImposto !== null ? `R$ ${totalComImposto.toFixed(2)}` : '',
     },
     {
       label: 'Resumo',

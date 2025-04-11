@@ -13,38 +13,27 @@ export default function QuantidadePlacasPage() {
   const clienteId = searchParams.get("clienteId");
   const projetoId = searchParams.get("projetoId");
 
-  // Estados principais
   const [potenciaPlaca, setPotenciaPlaca] = useState("");
   const [qtdManual, setQtdManual] = useState(0);
   const [consumoMedioDia, setConsumoMedioDia] = useState(0);
   const [consumoMedioMes, setConsumoMedioMes] = useState(0);
-  const [modoSelecionado, setModoSelecionado] = useState<
-    "recomendado" | "manual"
-  >("recomendado");
-  const [usarIrradiacaoPersonalizada, setUsarIrradiacaoPersonalizada] =
-    useState(false);
+  const [modoSelecionado, setModoSelecionado] = useState<"recomendado" | "manual">("recomendado");
+  const [usarIrradiacaoPersonalizada, setUsarIrradiacaoPersonalizada] = useState(false);
   const [valorIrradiacao, setValorIrradiacao] = useState(4.42);
 
   const irradiacaoSolar = valorIrradiacao;
 
-  // Busca os dados do projeto
   useEffect(() => {
     const buscarDados = async () => {
       if (!clienteId || !projetoId) return;
-  
       const projetoRef = doc(db, "clientes", clienteId, "projetos", projetoId);
       const projetoSnap = await getDoc(projetoRef);
-  
       if (projetoSnap.exists()) {
         const data = projetoSnap.data();
-  
-        // Consumo
         setConsumoMedioDia(data.consumoMedioDia || 0);
         setConsumoMedioMes(data.consumoMedioMes || 0);
-  
-        // Dados do projeto (modo anterior)
         if (data.potenciaPlaca) setPotenciaPlaca(data.potenciaPlaca.toString());
-        if (data.qtdPlacasManual) setQtdManual(data.qtdPlacasManual); // usado nos dois modos
+        if (data.qtdPlacasManual) setQtdManual(data.qtdPlacasManual);
         if (data.modo) setModoSelecionado(data.modo);
         if (data.valorIrradiacao) {
           setUsarIrradiacaoPersonalizada(true);
@@ -52,66 +41,26 @@ export default function QuantidadePlacasPage() {
         }
       }
     };
-  
     buscarDados();
   }, [clienteId, projetoId]);
 
-  // Conversão e validação da potência
   const potenciaNumerica = parseFloat(potenciaPlaca);
   const potenciaValida = !isNaN(potenciaNumerica) && potenciaNumerica > 0;
 
-  // Cálculos automáticos (Recomendado)
-const producaoMensalPorModulo =
-  potenciaValida
-    ? (potenciaNumerica / 1000) * irradiacaoSolar * 30 * 0.8
-    : 0;
+  const producaoMensalPorModulo = potenciaValida ? (potenciaNumerica / 1000) * irradiacaoSolar * 30 * 0.8 : 0;
+  const qtdPlacas = potenciaValida ? Math.ceil(consumoMedioMes / producaoMensalPorModulo) : 0;
+  const geracaoMensal = potenciaValida ? producaoMensalPorModulo * qtdPlacas : 0;
+  const potenciaPico = potenciaValida ? (qtdPlacas * potenciaNumerica) / 1000 : 0;
+  const excedente = potenciaValida && consumoMedioMes > 0 ? ((geracaoMensal - consumoMedioMes) / consumoMedioMes) * 100 : 0;
+  const potenciaInversor = potenciaValida ? potenciaPico / 1.2 : 0;
+  const excedenteUnidade = geracaoMensal - consumoMedioMes;
 
-const qtdPlacas = potenciaValida
-  ? Math.ceil(consumoMedioMes / producaoMensalPorModulo)
-  : 0;
+  const geracaoMensalManual = potenciaValida ? ((qtdManual * potenciaNumerica * 30 * irradiacaoSolar) / 1000) * 0.8 : 0;
+  const potenciaPicoManual = potenciaValida ? (qtdManual * potenciaNumerica) / 1000 : 0;
+  const excedenteManual = potenciaValida && consumoMedioMes > 0 ? ((geracaoMensalManual - consumoMedioMes) / consumoMedioMes) * 100 : 0;
+  const potenciaInversorManual = potenciaValida ? (((qtdManual * potenciaNumerica) / 1000) / 1.2) : 0;
+  const excedenteUnidadeManual = geracaoMensalManual - consumoMedioMes;
 
-const geracaoMensal = potenciaValida
-  ? producaoMensalPorModulo * qtdPlacas
-  : 0;
-
-const potenciaPico = potenciaValida
-  ? (qtdPlacas * potenciaNumerica) / 1000
-  : 0;
-
-const excedente =
-  potenciaValida && consumoMedioMes > 0
-    ? ((geracaoMensal - consumoMedioMes) / consumoMedioMes) * 100
-    : 0;
-
-const potenciaInversor = potenciaValida
-  ? potenciaPico / 1.2
-  : 0;
-
-  const excedenteUnidade = 
-    geracaoMensal - consumoMedioMes
-
-  // Cálculos manuais
-  const geracaoMensalManual = potenciaValida
-    ? ((qtdManual * potenciaNumerica * 30 * irradiacaoSolar) / 1000) * 0.8
-    : 0;
-
-  const potenciaPicoManual = potenciaValida
-    ? (qtdManual * potenciaNumerica) / 1000
-    : 0;
-
-  const excedenteManual =
-    potenciaValida && consumoMedioMes > 0
-      ? ((geracaoMensalManual - consumoMedioMes) / consumoMedioMes) * 100
-      : 0;
-
-  const potenciaInversorManual = potenciaValida
-      ? (((qtdManual * potenciaNumerica) / 1000) / 1.2)
-      : 0;
-      
-      const excedenteUnidadeMensal = 
-      geracaoMensalManual - consumoMedioMes
-
-  // Envia os dados salvos com base no modo selecionado
   const handleSubmit = async () => {
     if (!potenciaValida || !clienteId || !projetoId) {
       alert("Preencha todos os dados obrigatórios.");
@@ -124,12 +73,14 @@ const potenciaInversor = potenciaValida
       if (modoSelecionado === "manual") {
         await updateDoc(projetoRef, {
           modo: "manual",
-          qtdPlacasManual: qtdManual, 
+          qtdPlacasManual: qtdManual,
           potenciaPlaca: potenciaNumerica,
           geracaoMensal: parseFloat(geracaoMensalManual.toFixed(2)),
           potenciaPico: parseFloat(potenciaPicoManual.toFixed(2)),
           excedente: parseFloat(excedenteManual.toFixed(2)),
           potenciaInversorManual: parseFloat(potenciaInversorManual.toFixed(2)),
+          excedenteUnidadeManual: parseFloat(excedenteUnidadeManual.toFixed(2)),
+          valorIrradiacao: usarIrradiacaoPersonalizada ? valorIrradiacao : 4.42,
         });
       } else {
         await updateDoc(projetoRef, {
@@ -140,18 +91,18 @@ const potenciaInversor = potenciaValida
           potenciaPico: parseFloat(potenciaPico.toFixed(2)),
           excedente: parseFloat(excedente.toFixed(2)),
           potenciaInversor: parseFloat(potenciaInversor.toFixed(2)),
+          excedenteUnidade: parseFloat(excedenteUnidade.toFixed(2)),
+          valorIrradiacao: usarIrradiacaoPersonalizada ? valorIrradiacao : 4.42,
         });
       }
 
-      router.push(
-        `/projeto/novoprojeto/area-minima?clienteId=${clienteId}&projetoId=${projetoId}`
-      );
+      router.push(`/projeto/novoprojeto/area-minima?clienteId=${clienteId}&projetoId=${projetoId}`);
     } catch (error) {
       console.error("Erro ao salvar:", error);
       alert("Erro ao salvar os dados.");
     }
   };
-
+  
   return (
     <section className="text-white h-[675px] px-6 py-4">
       <form onSubmit={(e) => e.preventDefault()}>
@@ -388,7 +339,7 @@ const potenciaInversor = potenciaValida
                 </p>
                 <p>
                   Excedente (kWh):{" "}
-                  <span className="font-semibold">{excedenteUnidadeMensal.toFixed(1)} kWh</span>
+                  <span className="font-semibold">{excedenteUnidadeManual.toFixed(1)} kWh</span>
                 </p>
               </div>
             </div>
