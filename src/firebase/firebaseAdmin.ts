@@ -1,11 +1,12 @@
-// ✅ src/firebase/firebaseAdmin.ts
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getStorage } from "firebase-admin/storage";
 
-// Corrige quebra de linha do .env
-const serviceAccount = JSON.parse(
-  process.env.FIREBASE_SERVICE_ACCOUNT_KEY!.replace(/\\n/g, "\n")
-);
+const decoded = Buffer.from(
+  process.env.FIREBASE_SERVICE_ACCOUNT_BASE64!,
+  "base64"
+).toString("utf8");
+
+const serviceAccount = JSON.parse(decoded);
 
 if (!getApps().length) {
   initializeApp({
