@@ -1,12 +1,8 @@
 // ✅ src/firebase/firebaseAdmin.ts
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getStorage } from "firebase-admin/storage";
-import { readFileSync } from "fs";
-import path from "path";
 
-// 🔥 Lê manualmente o JSON fora do import estático
-const serviceAccountPath = path.join(process.cwd(), "src/firebase/serviceAccountKey.json");
-const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, "utf-8"));
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string);
 
 if (!getApps().length) {
   initializeApp({
