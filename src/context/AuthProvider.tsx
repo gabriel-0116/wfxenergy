@@ -1,8 +1,10 @@
+// ✅ AuthProvider.tsx ajustado com verificação de role atualizada
 "use client";
+
 import React, { useState, useEffect } from "react";
 import { AuthContext } from "./AuthContext";
 import { auth } from "../firebase/firebaseConfig";
-import { getDoc ,setDoc, doc } from "firebase/firestore";
+import { getDoc, setDoc, doc, getDocFromServer } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
 import {
   sendPasswordResetEmail,
@@ -24,46 +26,56 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [role, setRole] = useState<string | null>(null);
 
+  // ✅ Atualiza o role toda vez que o user mudar
   useEffect(() => {
-  const fetchUserRole = async () => {
-    if (user) {
-      const docRef = doc(db, "users", user.uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setRole(data.role || null);
+    const fetchUserRole = async () => {
+      if (user) {
+        try {
+          const docRef = doc(db, "users", user.uid);
+          const docSnap = await getDocFromServer(docRef); // ✅ força dados atualizados do Firestore
+
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            console.log("🔍 Role do usuário carregado:", data.role);
+            setRole(data.role || null);
+          } else {
+            console.warn("⚠️ Documento do usuário não encontrado no Firestore");
+            setRole(null);
+          }
+        } catch (error) {
+          console.error("Erro ao buscar role do usuário:", error);
+          setRole(null);
+        }
+      } else {
+        setRole(null);
       }
-    } else {
-      setRole(null);
-    }
-  };
+    };
 
-  fetchUserRole();
-}, [user]);
+    fetchUserRole();
+  }, [user]);
 
+  // ✅ Controla o estado de autenticação
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      console.log("👤 AuthStateChanged:", firebaseUser?.email || "Deslogado");
+      setUser(firebaseUser);
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Função de SignUp (Cadastro)
   const signUp = async (email: string, password: string, name: string): Promise<SignInResponse> => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-  
       await updateProfile(userCredential.user, { displayName: name });
-  
-      // 🔹 Salva o usuário no Firestore com role "guest"
+
       await setDoc(doc(db, "users", userCredential.user.uid), {
         name,
         email,
         role: "guest",
       });
-  
+
       return { success: true, user: userCredential.user };
     } catch (error: any) {
       console.error("Erro ao cadastrar:", error.message);
@@ -71,21 +83,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // ✅ Ajustando signIn para retornar SignInResponse
-  const signIn = async (
-    email: string,
-    password: string
-  ): Promise<SignInResponse> => {
+  const signIn = async (email: string, password: string): Promise<SignInResponse> => {
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      return { success: true, user: userCredential.user }; // ✅ Agora retorna um objeto SignInResponse
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      return { success: true, user: userCredential.user };
     } catch (error: any) {
-      console.error("Error signing in:", error.message);
-      return { success: false, error: error.message }; // ✅ Retorna erro no formato esperado
+      console.error("Erro ao logar:", error.message);
+      return { success: false, error: error.message };
     }
   };
 
