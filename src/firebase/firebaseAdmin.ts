@@ -2,7 +2,9 @@
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getStorage } from "firebase-admin/storage";
 
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
+const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY!;
+const serviceAccount = JSON.parse(rawServiceAccount.replace(/\\n/g, "\n"));
+
 
 if (!getApps().length) {
   initializeApp({
