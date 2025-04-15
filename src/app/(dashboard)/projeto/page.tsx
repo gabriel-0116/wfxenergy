@@ -8,6 +8,8 @@ import {
   doc,
   deleteDoc,
   getDoc,
+  orderBy,
+  query,
 } from "firebase/firestore";
 import { db } from "@/firebase/firebaseConfig";
 import { format } from "date-fns";
@@ -40,6 +42,8 @@ type Projeto = {
   totalComImposto?: number;
   potenciaPlaca?: string;
   status?: string;
+  geracaoMensal?: number;
+  geracaoDiaria?: number;
 };
 
 type ClienteComProjetos = {
@@ -78,9 +82,11 @@ export default function ProjetoPage() {
         const nomeCliente = data.nomeCliente || "Sem nome";
         const telefone = data.telefone || "Sem telefone";
 
-        const projetosSnapshot = await getDocs(
-          collection(db, "clientes", clienteId, "projetos")
-        );
+        const projetosRef = collection(db, "clientes", clienteId, "projetos");
+
+        // ✅ Ordenando projetos pela data de criação
+        const projetosQuery = query(projetosRef, orderBy("criadoEm", "desc"));
+        const projetosSnapshot = await getDocs(projetosQuery);
 
         const projetos: Projeto[] = [];
 
@@ -117,6 +123,8 @@ export default function ProjetoPage() {
             areaMinimaTotal: p.areaMinimaTotal,
             totalComImposto: p.totalComImposto,
             potenciaPlaca: p.potenciaPlaca,
+            geracaoMensal: p.geracaoMensal,
+            geracaoDiaria: p.geracaoDiaria,
             status,
           });
         }
@@ -285,10 +293,6 @@ export default function ProjetoPage() {
                                     })}
                                   </span>
                                 </p>
-                              </div>
-
-                              {/* Informações técnicas do projeto */}
-                              <div className="mt-2 flex flex-wrap gap-x-8 gap-y-1 text-sm text-gray-300">
                                 <div>
                                   <span className="font-bold text-white">
                                     Consumo:
@@ -312,6 +316,26 @@ export default function ProjetoPage() {
                                         proj.potenciaInversor || "-"
                                       } kWp | ${proj.potenciaPlaca || "-"} W`}
                                 </div>
+                              </div>
+
+                              {/* Informações técnicas do projeto */}
+                              <div className="mt-2 flex flex-wrap gap-x-8 gap-y-1 text-sm text-gray-300">
+                                {proj.geracaoMensal && (
+                                  <div>
+                                    <span className="font-bold text-white">
+                                      Geração Mensal:
+                                    </span>{" "}
+                                    {proj.geracaoMensal.toFixed(2)} kWh
+                                  </div>
+                                )}
+                                {proj.geracaoDiaria && (
+                                  <div>
+                                    <span className="font-bold text-white">
+                                      Geração Diária:
+                                    </span>{" "}
+                                    {proj.geracaoDiaria.toFixed(2)} kWh
+                                  </div>
+                                )}
                                 {proj.areaMinimaTotal && (
                                   <div>
                                     <span className="font-bold text-white">

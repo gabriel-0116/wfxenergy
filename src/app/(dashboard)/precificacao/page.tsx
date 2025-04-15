@@ -11,6 +11,7 @@ import {
   Timestamp,
   deleteDoc,
   doc,
+  getDoc,
 } from "firebase/firestore";
 import { db, auth } from "@/firebase/firebaseConfig";
 import {
@@ -70,22 +71,42 @@ export default function PrecificacaoPage() {
           );
 
           if (!precificacaoSnap.empty) {
-            projetos.push({
-              id: projetoId,
-              nomeProjeto: dadosProjeto.nomeProjeto,
-              criadoEm: dadosProjeto.criadoEm?.toDate() ?? new Date(),
-              consumoMedioMes: dadosProjeto.consumoMedioMes,
-              consumoMedioDia: dadosProjeto.consumoMedioDia,
-              qtdPlacas: dadosProjeto.qtdPlacas,
-              qtdPlacasManual: dadosProjeto.qtdPlacasManual,
-              modo: dadosProjeto.modo,
-              potenciaPlaca: dadosProjeto.potenciaPlaca,
-              potenciaInversor: dadosProjeto.potenciaInversor,
-              potenciaInversorManual: dadosProjeto.potenciaInversorManual,
-              areaMinimaTotal: dadosProjeto.areaMinimaTotal,
-              totalComImposto: dadosProjeto.totalComImposto,
-              precificacaoId: precificacaoSnap.docs[0].id,
-            });
+            const precificacaoDoc = precificacaoSnap.docs[0]; // pega o primeiro
+            const precificacaoId = precificacaoDoc.id;
+
+            const dadosPrecRef = doc(
+              db,
+              `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}/dadosPrecificacao`,
+              precificacaoId
+            );
+            const dadosPrecSnap = await getDoc(dadosPrecRef);
+            const dadosPrec = dadosPrecSnap.exists()
+              ? dadosPrecSnap.data()
+              : {};
+
+              projetos.push({
+                id: projetoId,
+                nomeProjeto: dadosProjeto.nomeProjeto,
+                criadoEm: dadosProjeto.criadoEm?.toDate() ?? new Date(),
+                consumoMedioMes: dadosProjeto.consumoMedioMes,
+                consumoMedioDia: dadosProjeto.consumoMedioDia,
+                qtdPlacas: dadosProjeto.qtdPlacas,
+                qtdPlacasManual: dadosProjeto.qtdPlacasManual,
+                modo: dadosProjeto.modo,
+                potenciaPlaca: dadosProjeto.potenciaPlaca,
+                potenciaInversor: dadosProjeto.potenciaInversor,
+                potenciaInversorManual: dadosProjeto.potenciaInversorManual,
+                areaMinimaTotal: dadosProjeto.areaMinimaTotal,
+                totalComImposto: dadosProjeto.totalComImposto,
+                precificacaoId,
+              
+                // ✅ CAMPOS DO DADOSPRECIFICACAO
+                valorFinalProjeto: dadosPrec.valorFinalProjeto || null,
+                parcelaSelecionada: dadosPrec.parcelaSelecionada || null,
+                entrada: dadosPrec.entrada || 0,
+                qtdParcelas: dadosPrec.qtdParcelas || 0,
+                financiamentoSelecionado: dadosPrec.financiamentoSelecionado || null, // ✅ ADICIONA ESTE
+              });
           }
         }
 
@@ -184,34 +205,40 @@ export default function PrecificacaoPage() {
     const carregarPrecificacoes = async () => {
       const clientesSnap = await getDocs(collection(db, "clientes"));
       const listaFinal: typeof listaPrecificacoes = [];
-  
+
       for (const clienteDoc of clientesSnap.docs) {
         const clienteData = clienteDoc.data();
         const clienteId = clienteDoc.id;
-  
+
         const projetosSnap = await getDocs(
           collection(db, `clientes/${clienteId}/projetos`)
         );
-  
+
         for (const projetoDoc of projetosSnap.docs) {
           const projetoId = projetoDoc.id;
           const projetoData = projetoDoc.data();
-  
+
           const precificacoesSnap = await getDocs(
-            collection(db, `clientes/${clienteId}/projetos/${projetoId}/precificacao`)
+            collection(
+              db,
+              `clientes/${clienteId}/projetos/${projetoId}/precificacao`
+            )
           );
-  
+
           for (const precificacaoDoc of precificacoesSnap.docs) {
             const precificacaoId = precificacaoDoc.id;
             const precificacaoData = precificacaoDoc.data();
-  
+
             // Verifica se existe contrato com o mesmo ID da precificação
             const contratoSnap = await getDocs(
-              collection(db, `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}/contrato`)
+              collection(
+                db,
+                `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}/contrato`
+              )
             );
-  
+
             const temContrato = !contratoSnap.empty;
-  
+
             listaFinal.push({
               clienteId,
               nomeCliente: clienteData.nomeCliente || "Sem nome",
@@ -225,10 +252,10 @@ export default function PrecificacaoPage() {
           }
         }
       }
-  
+
       setListaPrecificacoes(listaFinal);
     };
-  
+
     carregarPrecificacoes();
   }, []);
 
@@ -370,8 +397,8 @@ export default function PrecificacaoPage() {
   };
 
   return (
-    <div className="text-white h-[900px] flex-1 justify-center items-center shadow-2xl">
-      <div className="p-8 mt-20 rounded-2xl shadow-2xl max-w-xl space-y-6 w-full justify-self-center">
+    <div className="text-white min-h-screen flex-1 justify-center items-center shadow-2xl p-10">
+      <div className="p-8 mt-20 rounded-2xl shadow-2xl max-w-xl space-y-6 w-full justify-self-center mb-10">
         <h2 className="text-2xl font-bold text-center">Nova Precificação</h2>
 
         {/* Campo de nome com autocomplete */}
@@ -489,9 +516,7 @@ export default function PrecificacaoPage() {
                 <FontAwesomeIcon icon={faPhone} className="mr-2 text-red-500" />
                 Telefone
               </th>
-              <th className="p-4">
-                Status
-              </th>
+              <th className="p-4">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -503,20 +528,26 @@ export default function PrecificacaoPage() {
               })
               .map((cliente) => (
                 <Fragment key={cliente.id}>
-                 <tr
-  className="hover:bg-base-200 cursor-pointer"
-  onClick={() => toggleCliente(cliente.id)}
->
-  <td className="p-4 text-white font-medium">{cliente.nomeCliente}</td>
-  <td className="p-4 text-gray-300">{cliente.telefone}</td>
-  <td className="p-4">
-    {cliente.projetos.every((proj: any) => proj.status === "finalizado") ? (
-      <span className="badge badge-success">Finalizado</span>
-    ) : (
-      <span className="badge badge-warning">Em Andamento</span>
-    )}
-  </td>
-</tr>
+                  <tr
+                    className="hover:bg-base-200 cursor-pointer"
+                    onClick={() => toggleCliente(cliente.id)}
+                  >
+                    <td className="p-4 text-white font-medium">
+                      {cliente.nomeCliente}
+                    </td>
+                    <td className="p-4 text-gray-300">{cliente.telefone}</td>
+                    <td className="p-4">
+                      {cliente.projetos.every(
+                        (proj: any) => proj.status === "finalizado"
+                      ) ? (
+                        <span className="badge badge-success">Finalizado</span>
+                      ) : (
+                        <span className="badge badge-warning">
+                          Em Andamento
+                        </span>
+                      )}
+                    </td>
+                  </tr>
                   {clienteAberto === cliente.id &&
                     cliente.projetos.map((proj: any) => (
                       <tr key={proj.id}>
@@ -587,6 +618,36 @@ export default function PrecificacaoPage() {
                                     R$ {proj.totalComImposto.toFixed(2)}
                                   </div>
                                 )}
+                                {/* ✅ NOVO BLOCO DE INFORMAÇÕES */}
+                                {proj.valorFinalProjeto && (
+                                  <div>
+                                    <span className="font-bold text-white">
+                                      Valor Final:
+                                    </span>{" "}
+                                    R$ {proj.valorFinalProjeto.toFixed(2)}
+                                  </div>
+                                )}
+
+                                {proj.parcelaSelecionada && (
+                                  <div>
+                                    <span className="font-bold text-white">
+                                      Forma de Pagamento:
+                                    </span>{" "}
+                                    {proj.parcelaSelecionada === "avista"
+                                      ? "À Vista"
+                                      : `Parcelado em ${
+                                          proj.financiamentoSelecionado
+                                            ?.parcelas || "?"
+                                        }x`}
+                                  </div>
+                                )}
+
+                                <div>
+                                  <span className="font-bold text-white">
+                                    Entrada:
+                                  </span>{" "}
+                                  R$ {proj.entrada?.toFixed(2) ?? 0}
+                                </div>
                               </div>
                             </div>
                             <button

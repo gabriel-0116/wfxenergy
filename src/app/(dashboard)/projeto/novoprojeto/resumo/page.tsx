@@ -59,66 +59,76 @@ export default function ResumoProjetoPage() {
 
   const handleSalvar = async () => {
     if (!projeto) return;
-  
+
     // ✅ Verifica se usuário está logado
     const user = auth.currentUser;
     if (!user) {
-      alert('Usuário não autenticado!');
+      alert("Usuário não autenticado!");
       return;
     }
-  
+
     // 👉 Salva o alerta no localStorage (para exibir na home)
     localStorage.setItem("alertaHome", "Projeto salvo com sucesso");
-  
+
     // 📌 Lista de campos obrigatórios para validação
     const camposObrigatorios = [
       "consumoMedioMes",
       "consumoMedioDia",
-      "qtdPlacas",
       "potenciaPlaca",
-      "geracaoMensal",
       "potenciaPico",
       "excedente",
       "areaMinimaTotal",
       "totalComImposto",
       "totalSemImposto",
-      projeto?.modo === "manual" ? "potenciaInversorManual" : "potenciaInversor",
-      projeto?.modo === "manual" ? "excedenteUnidadeManual" : "excedenteUnidade",
+      projeto?.modo === "manual"
+        ? "potenciaInversorManual"
+        : "potenciaInversor",
+      projeto?.modo === "manual"
+        ? "excedenteUnidadeManual"
+        : "excedenteUnidade",
+      projeto?.modo === "manual" ? "qtdPlacasManual" : "qtdPlacas",
+      projeto?.modo === "manual" ? "geracaoMensalManual" : "geracaoMensal",
+      projeto?.modo === "manual" ? "geracaoDiariaManual" : "geracaoDiaria",
     ];
-  
+
     // 🚨 Filtra os campos faltando
     const camposFaltando = camposObrigatorios.filter(
       (campo) => projeto[campo] === undefined || projeto[campo] === null
     );
-  
+
     if (camposFaltando.length > 0) {
       const nomesFaltando = camposFaltando.map(
         (campo) => nomesLegiveisProjeto[campo] || campo
       );
       alert(
-        `Existem campos não preenchidos no projeto:\n- ${nomesFaltando.join("\n- ")}`
+        `Existem campos não preenchidos no projeto:\n- ${nomesFaltando.join(
+          "\n- "
+        )}`
       );
       return;
     }
-  
+
     try {
       // ✅ Cria nova precificação em subcoleção do projeto
       const precificacaoRef = await addDoc(
-        collection(db, `clientes/${clienteId}/projetos/${projetoId}/precificacao`),
+        collection(
+          db,
+          `clientes/${clienteId}/projetos/${projetoId}/precificacao`
+        ),
         {
           clienteId,
           projetoId,
-          clienteNome: projeto.nomeCliente || 'Sem nome',
+          clienteNome: projeto.nomeCliente || "Sem nome",
           criadoEm: Timestamp.now(),
           criadoPor: user.uid,
-          status: 'emAndamento',
+          status: "emAndamento",
         }
       );
-  
+
       const precificacaoId = precificacaoRef.id;
-  
+
       setShowAlerta(true); // mostra alerta de sucesso
-  
+
       // ✅ Redireciona para a tela de dados da precificação com IDs
       router.push(
         `/precificacao/dados-precificacao?clienteId=${clienteId}&projetoId=${projetoId}&precificacaoId=${precificacaoId}`
@@ -130,7 +140,7 @@ export default function ResumoProjetoPage() {
   };
 
   return (
-    <section className="text-white h-[675px] px-6 py-6 space-y-8">
+    <section className="text-white h-[700px] px-6 py-6 space-y-8">
       <h1 className="text-3xl font-bold text-center">
         <span className="text-3xl mr-2 text-[#ffc400]">
           <FontAwesomeIcon icon={faFileInvoice} />
@@ -199,14 +209,28 @@ export default function ResumoProjetoPage() {
               {projeto.modo === "manual" ? "Manual" : "Recomendado"}
             </p>
             <p>
-              <strong>Qtd. de placas:</strong> {projeto.qtdPlacas}
+              <strong>Qtd. de placas:</strong>{" "}
+              {projeto.modo === "manual"
+                ? projeto.qtdPlacasManual ?? "---"
+                : projeto.qtdPlacas ?? "---"}
             </p>
             <p>
               <strong>Potência da placa:</strong> {projeto.potenciaPlaca} W
             </p>
             <p>
-              <strong>Geração mensal:</strong> {projeto.geracaoMensal} kWh
+              <strong>Geração mensal:</strong>{" "}
+              {projeto.modo === "manual"
+                ? projeto.geracaoMensalManual ?? "---"
+                : projeto.geracaoMensal ?? "---"}{" "}
+              kWh
             </p>
+            <p>
+  <strong>Geração diária:</strong>{" "}
+  {projeto.modo === "manual"
+    ? projeto.geracaoDiariaManual ?? "---"
+    : projeto.geracaoDiaria ?? "---"}{" "}
+  kWh
+</p>
             <p>
               <strong>Potência pico:</strong> {projeto.potenciaPico} kW
             </p>
@@ -218,11 +242,11 @@ export default function ResumoProjetoPage() {
               {projeto.potenciaInversor || projeto.potenciaInversorManual} kW
             </p>
             <p>
-  <strong>Excedente Unidade:</strong>{" "}
-  {projeto.modo === "manual"
-    ? `${projeto.excedenteUnidadeManual?.toFixed(1) ?? "---"} kWh`
-    : `${projeto.excedenteUnidade?.toFixed(1) ?? "---"} kWh`}
-</p>
+              <strong>Excedente Unidade:</strong>{" "}
+              {projeto.modo === "manual"
+                ? `${projeto.excedenteUnidadeManual?.toFixed(1) ?? "---"} kWh`
+                : `${projeto.excedenteUnidade?.toFixed(1) ?? "---"} kWh`}
+            </p>
             {/* quanto vou pagar */}
             <h2 className="text-lg font-semibold text-amber-400 my-3 border-b border-gray-600 pb-2">
               <span className="mr-2 text-[#fff781] text-xl">
@@ -242,7 +266,7 @@ export default function ResumoProjetoPage() {
         </div>
       </div>
 
-      <div className="flex justify-end items-center gap-6 mt-20">
+      <div className="flex justify-end items-center gap-6 mt-10">
         <button
           type="button"
           onClick={() =>

@@ -50,12 +50,14 @@ export default function QuantidadePlacasPage() {
   const producaoMensalPorModulo = potenciaValida ? (potenciaNumerica / 1000) * irradiacaoSolar * 30 * 0.8 : 0;
   const qtdPlacas = potenciaValida ? Math.ceil(consumoMedioMes / producaoMensalPorModulo) : 0;
   const geracaoMensal = potenciaValida ? producaoMensalPorModulo * qtdPlacas : 0;
+  const geracaoDiaria = geracaoMensal / 30;
   const potenciaPico = potenciaValida ? (qtdPlacas * potenciaNumerica) / 1000 : 0;
   const excedente = potenciaValida && consumoMedioMes > 0 ? ((geracaoMensal - consumoMedioMes) / consumoMedioMes) * 100 : 0;
   const potenciaInversor = potenciaValida ? potenciaPico / 1.2 : 0;
   const excedenteUnidade = geracaoMensal - consumoMedioMes;
 
   const geracaoMensalManual = potenciaValida ? ((qtdManual * potenciaNumerica * 30 * irradiacaoSolar) / 1000) * 0.8 : 0;
+  const geracaoDiariaManual = geracaoMensalManual / 30;
   const potenciaPicoManual = potenciaValida ? (qtdManual * potenciaNumerica) / 1000 : 0;
   const excedenteManual = potenciaValida && consumoMedioMes > 0 ? ((geracaoMensalManual - consumoMedioMes) / consumoMedioMes) * 100 : 0;
   const potenciaInversorManual = potenciaValida ? (((qtdManual * potenciaNumerica) / 1000) / 1.2) : 0;
@@ -76,6 +78,7 @@ export default function QuantidadePlacasPage() {
           qtdPlacasManual: qtdManual,
           potenciaPlaca: potenciaNumerica,
           geracaoMensal: parseFloat(geracaoMensalManual.toFixed(2)),
+          geracaoDiaria: parseFloat(geracaoDiariaManual.toFixed(2)),
           potenciaPico: parseFloat(potenciaPicoManual.toFixed(2)),
           excedente: parseFloat(excedenteManual.toFixed(2)),
           potenciaInversorManual: parseFloat(potenciaInversorManual.toFixed(2)),
@@ -88,6 +91,7 @@ export default function QuantidadePlacasPage() {
           qtdPlacas,
           potenciaPlaca: potenciaNumerica,
           geracaoMensal: parseFloat(geracaoMensal.toFixed(2)),
+          geracaoDiaria: parseFloat(geracaoDiaria.toFixed(2)),
           potenciaPico: parseFloat(potenciaPico.toFixed(2)),
           excedente: parseFloat(excedente.toFixed(2)),
           potenciaInversor: parseFloat(potenciaInversor.toFixed(2)),
@@ -228,6 +232,12 @@ export default function QuantidadePlacasPage() {
                   </span>
                 </p>
                 <p>
+                  Geração diária:{" "}
+                  <span className="font-semibold">
+                    {geracaoDiaria.toFixed(0)} kWh
+                  </span>
+                </p>
+                <p>
                   Potência mínima do Inversor:{" "}
                   <span className="font-semibold">{potenciaInversor.toFixed(1)} kW</span>
                 </p>
@@ -317,6 +327,12 @@ export default function QuantidadePlacasPage() {
                   Geração mensal:{" "}
                   <span className="font-semibold">
                     {geracaoMensalManual.toFixed(0)} kWh
+                  </span>
+                </p>
+                <p>
+                  Geração por dia:{" "}
+                  <span className="font-semibold">
+                    {geracaoDiariaManual.toFixed(0)} kWh
                   </span>
                 </p>
                 <p>

@@ -1,4 +1,4 @@
-// ✅ Página: /proposta/page.tsx
+// 📁 /app/proposta/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,23 +9,26 @@ import { db } from "@/firebase/firebaseConfig";
 export default function PropostaPage() {
   const router = useRouter();
 
-  // Estados para armazenar clientes, projetos e seleções
-  const [clientes, setClientes] = useState<any[]>([]);
-  const [projetos, setProjetos] = useState<any[]>([]);
-  const [clienteSelecionado, setClienteSelecionado] = useState<string>("");
-  const [projetoSelecionado, setProjetoSelecionado] = useState<string>("");
+  // 🧠 Estados principais
+  const [clientes, setClientes] = useState<any[]>([]); // Lista de clientes
+  const [projetos, setProjetos] = useState<any[]>([]); // Lista de projetos do cliente selecionado
+  const [clienteSelecionado, setClienteSelecionado] = useState<string>(""); // ID do cliente selecionado
+  const [projetoSelecionado, setProjetoSelecionado] = useState<string>(""); // ID do projeto selecionado
 
-  // Carrega todos os clientes ao montar o componente
+  // 🚀 Carrega todos os clientes ao montar o componente
   useEffect(() => {
     const fetchClientes = async () => {
       const snapshot = await getDocs(collection(db, "clientes"));
-      const lista = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      const lista = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
       setClientes(lista);
     };
     fetchClientes();
   }, []);
 
-  // Quando o cliente é selecionado, carrega os projetos
+  // 🔄 Quando um cliente é selecionado, carrega os projetos dele
   useEffect(() => {
     if (!clienteSelecionado) return;
 
@@ -33,16 +36,20 @@ export default function PropostaPage() {
       const snapshot = await getDocs(
         collection(db, `clientes/${clienteSelecionado}/projetos`)
       );
-      const lista = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      const lista = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
       setProjetos(lista);
-      setProjetoSelecionado(""); // reseta projeto anterior se mudar cliente
+      setProjetoSelecionado(""); // 🔄 Reseta o projeto se trocar de cliente
     };
     fetchProjetos();
   }, [clienteSelecionado]);
 
-  // Ao clicar em continuar, redireciona para a tela /gerar-proposta
+  // ➡️ Quando clica em "Continuar", redireciona para /proposta/gerar-proposta com os parâmetros
   const handleContinuar = () => {
     if (!clienteSelecionado || !projetoSelecionado) return;
+
     router.push(
       `/proposta/gerar-proposta?clienteId=${clienteSelecionado}&projetoId=${projetoSelecionado}`
     );
@@ -51,6 +58,7 @@ export default function PropostaPage() {
   return (
     <div className="text-white flex justify-center items-center h-[780px] shadow-2xl">
       <div className="p-8 rounded-xl shadow-2xl max-w-xl space-y-6 w-full">
+        {/* 🔖 Cabeçalho da página */}
         <div className="text-center">
           <h1 className="text-2xl font-bold">Gerar Proposta</h1>
           <p className="text-gray-500 text-sm">
@@ -58,7 +66,7 @@ export default function PropostaPage() {
           </p>
         </div>
 
-        {/* Seletor de Cliente */}
+        {/* 📌 Dropdown de cliente */}
         <div>
           <label className="font-medium">Cliente</label>
           <select
@@ -69,13 +77,14 @@ export default function PropostaPage() {
             <option value="">Selecione um cliente</option>
             {clientes.map((cliente) => (
               <option key={cliente.id} value={cliente.id}>
-                {cliente.nomeCliente || "(sem nome)"} - {cliente.telefone || "sem telefone"}
+                {cliente.nomeCliente || "(sem nome)"} -{" "}
+                {cliente.telefone || "sem telefone"}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Seletor de Projeto */}
+        {/* 📌 Dropdown de projeto */}
         {projetos.length > 0 && (
           <div>
             <label className="font-medium">Projeto</label>
@@ -94,7 +103,7 @@ export default function PropostaPage() {
           </div>
         )}
 
-        {/* Botão de continuar */}
+        {/* 🔘 Botão para continuar */}
         <button
           onClick={handleContinuar}
           disabled={!clienteSelecionado || !projetoSelecionado}
