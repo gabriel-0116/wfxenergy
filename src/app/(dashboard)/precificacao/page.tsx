@@ -84,29 +84,30 @@ export default function PrecificacaoPage() {
               ? dadosPrecSnap.data()
               : {};
 
-              projetos.push({
-                id: projetoId,
-                nomeProjeto: dadosProjeto.nomeProjeto,
-                criadoEm: dadosProjeto.criadoEm?.toDate() ?? new Date(),
-                consumoMedioMes: dadosProjeto.consumoMedioMes,
-                consumoMedioDia: dadosProjeto.consumoMedioDia,
-                qtdPlacas: dadosProjeto.qtdPlacas,
-                qtdPlacasManual: dadosProjeto.qtdPlacasManual,
-                modo: dadosProjeto.modo,
-                potenciaPlaca: dadosProjeto.potenciaPlaca,
-                potenciaInversor: dadosProjeto.potenciaInversor,
-                potenciaInversorManual: dadosProjeto.potenciaInversorManual,
-                areaMinimaTotal: dadosProjeto.areaMinimaTotal,
-                totalComImposto: dadosProjeto.totalComImposto,
-                precificacaoId,
-              
-                // ✅ CAMPOS DO DADOSPRECIFICACAO
-                valorFinalProjeto: dadosPrec.valorFinalProjeto || null,
-                parcelaSelecionada: dadosPrec.parcelaSelecionada || null,
-                entrada: dadosPrec.entrada || 0,
-                qtdParcelas: dadosPrec.qtdParcelas || 0,
-                financiamentoSelecionado: dadosPrec.financiamentoSelecionado || null, // ✅ ADICIONA ESTE
-              });
+            projetos.push({
+              id: projetoId,
+              nomeProjeto: dadosProjeto.nomeProjeto,
+              criadoEm: dadosProjeto.criadoEm?.toDate() ?? new Date(),
+              consumoMedioMes: dadosProjeto.consumoMedioMes,
+              consumoMedioDia: dadosProjeto.consumoMedioDia,
+              qtdPlacas: dadosProjeto.qtdPlacas,
+              qtdPlacasManual: dadosProjeto.qtdPlacasManual,
+              modo: dadosProjeto.modo,
+              potenciaPlaca: dadosProjeto.potenciaPlaca,
+              potenciaInversor: dadosProjeto.potenciaInversor,
+              potenciaInversorManual: dadosProjeto.potenciaInversorManual,
+              areaMinimaTotal: dadosProjeto.areaMinimaTotal,
+              totalComImposto: dadosProjeto.totalComImposto,
+              precificacaoId,
+
+              // ✅ CAMPOS DO DADOSPRECIFICACAO
+              valorFinalProjeto: dadosPrec.valorFinalProjeto || null,
+              parcelaSelecionada: dadosPrec.parcelaSelecionada || null,
+              entrada: dadosPrec.entrada || 0,
+              qtdParcelas: dadosPrec.qtdParcelas || 0,
+              financiamentoSelecionado:
+                dadosPrec.financiamentoSelecionado || null, // ✅ ADICIONA ESTE
+            });
           }
         }
 
@@ -642,6 +643,18 @@ export default function PrecificacaoPage() {
                                   </div>
                                 )}
 
+                                {proj.financiamentoSelecionado
+                                  ?.valorParcela && (
+                                  <div>
+                                    <span className="font-bold text-white">
+                                      Valor da Parcela:
+                                    </span>{" "}
+                                    R${" "}
+                                    {proj.financiamentoSelecionado.valorParcela.toFixed(
+                                      2
+                                    )}
+                                  </div>
+                                )}
                                 <div>
                                   <span className="font-bold text-white">
                                     Entrada:

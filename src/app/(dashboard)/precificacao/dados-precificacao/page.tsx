@@ -378,7 +378,9 @@ export default function dadosPrecificacao() {
       localStorage.setItem("alertaHome", "Precificação salva com sucesso!");
 
       // Redireciona para tela inicial
-      router.push("/home");
+      router.push(
+        `/proposta/gerar-proposta?clienteId=${clienteId}&projetoId=${projetoId}&precificacaoId=${precificacaoId}`
+      );
     } catch (error) {
       console.error("Erro ao salvar precificação:", error);
       alert("Erro ao salvar a precificação. Tente novamente.");

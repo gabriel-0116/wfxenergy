@@ -98,8 +98,8 @@ const projetoIdFromUrl = searchParams.get("projetoId");
     const user = auth.currentUser; // pega o usuário autenticado
 
     // Validação: impede continuar se nome ou telefone estiverem vazios
-    if (!nomeCliente || !telefone) {
-      alert("Por favor, preencha o nome e o telefone.");
+    if (!nomeCliente || !telefone || !nomeProjeto.trim()) {
+      alert("Por favor, preencha o nome do cliente, telefone e nome do projeto.");
       return;
     }
 
@@ -208,7 +208,7 @@ if (clienteIdFromUrl && projetoIdFromUrl && !dadosEditados) {
   
 
   return (
-    <div className="text-white flex justify-center items-center h-[780px] shadow-2xl">
+    <div className="text-white flex justify-center items-center h-[675px] shadow-2xl">
       <div className="p-8 rounded-xl shadow-2xl max-w-xl space-y-6 w-full">
         <h2 className="text-2xl font-bold text-center">Novo Projeto</h2>
 
@@ -256,12 +256,13 @@ if (clienteIdFromUrl && projetoIdFromUrl && !dadosEditados) {
 
         {/* Campo opcional de nome do projeto */}
         <input
-          type="text"
-          placeholder="Nome do projeto (opcional)"
-          className="input input-bordered w-full"
-          value={nomeProjeto}
-          onChange={(e) => setNomeProjeto(e.target.value)}
-        />
+  type="text"
+  placeholder="Nome do projeto"
+  className="input input-bordered w-full"
+  value={nomeProjeto}
+  onChange={(e) => setNomeProjeto(e.target.value)}
+  required
+/>
 
         {/* Botão para continuar */}
         <button onClick={handleCriarProjeto} className="btn btn-primary w-full">

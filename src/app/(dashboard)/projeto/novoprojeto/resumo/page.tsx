@@ -8,6 +8,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBolt,
   faFileInvoice,
+  faFolderOpen,
   faPerson,
   faRulerCombined,
   faSackDollar,
@@ -142,17 +143,17 @@ export default function ResumoProjetoPage() {
   return (
     <section className="text-white h-[700px] px-6 py-6 space-y-8">
       <h1 className="text-3xl font-bold text-center">
-        <span className="text-3xl mr-2 text-[#ffc400]">
-          <FontAwesomeIcon icon={faFileInvoice} />
+      Resumo do Projeto Solar
+        <span className="text-3xl ml-5 text-orange-500">
+          <FontAwesomeIcon icon={faFolderOpen} />
         </span>
-        Resumo do Projeto Solar
       </h1>
       <div className="">
         <div className="grid grid-cols-2 gap-6">
           {/* 🧍 Dados do Cliente */}
           <div className="bg-[#1a1a1a] rounded-xl shadow-2xl p-6 space-y-2">
             <h2 className="text-lg font-semibold text-amber-400 mb-3 border-b border-gray-600 pb-2">
-              <span className="mr-2 text-[#d3b793] text-xl">
+              <span className="mr-2 text-zinc-200 text-xl">
                 <FontAwesomeIcon icon={faPerson} />
               </span>
               Dados do Cliente
@@ -168,7 +169,7 @@ export default function ResumoProjetoPage() {
             </p>
             {/* ⚡ Consumo de Energia */}
             <h2 className="text-lg font-semibold text-amber-400 mb-3 border-b border-gray-600 pb-2">
-              <span className="mr-2 text-[#FACC15] text-xl">
+              <span className="mr-2 text-zinc-200 text-xl">
                 <FontAwesomeIcon icon={faBolt} />
               </span>
               Consumo
@@ -183,7 +184,7 @@ export default function ResumoProjetoPage() {
             </p>
             {/* Area minima */}
             <h2 className="text-lg font-semibold text-amber-400 mb-3 border-b border-gray-600 pb-2">
-              <span className="mr-2 text-[#60A5FA] text-xl">
+              <span className="mr-2 text-zinc-200 text-xl">
                 <FontAwesomeIcon icon={faRulerCombined} />
               </span>
               Área Mínima Requerida
@@ -199,7 +200,7 @@ export default function ResumoProjetoPage() {
           {/* ☀️ Sistema Solar */}
           <div className="bg-[#1a1a1a] rounded-xl shadow-xl p-6 space-y-2">
             <h2 className="text-lg font-semibold text-amber-400 mb-3 border-b border-gray-600 pb-2">
-              <span className="mr-2 text-[#404ece] text-xl">
+              <span className="mr-2 text-zinc-200 text-xl">
                 <FontAwesomeIcon icon={faSolarPanel} />
               </span>
               Sistema Solar
@@ -249,7 +250,7 @@ export default function ResumoProjetoPage() {
             </p>
             {/* quanto vou pagar */}
             <h2 className="text-lg font-semibold text-amber-400 my-3 border-b border-gray-600 pb-2">
-              <span className="mr-2 text-[#fff781] text-xl">
+              <span className="mr-2 text-zinc-200 text-xl">
                 <FontAwesomeIcon icon={faSackDollar} />
               </span>
               Quanto vou pagar ?

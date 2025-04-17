@@ -46,15 +46,34 @@ export default function PropostaPage() {
     fetchProjetos();
   }, [clienteSelecionado]);
 
-  // ➡️ Quando clica em "Continuar", redireciona para /proposta/gerar-proposta com os parâmetros
-  const handleContinuar = () => {
+  const handleContinuar = async () => {
     if (!clienteSelecionado || !projetoSelecionado) return;
-
+  
+    // 🔍 Busca a subcoleção de precificações
+    const precRef = collection(
+      db,
+      "clientes",
+      clienteSelecionado,
+      "projetos",
+      projetoSelecionado,
+      "precificacao"
+    );
+  
+    const precSnap = await getDocs(precRef);
+  
+    if (precSnap.empty) {
+      alert("Este projeto ainda não tem dados de precificação.");
+      return;
+    }
+  
+    // 🔁 Pega a mais recente ou a única
+    const ultimaPrecificacao = precSnap.docs[precSnap.docs.length - 1];
+    const precificacaoId = ultimaPrecificacao.id;
+  
     router.push(
-      `/proposta/gerar-proposta?clienteId=${clienteSelecionado}&projetoId=${projetoSelecionado}`
+      `/proposta/gerar-proposta?clienteId=${clienteSelecionado}&projetoId=${projetoSelecionado}&precificacaoId=${precificacaoId}`
     );
   };
-
   return (
     <div className="text-white flex justify-center items-center h-[780px] shadow-2xl">
       <div className="p-8 rounded-xl shadow-2xl max-w-xl space-y-6 w-full">

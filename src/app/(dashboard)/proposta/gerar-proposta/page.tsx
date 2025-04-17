@@ -10,6 +10,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBolt,
   faFileInvoice,
+  faFileSignature,
+  faMoneyBill,
   faPerson,
   faRulerCombined,
   faSackDollar,
@@ -35,25 +37,45 @@ export default function GerarPropostaPage() {
   const [dadosPrecificacao, setDadosPrecificacao] = useState<any>(null);
 
   const printRef = useRef<HTMLDivElement>(null);
-  
+
+  const precificacaoId = searchParams.get("precificacaoId");
 
   useEffect(() => {
+    console.log("🚀 useEffect iniciado com:", {
+      clienteId,
+      projetoId,
+      precificacaoId,
+    });
+
     const fetchData = async () => {
-      if (!clienteId || !projetoId) return;
+      if (!clienteId || !projetoId || !precificacaoId) {
+        console.warn("❌ Algum parâmetro está faltando!");
+        return;
+      }
 
-      const projetoSnap = await getDoc(
-        doc(db, "clientes", clienteId, "projetos", projetoId)
-      );
-      if (projetoSnap.exists()) setProjeto(projetoSnap.data());
+      try {
+        const projetoSnap = await getDoc(
+          doc(db, "clientes", clienteId, "projetos", projetoId)
+        );
+        if (projetoSnap.exists()) {
+          console.log("✅ Projeto carregado");
+          setProjeto(projetoSnap.data());
+        }
 
-      const clienteSnap = await getDoc(doc(db, "clientes", clienteId));
-      if (clienteSnap.exists()) {
-        setCliente(clienteSnap.data());
-        await fetchPrecificacao(); // <- Adiciona isso aqui
+        const clienteSnap = await getDoc(doc(db, "clientes", clienteId));
+        if (clienteSnap.exists()) {
+          console.log("✅ Cliente carregado");
+          setCliente(clienteSnap.data());
+        }
+
+        await fetchPrecificacao();
+      } catch (error) {
+        console.error("❌ Erro no fetchData", error);
       }
     };
+
     fetchData();
-  }, [clienteId, projetoId]);
+  }, [clienteId ?? "", projetoId ?? "", precificacaoId ?? ""]);
 
   // 🔄 Busca templates diretamente do Firebase Storage
   useEffect(() => {
@@ -67,29 +89,15 @@ export default function GerarPropostaPage() {
   }, []);
 
   const fetchPrecificacao = async () => {
-
-    const precificacaoRef = collection(
-      db,
-      "clientes",
-      clienteId!,
-      "projetos",
-      projetoId!,
-      "precificacao"
-    );
-    const precificacoes = await getDocs(precificacaoRef);
-
-    if (precificacoes.empty) return;
-
-    const primeiro = precificacoes.docs[0];
-    const precificacaoId = primeiro.id;
+    if (!clienteId || !projetoId || !precificacaoId) return;
 
     const dadosPrecificacaoSnap = await getDoc(
       doc(
         db,
         "clientes",
-        clienteId!,
+        clienteId,
         "projetos",
-        projetoId!,
+        projetoId,
         "precificacao",
         precificacaoId,
         "dadosPrecificacao",
@@ -98,8 +106,7 @@ export default function GerarPropostaPage() {
     );
 
     if (dadosPrecificacaoSnap.exists()) {
-      const dados = dadosPrecificacaoSnap.data();
-      setDadosPrecificacao(dados); // novo estado
+      setDadosPrecificacao(dadosPrecificacaoSnap.data());
     }
   };
 
@@ -142,10 +149,12 @@ export default function GerarPropostaPage() {
 
   const handleGerarProposta = async () => {
     if (!cliente || !projeto || !templateSelecionado || !dadosPrecificacao) {
-      alert("Ainda carregando dados da precificação. Tente novamente em alguns segundos.");
+      alert(
+        "Ainda carregando dados da precificação. Tente novamente em alguns segundos."
+      );
       return;
     }
-  
+
     setGerando(true);
     try {
       // 🔁 Monta os campos no formato snake_case conforme o template
@@ -176,12 +185,12 @@ export default function GerarPropostaPage() {
         data_assinatura: `${new Date().toLocaleDateString("pt-BR")}`,
         nome_cliente_assinatura: cliente.nomeCliente,
       };
-  
+
       // 🔽 Baixa o template do Firebase Storage
-      const url = `https://firebasestorage.googleapis.com/v0/b/${process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}/o/templates%2F${encodeURIComponent(
-        templateSelecionado
-      )}?alt=media`;
-  
+      const url = `https://firebasestorage.googleapis.com/v0/b/${
+        process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+      }/o/templates%2F${encodeURIComponent(templateSelecionado)}?alt=media`;
+
       console.log("🔗 URL gerada para o template:", url);
 
       const response = await fetch("/api/download-template", {
@@ -189,47 +198,55 @@ export default function GerarPropostaPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ template: templateSelecionado }),
       });
-      
+
       // 📦 Verifica se a resposta é válida
       if (!response.ok) {
-        console.error("❌ Erro ao baixar o template:", response.status, response.statusText);
-        throw new Error("Não foi possível baixar o template do Firebase Storage.");
+        console.error(
+          "❌ Erro ao baixar o template:",
+          response.status,
+          response.statusText
+        );
+        throw new Error(
+          "Não foi possível baixar o template do Firebase Storage."
+        );
       }
-      
+
       // 📎 Verifica o tipo de conteúdo retornado
       console.log("📄 Content-Type:", response.headers.get("Content-Type"));
-      
+
       // ⬇️ Transforma em blob
       const blob = await response.blob();
       console.log("📦 Blob size:", blob.size, "type:", blob.type);
-      
+
       // 💾 Transforma em ArrayBuffer para leitura binária
       const arrayBuffer = await blob.arrayBuffer();
       console.log("🔍 ArrayBuffer byteLength:", arrayBuffer.byteLength);
-      
+
       // 🧪 Teste adicional: verificar se os primeiros bytes são válidos (arquivo zip começa com 0x50 0x4B)
       const bytes = new Uint8Array(arrayBuffer.slice(0, 4));
       console.log("📊 First 4 bytes of file:", bytes);
-      
+
       // Agora tenta carregar no PizZip
       let zip;
       try {
         zip = new PizZip(arrayBuffer);
       } catch (e) {
-        console.error("❌ Erro ao criar PizZip. O arquivo é realmente um .docx válido?", e);
+        console.error(
+          "❌ Erro ao criar PizZip. O arquivo é realmente um .docx válido?",
+          e
+        );
         throw e;
       }
-      
-  
+
       // 🧩 Preenche o template com os campos
       const doc = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
         delimiters: { start: "[[", end: "]]" }, // 👈 isso é essencial
       });
-  
+
       doc.setData(campos);
-  
+
       try {
         doc.render();
       } catch (error) {
@@ -237,16 +254,18 @@ export default function GerarPropostaPage() {
         alert("Erro ao preencher os campos do template.");
         return;
       }
-  
+
       // 💾 Gera o novo .docx preenchido
       const out = doc.getZip().generate({
         type: "blob",
         mimeType:
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       });
-  
-      const nomeArquivo = `Proposta-${cliente.nomeCliente}-${new Date().getTime()}.docx`;
-saveAs(out, nomeArquivo);
+
+      const nomeArquivo = `Proposta-${
+        cliente.nomeCliente
+      }-${new Date().getTime()}.docx`;
+      saveAs(out, nomeArquivo);
     } catch (err) {
       console.error("Erro inesperado:", err);
       alert("Erro inesperado ao gerar proposta.");
@@ -262,20 +281,17 @@ saveAs(out, nomeArquivo);
   return (
     <section className="text-white px-6 py-6 space-y-8">
       <h1 className="text-3xl font-bold text-center">
-        <span className="text-3xl mr-2 text-[#ffc400]">
-          <FontAwesomeIcon icon={faFileInvoice} />
+      Proposta Comercial
+        <span className="text-3xl ml-5 text-purple-500">
+          <FontAwesomeIcon icon={faFileSignature} />
         </span>
-        Proposta Comercial
       </h1>
 
       <div className="grid grid-cols-2 gap-6">
-        {/* Resumo Cliente/Projeto */}
         <div className="bg-[#1a1a1a] rounded-xl shadow-2xl p-6 space-y-2">
-          <h2 className="text-lg font-semibold text-amber-400 mb-3 border-b border-gray-600 pb-2">
-            <FontAwesomeIcon
-              icon={faPerson}
-              className="mr-2 text-xl text-[#d3b793]"
-            />
+          {/* 👤 DADOS DO CLIENTE */}
+          <h2 className="text-lg font-semibold text-yellow-300 mb-3 border-b border-gray-600 pb-2">
+            <FontAwesomeIcon icon={faPerson} className="text-zinc-200 text-xl mr-2" />
             Dados do Cliente
           </h2>
           <p>
@@ -288,10 +304,11 @@ saveAs(out, nomeArquivo);
             <strong>Projeto:</strong> {projeto.nomeProjeto || "Não informado"}
           </p>
 
-          <h2 className="text-lg font-semibold text-amber-400 mb-3 border-b border-gray-600 pb-2">
+          {/* ⚡ CONSUMO */}
+          <h2 className="text-lg font-semibold text-yellow-300 mb-3 border-b border-gray-600 pb-2">
             <FontAwesomeIcon
               icon={faBolt}
-              className="mr-2 text-xl text-yellow-400"
+              className="text-zinc-200 text-xl mr-2"
             />
             Consumo
           </h2>
@@ -302,10 +319,11 @@ saveAs(out, nomeArquivo);
             <strong>Consumo médio diário:</strong> {projeto.consumoMedioDia} kWh
           </p>
 
-          <h2 className="text-lg font-semibold text-amber-400 mb-3 border-b border-gray-600 pb-2">
+          {/* 📏 ÁREA MÍNIMA */}
+          <h2 className="text-lg font-semibold text-yellow-300 mb-3 border-b border-gray-600 pb-2">
             <FontAwesomeIcon
               icon={faRulerCombined}
-              className="mr-2 text-xl text-blue-400"
+              className="text-zinc-200 text-xl mr-2"
             />
             Área Mínima Requerida
           </h2>
@@ -316,14 +334,30 @@ saveAs(out, nomeArquivo);
             <strong>Dimensão da placa:</strong> {projeto.comprimento}m x{" "}
             {projeto.largura}m
           </p>
+          {/* 💸 QUANTO VOU PAGAR */}
+          <h2 className="text-lg font-semibold text-yellow-300 my-3 border-b border-gray-600 pb-2">
+            <FontAwesomeIcon
+              icon={faSackDollar}
+              className="text-zinc-200 text-xl mr-2"
+            />
+            Quanto vou pagar?
+          </h2>
+          <p>
+            <strong>Total com imposto:</strong> R${" "}
+            {projeto.totalComImposto.toFixed(2)}
+          </p>
+          <p>
+            <strong>Total sem imposto:</strong> R${" "}
+            {projeto.totalSemImposto.toFixed(2)}
+          </p>
         </div>
 
-        {/* Resumo Sistema Solar */}
+        {/* ☀️ SISTEMA SOLAR */}
         <div className="bg-[#1a1a1a] rounded-xl shadow-xl p-6 space-y-2">
-          <h2 className="text-lg font-semibold text-amber-400 mb-3 border-b border-gray-600 pb-2">
+          <h2 className="text-lg font-semibold text-yellow-300 mb-3 border-b border-gray-600 pb-2">
             <FontAwesomeIcon
               icon={faSolarPanel}
-              className="mr-2 text-xl text-indigo-400"
+              className="text-zinc-200 text-xl mr-2"
             />
             Sistema Solar
           </h2>
@@ -338,7 +372,18 @@ saveAs(out, nomeArquivo);
             <strong>Potência da placa:</strong> {projeto.potenciaPlaca} W
           </p>
           <p>
-            <strong>Geração mensal:</strong> {projeto.geracaoMensal} kWh
+            <strong>Geração mensal:</strong>{" "}
+            {projeto.modo === "manual"
+              ? projeto.geracaoMensalManual ?? "---"
+              : projeto.geracaoMensal ?? "---"}{" "}
+            kWh
+          </p>
+          <p>
+            <strong>Geração diária:</strong>{" "}
+            {projeto.modo === "manual"
+              ? projeto.geracaoDiariaManual ?? "---"
+              : projeto.geracaoDiaria ?? "---"}{" "}
+            kWh
           </p>
           <p>
             <strong>Potência pico:</strong> {projeto.potenciaPico} kW
@@ -357,22 +402,42 @@ saveAs(out, nomeArquivo);
               : projeto.excedenteUnidade?.toFixed(1)}{" "}
             kWh
           </p>
+          {/* 💰 RESUMO FINANCEIRO */}
+          {dadosPrecificacao && (
+            <div className="">
+              <h2 className="text-lg font-semibold text-yellow-300 mb-3 border-b border-gray-600 pb-2">
+              <FontAwesomeIcon icon={faMoneyBill}
+                  className="text-zinc-200 mr-2"
+                />
+                Resumo Financeiro
+              </h2>
 
-          <h2 className="text-lg font-semibold text-amber-400 my-3 border-b border-gray-600 pb-2">
-            <FontAwesomeIcon
-              icon={faSackDollar}
-              className="mr-2 text-xl text-yellow-200"
-            />
-            Quanto vou pagar?
-          </h2>
-          <p>
-            <strong>Total com imposto:</strong> R${" "}
-            {projeto.totalComImposto.toFixed(2)}
-          </p>
-          <p>
-            <strong>Total sem imposto:</strong> R${" "}
-            {projeto.totalSemImposto.toFixed(2)}
-          </p>
+              <p>
+                <strong>Forma de Pagamento:</strong>{" "}
+                {gerarFormaPagamento(
+                  dadosPrecificacao?.parcelaSelecionada,
+                  dadosPrecificacao?.entrada,
+                  dadosPrecificacao?.financiamentoSelecionado
+                )}
+              </p>
+
+              {dadosPrecificacao?.financiamentoSelecionado && (
+                <>
+                  <p>
+                    <strong>Entrada:</strong> R${" "}
+                    {dadosPrecificacao.entrada?.toFixed(2) ?? "0,00"}
+                  </p>
+                  <p>
+                    <strong>Parcelas:</strong>{" "}
+                    {dadosPrecificacao.financiamentoSelecionado.parcelas}x de R${" "}
+                    {dadosPrecificacao.financiamentoSelecionado.valorParcela.toFixed(
+                      2
+                    )}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -392,12 +457,12 @@ saveAs(out, nomeArquivo);
         >
           <option value="">Selecione um template</option>
           {templatesStorage
-  .filter((t) => t.endsWith(".docx"))
-  .map((template) => (
-    <option key={template} value={template}>
-      {template.replace(".docx", "")}
-    </option>
-))}
+            .filter((t) => t.endsWith(".docx"))
+            .map((template) => (
+              <option key={template} value={template}>
+                {template.replace(".docx", "")}
+              </option>
+            ))}
         </select>
       </div>
 

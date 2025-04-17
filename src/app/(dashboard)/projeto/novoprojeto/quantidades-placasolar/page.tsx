@@ -79,6 +79,8 @@ export default function QuantidadePlacasPage() {
           potenciaPlaca: potenciaNumerica,
           geracaoMensal: parseFloat(geracaoMensalManual.toFixed(2)),
           geracaoDiaria: parseFloat(geracaoDiariaManual.toFixed(2)),
+          geracaoMensalManual: parseFloat(geracaoMensalManual.toFixed(2)), // <- ADICIONE ESTA LINHA
+          geracaoDiariaManual: parseFloat(geracaoDiariaManual.toFixed(2)), // <- E ESTA TAMBÉM
           potenciaPico: parseFloat(potenciaPicoManual.toFixed(2)),
           excedente: parseFloat(excedenteManual.toFixed(2)),
           potenciaInversorManual: parseFloat(potenciaInversorManual.toFixed(2)),
