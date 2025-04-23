@@ -5,11 +5,20 @@ import { initializeApp, cert, getApps } from "firebase-admin/app";
 
 // Inicializa Firebase Admin se ainda não foi
 if (!getApps().length) {
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+    throw new Error("A variável FIREBASE_SERVICE_ACCOUNT_BASE64 está ausente.");
+  }
+
+  const serviceAccount = JSON.parse(
+    Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, "base64").toString("utf-8")
+  );
+
   initializeApp({
-    credential: cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!)),
+    credential: cert(serviceAccount),
     storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   });
 }
+
 
 export async function POST(req: Request) {
   try {
