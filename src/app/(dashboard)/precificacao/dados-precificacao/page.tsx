@@ -151,7 +151,7 @@ export default function dadosPrecificacao() {
       (valorFinanciado * (opcao.taxa / 100)) /
       (1 - Math.pow(1 + 0.02, -opcao.parcelas));
 
-    const totalPago = valorParcela * opcao.parcelas;
+    const totalPago = Math.ceil(opcao.parcelas * valorParcela * 100) / 100;
     const jurosReais = totalPago - valorFinanciado;
     const jurosPercentual = (jurosReais / valorFinanciado) * 100;
     const valorFinalProjeto = totalPago + entrada;
@@ -219,6 +219,7 @@ export default function dadosPrecificacao() {
         if (data.qtdPlacas) {
           setQuantidadePlacas(data.qtdPlacas);
         }
+        
       }
     };
     buscarProjeto();
@@ -258,6 +259,9 @@ export default function dadosPrecificacao() {
         setJuros(data.juros || 0);
         setQtdParcelas(data.qtdParcelas || 1);
         setParcelaSelecionada(data.parcelaSelecionada ?? null);
+        if (Array.isArray(data.opcoesFinanciamento)) {
+          setOpcoesFinanciamento(data.opcoesFinanciamento);
+        }
       }
       setCarregandoDados(false);
     };
@@ -383,8 +387,12 @@ export default function dadosPrecificacao() {
           faturamentoLiquidoPorModulo,
           valorFinanciado,
           parcelaSelecionada,
+          opcoesFinanciamento,
           financiamentoSelecionado: financiamentoSelecionado || null,
-          margemLucroLiquida,
+          margemLucroLiquida:
+            totalVenda > 0
+              ? Math.round((lucroFinalComDescontoEComissao / totalVenda) * 100)
+              : 0,
         },
         { merge: true }
       );
@@ -459,7 +467,10 @@ export default function dadosPrecificacao() {
           faturamentoLiquidoPorModulo,
           valorFinanciado,
           financiamentoSelecionado: financiamentoSelecionado || null,
-          margemLucroLiquida,
+          margemLucroLiquida:
+            totalVenda > 0
+              ? Math.round((lucroFinalComDescontoEComissao / totalVenda) * 100)
+              : 0,
 
           // DADOS DO PROJETO
           consumoMedioMes,
@@ -478,6 +489,7 @@ export default function dadosPrecificacao() {
           geracaoMensalManual,
           geracaoDiaria,
           geracaoDiariaManual,
+          opcoesFinanciamento,
         },
         { merge: true }
       );

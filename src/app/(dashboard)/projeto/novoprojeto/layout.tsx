@@ -12,6 +12,11 @@ export default function NovoClienteLayout({ children }: { children: ReactNode })
   const clienteId = searchParams.get('clienteId')
   const projetoId = searchParams.get('projetoId')
 
+  // Estados para nome do cliente e projeto
+  const [nomeCliente, setNomeCliente] = useState('')
+  const [nomeProjeto, setNomeProjeto] = useState('')
+
+  // Estados já existentes (sem alterações)
   const [mediaConsumoMes, setMediaConsumoMes] = useState<number | null>(null)
   const [consumoMedioDia, setConsumoMedioDia] = useState<number | null>(null)
   const [modo, setModo] = useState<string | null>(null)
@@ -24,15 +29,15 @@ export default function NovoClienteLayout({ children }: { children: ReactNode })
 
   useEffect(() => {
     if (!clienteId || !projetoId) return
-  
-    // 🔄 Escuta em tempo real do documento do projeto
-    const unsubscribe = onSnapshot(
+
+    // Escuta os dados do projeto
+    const unsub = onSnapshot(
       doc(db, 'clientes', clienteId, 'projetos', projetoId),
       (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data()
-  
-          // Atualiza todos os estados conforme os dados
+
+          // Dados para os steps
           if (data.consumoMedioMes !== undefined) setMediaConsumoMes(data.consumoMedioMes)
           if (data.consumoMedioDia !== undefined) setConsumoMedioDia(data.consumoMedioDia)
           if (data.modo !== undefined) setModo(data.modo)
@@ -41,19 +46,25 @@ export default function NovoClienteLayout({ children }: { children: ReactNode })
           if (data.potenciaInversor !== undefined) setPotenciaInversor(data.potenciaInversor)
           if (data.potenciaInversorManual !== undefined) setPotenciaInversorManual(data.potenciaInversorManual)
           if (data.areaMinimaTotal !== undefined) setAreaMinima(data.areaMinimaTotal)
-          if (data.totalComImposto !== undefined) setTotalComImposto(data.totalSemImposto)
+          if (data.totalComImposto !== undefined) setTotalComImposto(data.totalComImposto)
+
+          // Dados para o cabeçalho
+          if (data.nomeProjeto) setNomeProjeto(data.nomeProjeto)
         }
-      },
-      (error) => {
-        console.error('Erro ao escutar projeto em tempo real:', error)
       }
     )
-  
-    // 🚨 Importante: cancela a escuta quando desmontar
-    return () => unsubscribe()
+
+    // Pega nome do cliente separado
+    getDoc(doc(db, 'clientes', clienteId)).then((snap) => {
+      if (snap.exists()) {
+        const data = snap.data()
+        if (data.nomeCliente) setNomeCliente(data.nomeCliente)
+      }
+    })
+
+    return () => unsub()
   }, [clienteId, projetoId])
-  
-  // 🧠 MONTA O RESUMO DE QTD PLACAS + INVERSOR COM BASE NO MODO
+
   const resumoQtdPlacas =
     modo === 'manual'
       ? [
@@ -69,47 +80,26 @@ export default function NovoClienteLayout({ children }: { children: ReactNode })
           .filter(Boolean)
           .join(' | ')
 
-  // 📦 DEFINE OS STEPS COM RESUMOS DINÂMICOS
   const steps = [
-    {
-      label: 'Consumo',
-      path: 'consumo',
-      resumo:
-        mediaConsumoMes !== null && consumoMedioDia !== null
-          ? `${mediaConsumoMes} kWh/mês | ${consumoMedioDia} kWh/dia`
-          : mediaConsumoMes !== null
-          ? `${mediaConsumoMes} kWh/mês`
-          : consumoMedioDia !== null
-          ? `${consumoMedioDia} kWh/dia`
-          : '',
-    },
-    {
-      label: 'Qtd. Placas',
-      path: 'quantidades-placasolar',
-      resumo: resumoQtdPlacas,
-    },
-    {
-      label: 'Área Mínima',
-      path: 'area-minima',
-      resumo: areaMinima !== null ? `${areaMinima.toFixed(2)} m²` : '',
-    },
-    {
-      label: 'Estimativa',
-      path: 'estimativa',
-      resumo: totalComImposto !== null ? `R$ ${totalComImposto.toFixed(2)}` : '',
-    },
-    {
-      label: 'Resumo',
-      path: 'resumo',
-      resumo: '',
-    },
+    { label: 'Consumo', path: 'consumo', resumo: mediaConsumoMes !== null && consumoMedioDia !== null ? `${mediaConsumoMes} kWh/mês | ${consumoMedioDia} kWh/dia` : '' },
+    { label: 'Qtd. Placas', path: 'quantidades-placasolar', resumo: resumoQtdPlacas },
+    { label: 'Área Mínima', path: 'area-minima', resumo: areaMinima !== null ? `${areaMinima.toFixed(2)} m²` : '' },
+    { label: 'Estimativa', path: 'estimativa', resumo: totalComImposto !== null ? `R$ ${totalComImposto.toFixed(2)}` : '' },
+    { label: 'Resumo', path: 'resumo', resumo: '' },
   ]
 
-  const currentStep = steps.findIndex(step => pathname.includes(step.path))
+  const currentStep = steps.findIndex((step) => pathname.includes(step.path))
 
   return (
     <div className="text-white mt-5">
-      {/* Steps */}
+      {/* ✅ CABEÇALHO COM NOME DO CLIENTE E PROJETO */}
+      <div className="mb-4 ml-5 text-start">
+        <p className="text-sm text-gray-400">
+          Nome do Cliente: <span className="font-semibold text-white">{nomeCliente}</span> - Projeto: <span className="text-white">{nomeProjeto}</span>
+        </p>
+      </div>
+
+      {/* STEPS */}
       <ul className="steps w-full mb-5">
         {steps.map((step, index) => (
           <li
@@ -128,7 +118,7 @@ export default function NovoClienteLayout({ children }: { children: ReactNode })
         ))}
       </ul>
 
-      {/* Conteúdo da etapa atual */}
+      {/* CONTEÚDO */}
       <div className="rounded-xl shadow-2xl">{children}</div>
     </div>
   )

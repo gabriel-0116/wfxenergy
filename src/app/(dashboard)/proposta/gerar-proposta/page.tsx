@@ -114,6 +114,12 @@ export default function GerarPropostaPage() {
         ),
         data_assinatura: `${new Date().toLocaleDateString("pt-BR")}`,
         nome_cliente_assinatura: cliente.nomeCliente,
+        consumo_medio_mensal: projeto.modo === "manual"
+          ? projeto.consumoMedioMesManual ?? projeto.consumoMedioMes ?? "---"
+          : projeto.consumoMedioMes ?? projeto.consumoMedioMesManual ?? "---",
+        consumo_medio_diario: projeto.modo === "manual"
+          ? projeto.consumoMedioDiaManual ?? projeto.consumoMedioDia ?? "---"
+          : projeto.consumoMedioDia ?? projeto.consumoMedioDiaManual ?? "---",
       };
 
       const response = await fetch("/api/download-template", {
@@ -166,11 +172,11 @@ export default function GerarPropostaPage() {
 
       {/* ✅ Resumo reutilizável */}
       <ResumoProjeto
-  cliente={cliente}
-  projeto={projeto}
-  dadosPrecificacao={dadosPrecificacao}
-  variante="proposta"
-/>
+        cliente={cliente}
+        projeto={projeto}
+        dadosPrecificacao={dadosPrecificacao}
+        variante="proposta"
+      />
 
       {/* 📄 Seletor de template do Storage */}
       <div className="max-w-md mx-auto text-center">
@@ -210,4 +216,4 @@ export default function GerarPropostaPage() {
       <div ref={printRef} className="absolute top-0 left-0 opacity-0 -z-10 pointer-events-none"></div>
     </section>
   );
-} 
+}
