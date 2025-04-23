@@ -246,7 +246,7 @@ export default function QuantidadePlacasPage() {
                 <p>
                   Pot. Pico Sistema:{" "}
                   <span className="font-semibold">
-                    {potenciaPico.toFixed(2)} kW
+                    {potenciaPico.toFixed(1)} kW
                   </span>
                 </p>
                 <p>
@@ -346,7 +346,7 @@ export default function QuantidadePlacasPage() {
                 <p>
                   Pot. Pico Sistema:{" "}
                   <span className="font-semibold">
-                    {potenciaPicoManual.toFixed(2)} kW
+                    {potenciaPicoManual.toFixed(1)} kW
                   </span>
                 </p>
                 <p>

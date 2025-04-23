@@ -135,13 +135,13 @@ useEffect(() => {
         </div>
 
         {/* CTA destacada */}
-        <div className="bg-[#1e293b] border border-[#334155] rounded-xl py-8 px-4 shadow-md text-center max-w-xl mx-auto">
+        <div className="flex justify-self-center items-center card bg-base-100 shadow-2xl border border-base-300 rounded-xl py-8 px-4 text-center max-w-xl mx-auto transition-transform hover:scale-[1.02]">
           <h3 className="text-xl font-semibold mb-4">
           Pronto para iniciar um novo Projeto ?
           </h3>
           <button
             onClick={() => router.push("/projeto/novoprojeto")}
-            className="flex items-center justify-self-center gap-2 bg-[#6E2279] hover:bg-[#551861] transition-colors px-6 py-2 rounded-lg text-white font-semibold shadow-md hover:scale-[1.02] duration-300 cursor-pointer"
+            className="flex justify-center items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-blue-400 to-indigo-500 hover:from-blue-800 hover:to-indigo-700 transition-all duration-300 shadow-md text-white font-semibold"
           >
             <FontAwesomeIcon icon={faPlus} />
             Iniciar

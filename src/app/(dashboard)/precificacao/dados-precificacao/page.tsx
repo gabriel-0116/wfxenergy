@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/firebase/firebaseConfig";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faClipboard, faGear } from "@fortawesome/free-solid-svg-icons";
+import {
+  faBell,
+  faClipboard,
+  faExclamation,
+  faGear,
+} from "@fortawesome/free-solid-svg-icons";
 import { nomesLegiveis } from "@/utils/nomesLegiveis";
 
 export default function dadosPrecificacao() {
@@ -15,6 +20,7 @@ export default function dadosPrecificacao() {
   const projetoId = searchParams.get("projetoId");
   const router = useRouter();
   const precificacaoId = searchParams.get("precificacaoId");
+  const autoSaveTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // 🔁 Importante: adicione no início do seu componente
   const [consumoMedioMes, setConsumoMedioMes] = useState<number | null>(null);
@@ -33,15 +39,11 @@ export default function dadosPrecificacao() {
   const [potenciaPicoManual, setPotenciaPicoManual] = useState<number | null>(
     null
   );
-  const [geracaoMensal, setGeracaoMensal] = useState<number | null>(
-    null
-  );
+  const [geracaoMensal, setGeracaoMensal] = useState<number | null>(null);
   const [geracaoMensalManual, setGeracaoMensalManual] = useState<number | null>(
     null
   );
-  const [geracaoDiaria, setGeracaoDiaria] = useState<number | null>(
-    null
-  );
+  const [geracaoDiaria, setGeracaoDiaria] = useState<number | null>(null);
   const [geracaoDiariaManual, setGeracaoDiariaManual] = useState<number | null>(
     null
   );
@@ -59,7 +61,7 @@ export default function dadosPrecificacao() {
 
   const [editEletricista, setEditEletricista] = useState(false);
   const [editInfra, setEditInfra] = useState(false);
-  const [editComissao, setEditComissao] = useState(false);
+  const [editComissao, setEditComissao] = useState(true);
   const [entrada, setEntrada] = useState(0);
 
   // Valores por unidade (por placa)
@@ -70,10 +72,10 @@ export default function dadosPrecificacao() {
   // Estados necessários para o card
   const [juros, setJuros] = useState(0); // valor de juros (%)
   const [qtdParcelas, setQtdParcelas] = useState(1); // número de parcelas
-
   const [parcelaSelecionada, setParcelaSelecionada] = useState<
     number | "avista" | null
   >(0);
+  const [carregandoDados, setCarregandoDados] = useState(true);
 
   const custoInfra = quantidadePlacas * valorInfraUnit;
   const custoComissao = editComissao ? quantidadePlacas * valorComissaoUnit : 0;
@@ -105,7 +107,7 @@ export default function dadosPrecificacao() {
     valorPlacaAdvertencia +
     custoEletricista +
     custoInfra +
-    custoComissao;
+    (editComissao ? custoComissao : 0);
 
   // Valor de venda é calculado com margem sobre o kit + duplicação do eletricista + valores fixos
   const valorVendaKit =
@@ -120,21 +122,29 @@ export default function dadosPrecificacao() {
     valorProjeto +
     valorPlacaAdvertencia +
     valorVendaEletricista +
-    custoInfra + // infraestrutura igual custo
-    (editComissao ? custoComissao : 0); // comissão só se ativada
+    custoInfra +
+    (editComissao ? custoComissao : 0); // ✅ Adiciona comissão se estiver ativa
 
   const totalLucro = totalVenda - totalCusto - desconto;
-
   const valorComissaoInterna = (porcentagemComissao / 100) * totalVenda;
-
   const lucroFinalComDescontoEComissao = totalLucro - valorComissaoInterna;
 
-  const faturamentoBrutoPorModulo =
-    totalVenda / (margemLucroBruta / 100) / quantidadePlacas;
+  const placasUsadas =
+    modo === "manual"
+      ? qtdPlacasManual ?? qtdPlacas ?? 0
+      : qtdPlacas ?? qtdPlacasManual ?? 0;
 
-  const faturamentoLiquidoPorModulo = totalLucro - quantidadePlacas;
+  const faturamentoBrutoPorModulo =
+    placasUsadas > 0 ? totalVenda / placasUsadas : 0;
+
+  const faturamentoLiquidoPorModulo =
+    placasUsadas > 0 ? lucroFinalComDescontoEComissao / placasUsadas : 0;
 
   const valorFinanciado = totalVenda - entrada;
+  const margemLucroLiquida =
+    totalVenda > 0
+      ? ((lucroFinalComDescontoEComissao / totalVenda) * 100).toFixed(0)
+      : "0";
 
   const dadosParcelas = opcoesFinanciamento.map((opcao) => {
     const valorParcela =
@@ -187,10 +197,11 @@ export default function dadosPrecificacao() {
         if (data.areaMinimaTotal) setAreaMinima(data.areaMinimaTotal);
         if (data.totalComImposto) setTotalComImposto(data.totalComImposto);
         if (data.geracaoMensal) setGeracaoMensal(data.geracaoMensal);
-        if (data.geracaoMensalManual) setGeracaoMensalManual(data.geracaoMensalManual);
+        if (data.geracaoMensalManual)
+          setGeracaoMensalManual(data.geracaoMensalManual);
         if (data.geracaoDiaria) setGeracaoDiaria(data.geracaoDiaria);
-        if (data.geracaoDiariaManual) setGeracaoDiariaManual(data.geracaoDiariaManual);
-      
+        if (data.geracaoDiariaManual)
+          setGeracaoDiariaManual(data.geracaoDiariaManual);
       }
     };
 
@@ -237,7 +248,9 @@ export default function dadosPrecificacao() {
         setPorcentagemComissao(data.porcentagemComissao || 0);
         setEditEletricista(data.editEletricista || false);
         setEditInfra(data.editInfra || false);
-        setEditComissao(data.editComissao || false);
+        setEditComissao(
+          data.editComissao !== undefined ? data.editComissao : true
+        );
         setValorEletricistaUnit(data.valorEletricistaUnit || 200);
         setValorInfraUnit(data.valorInfraUnit || 62.5);
         setValorComissaoUnit(data.valorComissaoUnit || 50);
@@ -246,6 +259,7 @@ export default function dadosPrecificacao() {
         setQtdParcelas(data.qtdParcelas || 1);
         setParcelaSelecionada(data.parcelaSelecionada ?? null);
       }
+      setCarregandoDados(false);
     };
 
     carregarPrecificacao();
@@ -370,6 +384,7 @@ export default function dadosPrecificacao() {
           valorFinanciado,
           parcelaSelecionada,
           financiamentoSelecionado: financiamentoSelecionado || null,
+          margemLucroLiquida,
         },
         { merge: true }
       );
@@ -386,6 +401,133 @@ export default function dadosPrecificacao() {
       alert("Erro ao salvar a precificação. Tente novamente.");
     }
   };
+
+  // ✅ Função que salva no Firestore sem redirecionar ou alertar
+  const autoSaveFirestore = async () => {
+    if (!clienteId || !projetoId || !precificacaoId) return;
+
+    try {
+      const financiamentoSelecionado =
+        parcelaSelecionada === "avista"
+          ? {
+              parcelas: 1,
+              taxa: 0,
+              valorParcela: totalVenda,
+              totalPago: totalVenda,
+              jurosReais: 0,
+              jurosPercentual: 0,
+              valorFinalProjeto: totalVenda,
+              lucroFinal: totalVenda - totalCusto - valorComissaoInterna,
+            }
+          : dadosParcelas.find((p) => p.parcelas === parcelaSelecionada);
+
+      await setDoc(
+        doc(
+          db,
+          `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}/dadosPrecificacao`,
+          precificacaoId
+        ),
+        {
+          // DADOS MANUAIS
+          kitFotovoltaico,
+          valorProjeto,
+          valorPlacaAdvertencia,
+          margemLucroBruta,
+          desconto,
+          porcentagemComissao,
+          editEletricista,
+          editInfra,
+          editComissao,
+          valorEletricistaUnit,
+          valorInfraUnit,
+          valorComissaoUnit,
+          entrada,
+          juros,
+          qtdParcelas,
+          parcelaSelecionada,
+
+          // DADOS CALCULADOS
+          totalCusto,
+          totalVenda,
+          totalLucro,
+          valorLucroKit,
+          valorVendaKit,
+          valorVendaEletricista,
+          valorComissaoInterna,
+          lucroFinalComDescontoEComissao,
+          faturamentoBrutoPorModulo,
+          faturamentoLiquidoPorModulo,
+          valorFinanciado,
+          financiamentoSelecionado: financiamentoSelecionado || null,
+          margemLucroLiquida,
+
+          // DADOS DO PROJETO
+          consumoMedioMes,
+          consumoMedioDia,
+          modo,
+          qtdPlacas,
+          qtdPlacasManual,
+          potenciaPlaca,
+          potenciaInversor,
+          potenciaInversorManual,
+          potenciaPico,
+          potenciaPicoManual,
+          areaMinimaTotal: areaMinima,
+          totalComImposto,
+          geracaoMensal,
+          geracaoMensalManual,
+          geracaoDiaria,
+          geracaoDiariaManual,
+        },
+        { merge: true }
+      );
+
+      console.log("✅ Auto-save silencioso no Firestore concluído");
+    } catch (error) {
+      console.error("❌ Erro no auto-save:", error);
+    }
+  };
+
+  useEffect(() => {
+    // ⚠️ Não executa o auto-save enquanto os dados estão sendo carregados
+    if (carregandoDados || !clienteId || !projetoId || !precificacaoId) return;
+
+    // 🔄 Limpa o timeout anterior (se o usuário ainda está digitando)
+    if (autoSaveTimeout.current) {
+      clearTimeout(autoSaveTimeout.current);
+    }
+
+    // ⏱️ Aguarda 1s após a última mudança para salvar
+    autoSaveTimeout.current = setTimeout(() => {
+      autoSaveFirestore(); // ✅ Salva sem redirecionar
+    }, 1000);
+
+    // 🔄 Limpa o timeout se desmontar ou mudar muito rápido
+    return () => {
+      if (autoSaveTimeout.current) {
+        clearTimeout(autoSaveTimeout.current);
+      }
+    };
+  }, [
+    carregandoDados,
+    kitFotovoltaico,
+    valorProjeto,
+    valorPlacaAdvertencia,
+    margemLucroBruta,
+    desconto,
+    porcentagemComissao,
+    editComissao,
+    valorComissaoUnit,
+    editEletricista,
+    editInfra,
+    valorEletricistaUnit,
+    valorInfraUnit,
+    entrada,
+    juros,
+    qtdParcelas,
+    parcelaSelecionada,
+    quantidadePlacas,
+  ]);
 
   // RENDER DE INPUT PARA COMISSÃO SE ATIVO
   const renderComissaoRow = (valor: string) =>
@@ -416,8 +558,8 @@ export default function dadosPrecificacao() {
             <strong>
               {modo === "manual"
                 ? geracaoMensalManual ?? "---"
-                : geracaoMensal ?? "---"}
-                {" "}kWh
+                : geracaoMensal ?? "---"}{" "}
+              kWh
             </strong>
           </div>
           <div>
@@ -426,12 +568,12 @@ export default function dadosPrecificacao() {
             <strong>
               {modo === "manual"
                 ? geracaoDiariaManual ?? "---"
-                : geracaoDiaria?? "---"}
-                {" "}kWh
+                : geracaoDiaria ?? "---"}{" "}
+              kWh
             </strong>
           </div>
           <div>
-            <span className="text-gray-400">Consumo Médio Mês:</span>
+            <span className="text-gray-400">Qtd. Placas Usadas</span>
             <br />
             <strong>
               {modo === "manual"
@@ -477,9 +619,9 @@ export default function dadosPrecificacao() {
             <span className="text-gray-400">Potência de Pico:</span>
             <br />
             <strong>
-              {modo === "manual"
-                ? potenciaPicoManual ?? "---"
-                : potenciaPico ?? "---"}{" "}
+              {(modo === "manual"
+                ? potenciaPicoManual ?? potenciaPico
+                : potenciaPico ?? potenciaPicoManual) ?? "---"}{" "}
               kW
             </strong>
           </div>
@@ -504,6 +646,10 @@ export default function dadosPrecificacao() {
               <FontAwesomeIcon icon={faGear} />
             </span>{" "}
             Ajustes de Custos Variáveis
+            <p className="text-gray-500 text-sm font-semibold">
+              <FontAwesomeIcon icon={faBell} className="mr-2" />
+              Selecione o checkbox para incluir a comissão por indicação!!
+            </p>
           </h2>
 
           <div className="flex flex-col gap-5">
@@ -589,9 +735,7 @@ export default function dadosPrecificacao() {
               </tr>
               <tr className="bg-green-300 text-[#1a1a1a] font-semibold">
                 <td className="px-4 py-2">Margem de Lucro Líquida</td>
-                <td className="px-4 py-2 text-right">
-                  {((totalLucro / totalVenda) * 100).toFixed(0)}%
-                </td>
+                <td className="px-4 py-2 text-right">{margemLucroLiquida}%</td>
               </tr>
             </tbody>
           </table>
@@ -993,6 +1137,7 @@ export default function dadosPrecificacao() {
               <th>Juros (%)</th>
               <th>Valor Final do Projeto</th>
               <th>Lucro Final com Financiamento</th>
+              <th>Margem de Lucro</th>
             </tr>
           </thead>
           <tbody className="text-center">
@@ -1025,9 +1170,24 @@ export default function dadosPrecificacao() {
               <td>
                 R$ {(totalVenda - totalCusto - valorComissaoInterna).toFixed(2)}
               </td>
+              <td>
+                {/* ✅ Margem de Lucro = lucroFinal / valorFinal * 100 */}
+                {totalVenda > 0
+                  ? `${(
+                      ((totalVenda - totalCusto - valorComissaoInterna) /
+                        totalVenda) *
+                      100
+                    ).toFixed(0)}%`
+                  : "0%"}
+              </td>
             </tr>
             {dadosParcelas.map((item, index) => {
               const isSelecionado = parcelaSelecionada === item.parcelas;
+
+              const margemDeLucro =
+                item.valorFinalProjeto > 0
+                  ? (item.lucroFinal / item.valorFinalProjeto) * 100
+                  : 0;
 
               return (
                 <tr
@@ -1076,6 +1236,7 @@ export default function dadosPrecificacao() {
                   <td>{item.jurosPercentual.toFixed(0)}%</td>
                   <td>R$ {item.valorFinalProjeto.toFixed(2)}</td>
                   <td>R$ {item.lucroFinal.toFixed(2)}</td>
+                  <td>{margemDeLucro.toFixed(0)}%</td>
                 </tr>
               );
             })}

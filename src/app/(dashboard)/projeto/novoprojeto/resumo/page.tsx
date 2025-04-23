@@ -143,14 +143,14 @@ export default function ResumoProjetoPage() {
   return (
     <section className="text-white h-[700px] px-6 py-6 space-y-8">
       <h1 className="text-3xl font-bold text-center">
-      Resumo do Projeto Solar
+        Resumo do Projeto Solar
         <span className="text-3xl ml-5 text-orange-500">
           <FontAwesomeIcon icon={faFolderOpen} />
         </span>
       </h1>
       <div className="">
         <div className="grid grid-cols-2 gap-6">
-          {/* 🧍 Dados do Cliente */}
+          {/* Dados do Cliente */}
           <div className="bg-[#1a1a1a] rounded-xl shadow-2xl p-6 space-y-2">
             <h2 className="text-lg font-semibold text-amber-400 mb-3 border-b border-gray-600 pb-2">
               <span className="mr-2 text-zinc-200 text-xl">
@@ -158,46 +158,47 @@ export default function ResumoProjetoPage() {
               </span>
               Dados do Cliente
             </h2>
-            <p>
+            <div>
               <strong>Nome:</strong> {clientes?.nomeCliente}
-            </p>
-            <p>
+            </div>
+            <div>
               <strong>Telefone:</strong> {clientes?.telefone}
-            </p>
-            <p>
+            </div>
+            <div>
               <strong>Projeto:</strong> {projeto.nomeProjeto || "Não informado"}
-            </p>
-            {/* ⚡ Consumo de Energia */}
+            </div>
+
             <h2 className="text-lg font-semibold text-amber-400 mb-3 border-b border-gray-600 pb-2">
               <span className="mr-2 text-zinc-200 text-xl">
                 <FontAwesomeIcon icon={faBolt} />
               </span>
               Consumo
             </h2>
-            <p>
+            <div>
               <strong>Consumo médio mensal:</strong> {projeto.consumoMedioMes}{" "}
               kWh
-            </p>
-            <p>
+            </div>
+            <div>
               <strong>Consumo médio diário:</strong> {projeto.consumoMedioDia}{" "}
               kWh
-            </p>
-            {/* Area minima */}
+            </div>
+
             <h2 className="text-lg font-semibold text-amber-400 mb-3 border-b border-gray-600 pb-2">
               <span className="mr-2 text-zinc-200 text-xl">
                 <FontAwesomeIcon icon={faRulerCombined} />
               </span>
               Área Mínima Requerida
             </h2>
-            <p>
+            <div>
               <strong>Área mínima total:</strong> {projeto.areaMinimaTotal} m²
-            </p>
-            <p>
+            </div>
+            <div>
               <strong>Dimensão da placa:</strong> {projeto.comprimento}m x{" "}
               {projeto.largura}m
-            </p>
+            </div>
           </div>
-          {/* ☀️ Sistema Solar */}
+
+          {/* Sistema Solar */}
           <div className="bg-[#1a1a1a] rounded-xl shadow-xl p-6 space-y-2">
             <h2 className="text-lg font-semibold text-amber-400 mb-3 border-b border-gray-600 pb-2">
               <span className="mr-2 text-zinc-200 text-xl">
@@ -205,64 +206,64 @@ export default function ResumoProjetoPage() {
               </span>
               Sistema Solar
             </h2>
-            <p>
+            <div>
               <strong>Modo:</strong>{" "}
               {projeto.modo === "manual" ? "Manual" : "Recomendado"}
-            </p>
-            <p>
+            </div>
+            <div>
               <strong>Qtd. de placas:</strong>{" "}
               {projeto.modo === "manual"
                 ? projeto.qtdPlacasManual ?? "---"
                 : projeto.qtdPlacas ?? "---"}
-            </p>
-            <p>
-              <strong>Potência da placa:</strong> {projeto.potenciaPlaca} W
-            </p>
-            <p>
+            </div>
+            <div>
               <strong>Geração mensal:</strong>{" "}
               {projeto.modo === "manual"
                 ? projeto.geracaoMensalManual ?? "---"
                 : projeto.geracaoMensal ?? "---"}{" "}
               kWh
-            </p>
-            <p>
-  <strong>Geração diária:</strong>{" "}
-  {projeto.modo === "manual"
-    ? projeto.geracaoDiariaManual ?? "---"
-    : projeto.geracaoDiaria ?? "---"}{" "}
-  kWh
-</p>
-            <p>
-              <strong>Potência pico:</strong> {projeto.potenciaPico} kW
-            </p>
-            <p>
+            </div>
+            <div>
+              <strong>Geração diária:</strong>{" "}
+              {projeto.modo === "manual"
+                ? projeto.geracaoDiariaManual ?? "---"
+                : projeto.geracaoDiaria ?? "---"}{" "}
+              kWh
+            </div>
+            <div>
               <strong>Excedente:</strong> {projeto.excedente}%
-            </p>
-            <p>
-              <strong>Potência mínima do inversor:</strong>{" "}
-              {projeto.potenciaInversor || projeto.potenciaInversorManual} kW
-            </p>
-            <p>
+            </div>
+            <div>
               <strong>Excedente Unidade:</strong>{" "}
               {projeto.modo === "manual"
                 ? `${projeto.excedenteUnidadeManual?.toFixed(1) ?? "---"} kWh`
                 : `${projeto.excedenteUnidade?.toFixed(1) ?? "---"} kWh`}
-            </p>
-            {/* quanto vou pagar */}
+            </div>
+            <div>
+              <strong>Potência da placa:</strong> {projeto.potenciaPlaca} W
+            </div>
+            <div>
+              <strong>Potência pico:</strong> {projeto.potenciaPico} kW
+            </div>
+            <div>
+              <strong>Potência mínima do inversor:</strong>{" "}
+              {projeto.potenciaInversor || projeto.potenciaInversorManual} kW
+            </div>
+
             <h2 className="text-lg font-semibold text-amber-400 my-3 border-b border-gray-600 pb-2">
               <span className="mr-2 text-zinc-200 text-xl">
                 <FontAwesomeIcon icon={faSackDollar} />
               </span>
               Quanto vou pagar ?
             </h2>
-            <p>
-              <strong>Total com imposto:</strong> R$
+            <div>
+              <strong>Total com imposto:</strong> R${" "}
               {projeto.totalComImposto.toFixed(2)}
-            </p>
-            <p>
-              <strong>Total sem imposto:</strong> R$
+            </div>
+            <div>
+              <strong>Total sem imposto:</strong> R${" "}
               {projeto.totalSemImposto.toFixed(2)}
-            </p>
+            </div>
           </div>
         </div>
       </div>
@@ -285,7 +286,7 @@ export default function ResumoProjetoPage() {
           type="button"
           className="btn w-40 bg-emerald-500 hover:bg-emerald-600 transition-colors duration-200 shadow-md hover:shadow-lg"
         >
-          <p className="text-white font-semibold">Salvar</p>
+          <span className="text-white font-semibold">Salvar</span>
         </button>
       </div>
     </section>

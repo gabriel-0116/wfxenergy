@@ -1,27 +1,48 @@
-// /api/download-template/route.ts
-import { bucket } from "@/firebase/firebaseAdmin";
-import { NextRequest, NextResponse } from "next/server";
+// app/api/download-template/route.ts
+import { NextResponse } from "next/server";
+import { getStorage } from "firebase-admin/storage";
+import { initializeApp, cert, getApps } from "firebase-admin/app";
 
-export async function POST(req: NextRequest) {
-  const { template } = await req.json();
+// Inicializa Firebase Admin se ainda não foi
+if (!getApps().length) {
+  initializeApp({
+    credential: cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!)),
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  });
+}
 
-  if (!template) {
-    return NextResponse.json({ error: "Nome do template não fornecido." }, { status: 400 });
-  }
-
+export async function POST(req: Request) {
   try {
-    const file = bucket.file(`templates/${template}`);
-    const [buffer] = await file.download();
+    const { template } = await req.json();
 
-    return new NextResponse(buffer, {
-      status: 200,
+    if (!template) {
+      return NextResponse.json(
+        { error: "Template não informado" },
+        { status: 400 }
+      );
+    }
+
+    const bucket = getStorage().bucket();
+    const file = bucket.file(`templates/propostas/${template}`);
+    const [exists] = await file.exists();
+
+    if (!exists) {
+      return NextResponse.json(
+        { error: "Arquivo não encontrado no storage" },
+        { status: 404 }
+      );
+    }
+
+    const [buffer] = await file.download();
+    return new Response(buffer, {
       headers: {
-        "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename=${template}`,
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "Content-Disposition": `attachment; filename="${template}"`,
       },
     });
   } catch (error) {
-    console.error("Erro ao baixar template com Firebase Admin:", error);
-    return NextResponse.json({ error: "Erro ao baixar template" }, { status: 500 });
+    console.error("Erro ao baixar template:", error);
+    return NextResponse.json({ error: "Erro interno" }, { status: 500 });
   }
 }

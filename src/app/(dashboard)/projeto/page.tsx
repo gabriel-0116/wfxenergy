@@ -51,6 +51,7 @@ type ClienteComProjetos = {
   nomeCliente: string;
   telefone: string;
   projetos: Projeto[];
+  statusCliente: "ativo" | "inativo"; // ✅ NOVO CAMPO
 };
 
 export default function ProjetoPage() {
@@ -81,26 +82,24 @@ export default function ProjetoPage() {
         const data = clienteDoc.data();
         const nomeCliente = data.nomeCliente || "Sem nome";
         const telefone = data.telefone || "Sem telefone";
-
+      
         const projetosRef = collection(db, "clientes", clienteId, "projetos");
-
-        // ✅ Ordenando projetos pela data de criação
         const projetosQuery = query(projetosRef, orderBy("criadoEm", "desc"));
         const projetosSnapshot = await getDocs(projetosQuery);
-
+      
         const projetos: Projeto[] = [];
-
+      
         for (const docProj of projetosSnapshot.docs) {
           const p = docProj.data();
           const projetoId = docProj.id;
-
-          // Verifica se há precificação com status 'finalizado'
+      
           const precificacaoSnap = await getDocs(
             collection(
               db,
               `clientes/${clienteId}/projetos/${projetoId}/precificacao`
             )
           );
+      
           let status = "emAndamento";
           precificacaoSnap.forEach((doc) => {
             const prec = doc.data();
@@ -108,7 +107,7 @@ export default function ProjetoPage() {
               status = "finalizado";
             }
           });
-
+      
           projetos.push({
             id: projetoId,
             nomeProjeto: p.nomeProjeto || "Sem nome",
@@ -128,10 +127,20 @@ export default function ProjetoPage() {
             status,
           });
         }
-
-        resultado.push({ id: clienteId, nomeCliente, telefone, projetos });
+      
+        // ✅ pula clientes sem nenhum projeto
+        if (projetos.length === 0) continue;
+      
+        const clienteAtivo = projetos.some((p) => p.status !== "finalizado");
+      
+        resultado.push({
+          id: clienteId,
+          nomeCliente,
+          telefone,
+          projetos,
+          statusCliente: clienteAtivo ? "ativo" : "inativo",
+        });
       }
-
       setClientesComProjetos(resultado);
     };
 
@@ -150,14 +159,28 @@ export default function ProjetoPage() {
       await deleteDoc(doc(db, "clientes", clienteId, "projetos", projetoId));
       showAlert("Projeto excluído com sucesso!", "success");
 
-      setClientesComProjetos((prev) =>
-        prev
-          .map((cliente) => ({
-            ...cliente,
-            projetos: cliente.projetos.filter((p) => p.id !== projetoId),
-          }))
-          .filter((cliente) => cliente.projetos.length > 0)
-      );
+      setClientesComProjetos((prev) => {
+        return prev
+          .map((cliente) => {
+            if (cliente.id === clienteId) {
+              const novosProjetos = cliente.projetos.filter((p) => p.id !== projetoId);
+      
+              // 🔴 Se não sobrar nenhum projeto, remove o cliente
+              if (novosProjetos.length === 0) return null;
+      
+              return {
+                ...cliente,
+                projetos: novosProjetos,
+                statusCliente: novosProjetos.some((p) => p.status !== "finalizado")
+                  ? "ativo"
+                  : "inativo",
+              };
+            }
+      
+            return cliente;
+          })
+          .filter((c): c is ClienteComProjetos => c !== null); // 🧼 Remove os nulls
+      });      
     } catch (error) {
       showAlert("Erro ao excluir projeto!", "error");
     }
@@ -166,7 +189,7 @@ export default function ProjetoPage() {
   return (
     <section className="p-10 bg-[#212325] text-white min-h-screen">
       <div className="flex justify-center mb-10">
-        <div className="bg-[#1e293b] border border-[#334155] rounded-2xl p-8 shadow-xl flex flex-col items-center text-center transition-transform hover:scale-[1.02]">
+        <div className="card bg-base-100 shadow-2xl border border-base-300 rounded-2xl p-8 flex flex-col items-center text-center transition-transform hover:scale-[1.02]">
           <h2 className="text-xl font-semibold mb-6">
             Gostaria de Iniciar um novo Projeto ?
           </h2>
@@ -217,15 +240,7 @@ export default function ProjetoPage() {
                 </span>{" "}
                 Telefone
               </th>
-              <th className="p-4">
-                <span>
-                  <FontAwesomeIcon
-                    icon={faPhone}
-                    className="mr-2 text-red-500"
-                  />
-                </span>{" "}
-                Status
-              </th>
+              <th className="p-4">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -246,20 +261,17 @@ export default function ProjetoPage() {
                     </td>
                     <td className="p-4 text-gray-300">{cliente.telefone}</td>
                     <td className="p-4">
-                      {/* Badge de status dentro da <td> própria da coluna Status */}
-                      {cliente.projetos.length > 0 && (
-                        <span
-                          className={`badge ${
-                            cliente.projetos[0].status === "finalizado"
-                              ? "badge-success"
-                              : "badge-warning"
-                          }`}
-                        >
-                          {cliente.projetos[0].status === "finalizado"
-                            ? "Finalizado"
-                            : "Em Andamento"}
-                        </span>
-                      )}
+                      <span
+                        className={`badge ${
+                          cliente.statusCliente === "ativo"
+                            ? "badge-success"
+                            : "badge-error"
+                        }`}
+                      >
+                        {cliente.statusCliente === "ativo"
+                          ? "Ativo"
+                          : "Inativo"}
+                      </span>
                     </td>
                   </tr>
 
@@ -271,6 +283,20 @@ export default function ProjetoPage() {
                             <div className="flex-1">
                               {/* Projeto + Data + Status */}
                               <div className="flex flex-col sm:flex-row sm:items-center sm:gap-6 mb-2">
+                                <p className="font-semibold text-md flex items-center gap-2">
+                                  Status:{" "}
+                                  <span
+                                    className={`badge ${
+                                      proj.status === "finalizado"
+                                        ? "badge-success"
+                                        : "badge-warning text-black"
+                                    }`}
+                                  >
+                                    {proj.status === "finalizado"
+                                      ? "Finalizado"
+                                      : "Em Andamento"}
+                                  </span>
+                                </p>
                                 <p className="font-semibold text-md flex items-center gap-2">
                                   <FontAwesomeIcon
                                     icon={faFolderOpen}

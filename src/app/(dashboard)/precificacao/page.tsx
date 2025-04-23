@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useConfirm } from "@/context/ConfirmContext";
 import {
   collection,
   query,
@@ -29,18 +30,16 @@ import { ptBR } from "date-fns/locale/pt-BR";
 
 export default function PrecificacaoPage() {
   const router = useRouter();
+  const { confirm } = useConfirm(); // ✅ Importado para confirmação
 
   // Estados dos campos de entrada
   const [nomeCliente, setNomeCliente] = useState("");
   const [telefone, setTelefone] = useState("");
   const [sugestoes, setSugestoes] = useState<string[]>([]);
-  const [clientesComPrecificacao, setClientesComPrecificacao] = useState<any[]>(
-    []
-  );
+  const [clientesComPrecificacao, setClientesComPrecificacao] = useState<any[]>([]);
   const [clienteAberto, setClienteAberto] = useState<string | null>(null);
   const [filtro, setFiltro] = useState("");
 
-  // Função para abrir/fechar clientes
   const toggleCliente = (id: string) => {
     setClienteAberto(clienteAberto === id ? null : id);
   };
@@ -54,35 +53,24 @@ export default function PrecificacaoPage() {
         const clienteId = docCli.id;
         const clienteData = docCli.data();
 
-        const projetosSnap = await getDocs(
-          collection(db, `clientes/${clienteId}/projetos`)
-        );
+        const projetosSnap = await getDocs(collection(db, `clientes/${clienteId}/projetos`));
         const projetos = [];
 
         for (const docProj of projetosSnap.docs) {
           const projetoId = docProj.id;
           const dadosProjeto = docProj.data();
 
-          const precificacaoSnap = await getDocs(
-            collection(
-              db,
-              `clientes/${clienteId}/projetos/${projetoId}/precificacao`
-            )
-          );
+          const precificacaoSnap = await getDocs(collection(db, `clientes/${clienteId}/projetos/${projetoId}/precificacao`));
 
           if (!precificacaoSnap.empty) {
-            const precificacaoDoc = precificacaoSnap.docs[0]; // pega o primeiro
+            const precificacaoDoc = precificacaoSnap.docs[0];
             const precificacaoId = precificacaoDoc.id;
+            const precificacaoData = precificacaoDoc.data();
+            const statusProjeto = precificacaoData.status || "emAndamento";
 
-            const dadosPrecRef = doc(
-              db,
-              `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}/dadosPrecificacao`,
-              precificacaoId
-            );
+            const dadosPrecRef = doc(db, `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}/dadosPrecificacao`, precificacaoId);
             const dadosPrecSnap = await getDoc(dadosPrecRef);
-            const dadosPrec = dadosPrecSnap.exists()
-              ? dadosPrecSnap.data()
-              : {};
+            const dadosPrec = dadosPrecSnap.exists() ? dadosPrecSnap.data() : {};
 
             projetos.push({
               id: projetoId,
@@ -99,17 +87,18 @@ export default function PrecificacaoPage() {
               areaMinimaTotal: dadosProjeto.areaMinimaTotal,
               totalComImposto: dadosProjeto.totalComImposto,
               precificacaoId,
-
-              // ✅ CAMPOS DO DADOSPRECIFICACAO
+              status: statusProjeto,
               valorFinalProjeto: dadosPrec.valorFinalProjeto || null,
               parcelaSelecionada: dadosPrec.parcelaSelecionada || null,
               entrada: dadosPrec.entrada || 0,
               qtdParcelas: dadosPrec.qtdParcelas || 0,
-              financiamentoSelecionado:
-                dadosPrec.financiamentoSelecionado || null, // ✅ ADICIONA ESTE
+              financiamentoSelecionado: dadosPrec.financiamentoSelecionado || null,
+              margemLucroLiquida: Number(dadosPrec.margemLucroLiquida) || 0,
             });
           }
         }
+
+        const clienteAtivo = projetos.some((p: any) => p.status !== "finalizado");
 
         if (projetos.length > 0) {
           lista.push({
@@ -117,6 +106,7 @@ export default function PrecificacaoPage() {
             nomeCliente: clienteData.nomeCliente,
             telefone: clienteData.telefone,
             projetos,
+            statusCliente: clienteAtivo ? "ativo" : "inativo",
           });
         }
       }
@@ -127,28 +117,20 @@ export default function PrecificacaoPage() {
     fetchClientes();
   }, []);
 
-  // Função para excluir um projeto
-  const handleExcluirProjeto = async (
-    clienteId: string,
-    projetoId: string,
-    precificacaoId: string
-  ) => {
+  // 🔥 Agora com confirmação
+  const handleExcluirProjeto = async (clienteId: string, projetoId: string, precificacaoId: string) => {
+    const confirmado = await confirm("Deseja realmente excluir esta precificação?");
+    if (!confirmado) return;
+
     try {
-      await deleteDoc(
-        doc(
-          db,
-          `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}`
-        )
-      );
+      await deleteDoc(doc(db, `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}`));
       setClientesComPrecificacao((prev) =>
         prev
           .map((cli) =>
             cli.id === clienteId
               ? {
                   ...cli,
-                  projetos: cli.projetos.filter(
-                    (p: any) => p.precificacaoId !== precificacaoId
-                  ),
+                  projetos: cli.projetos.filter((p: any) => p.precificacaoId !== precificacaoId),
                 }
               : cli
           )
@@ -199,6 +181,7 @@ export default function PrecificacaoPage() {
       precificacaoId: string;
       criadoEm: Timestamp;
       status: string;
+      margemLucroLiquida: number; 
     }[]
   >([]);
 
@@ -248,7 +231,8 @@ export default function PrecificacaoPage() {
               nomeProjeto: projetoData.nomeProjeto || "Sem nome",
               precificacaoId,
               criadoEm: precificacaoData.criadoEm || Timestamp.now(),
-              status: temContrato ? "finalizado" : "emAndamento",
+              status: precificacaoData.status || "emAndamento",
+              margemLucroLiquida: Number(precificacaoData.margemLucroLiquida) || 0,
             });
           }
         }
@@ -538,16 +522,12 @@ export default function PrecificacaoPage() {
                     </td>
                     <td className="p-4 text-gray-300">{cliente.telefone}</td>
                     <td className="p-4">
-                      {cliente.projetos.every(
-                        (proj: any) => proj.status === "finalizado"
-                      ) ? (
-                        <span className="badge badge-success">Finalizado</span>
-                      ) : (
-                        <span className="badge badge-warning">
-                          Em Andamento
-                        </span>
-                      )}
-                    </td>
+  {cliente.statusCliente === "ativo" ? (
+    <span className="badge badge-success">Ativo</span>
+  ) : (
+    <span className="badge badge-error">Inativo</span>
+  )}
+</td>
                   </tr>
                   {clienteAberto === cliente.id &&
                     cliente.projetos.map((proj: any) => (
@@ -556,6 +536,14 @@ export default function PrecificacaoPage() {
                           <div className="bg-[#1e293b] border border-[#334155] p-5 rounded-lg flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                             <div className="flex-1">
                               <div className="flex flex-col sm:flex-row sm:items-center sm:gap-6 mb-2">
+                              <div>
+    <span className="font-bold text-white">Status:</span>{" "}
+    {proj.status === "finalizado" ? (
+      <span className="badge badge-success">Finalizado</span>
+    ) : (
+      <span className="badge badge-warning">Em Andamento</span>
+    )}
+  </div>
                                 <p className="font-semibold text-md flex items-center gap-2">
                                   <FontAwesomeIcon
                                     icon={faFolderOpen}
@@ -661,6 +649,12 @@ export default function PrecificacaoPage() {
                                   </span>{" "}
                                   R$ {proj.entrada?.toFixed(2) ?? 0}
                                 </div>
+                                <div>
+  <span className="font-bold text-white">
+    Margem de Lucro Líquida:
+  </span>{" "}
+  {proj.margemLucroLiquida?.toFixed(0) ?? 0}%
+</div>
                               </div>
                             </div>
                             <button
