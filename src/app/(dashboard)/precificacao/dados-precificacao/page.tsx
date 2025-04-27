@@ -51,6 +51,7 @@ export default function dadosPrecificacao() {
   const [valorEletricistaUnit, setValorEletricistaUnit] = useState("200"); // ✅ valor padrão
   const [valorInfraUnit, setValorInfraUnit] = useState("62.5"); // ✅ valor padrão
   const [valorComissaoUnit, setValorComissaoUnit] = useState("50"); // ✅ valor padrão
+  const [porcentagemImposto, setPorcentagemImposto] = useState("7"); // valor padrão 7%
   const [desconto, setDesconto] = useState("0"); // ✅ valor padrão
   const [entrada, setEntrada] = useState("0");
   const [potenciaInversorDigitada, setPotenciaInversorDigitada] =
@@ -64,6 +65,7 @@ export default function dadosPrecificacao() {
   >(null);
   const [editEletricista, setEditEletricista] = useState(false);
   const [editInfra, setEditInfra] = useState(false);
+  const [editImposto, setEditImposto] = useState(false); // ativar/desativar imposto
   const [editComissao, setEditComissao] = useState(true);
   const [opcoesFinanciamento, setOpcoesFinanciamento] = useState([
     { parcelas: 12, taxa: 2.3 },
@@ -84,41 +86,45 @@ export default function dadosPrecificacao() {
   const custoComissao = editComissao
     ? numPlacas * parseFloat(valorComissaoUnit || "0")
     : 0;
+    const valorVendaKit =
+      parseFloat(kitFotovoltaico || "0") +
+      (parseFloat(margemLucroBruta || "0") / 100) *
+        parseFloat(kitFotovoltaico || "0") -
+      parseFloat(desconto || "0");
   const valorVendaEletricista = custoEletricista * 2;
   const lucroEletricista = valorVendaEletricista - custoEletricista;
+  const totalVenda =
+  valorVendaKit +
+  parseFloat(valorProjeto || "0") +
+  parseFloat(valorPlacaAdvertencia || "0") +
+  valorVendaEletricista +
+  custoInfra +
+  custoComissao;
+  const custoImposto = editImposto
+  ? (parseFloat(porcentagemImposto || "0") / 100) * totalVenda
+  : 0;
   const totalCusto =
     parseFloat(kitFotovoltaico || "0") +
     parseFloat(valorProjeto || "0") +
     parseFloat(valorPlacaAdvertencia || "0") +
     custoEletricista +
     custoInfra +
-    custoComissao;
-  const valorVendaKit =
-    parseFloat(kitFotovoltaico || "0") +
-    (parseFloat(margemLucroBruta || "0") / 100) *
-      parseFloat(kitFotovoltaico || "0") -
-    parseFloat(desconto || "0");
+    custoComissao +
+    custoImposto; // ✅ novo
   const valorLucroKit = valorVendaKit - parseFloat(kitFotovoltaico || "0");
-  const totalVenda =
-    valorVendaKit +
-    parseFloat(valorProjeto || "0") +
-    parseFloat(valorPlacaAdvertencia || "0") +
-    valorVendaEletricista +
-    custoInfra +
-    custoComissao;
   const valorComissaoInterna =
     (parseFloat(porcentagemComissao || "0") / 100) * totalVenda;
   const totalLucro = totalVenda - totalCusto - parseFloat(desconto || "0");
-  const lucroFinalComDescontoEComissao = totalLucro - valorComissaoInterna;
+  const lucroFinalComDescontoEComissaoEImposto = totalVenda - totalCusto - parseFloat(desconto || "0");
   const placasUsadas = numPlacas;
   const faturamentoBrutoPorModulo =
     placasUsadas > 0 ? totalVenda / placasUsadas : 0;
   const faturamentoLiquidoPorModulo =
-    placasUsadas > 0 ? lucroFinalComDescontoEComissao / placasUsadas : 0;
+    placasUsadas > 0 ? lucroFinalComDescontoEComissaoEImposto / placasUsadas : 0;
   const valorFinanciado = totalVenda - parseFloat(entrada || "0");
   const margemLucroLiquida =
     totalVenda > 0
-      ? ((lucroFinalComDescontoEComissao / totalVenda) * 100).toFixed(0)
+      ? ((lucroFinalComDescontoEComissaoEImposto / totalVenda) * 100).toFixed(0)
       : "0";
 
   const atualizarTaxa = (index: number, novaTaxa: number) => {
@@ -397,8 +403,8 @@ export default function dadosPrecificacao() {
       { nome: "totalVenda", valor: totalVenda },
       { nome: "totalLucro", valor: totalLucro },
       {
-        nome: "lucroFinalComDescontoEComissao",
-        valor: lucroFinalComDescontoEComissao,
+        nome: "lucroFinalComDescontoEComissaoEImposto",
+        valor: lucroFinalComDescontoEComissaoEImposto,
       },
       { nome: "faturamentoBrutoPorModulo", valor: faturamentoBrutoPorModulo },
       {
@@ -485,18 +491,20 @@ export default function dadosPrecificacao() {
           valorVendaKit,
           valorVendaEletricista,
           valorComissaoInterna,
-          lucroFinalComDescontoEComissao,
+          lucroFinalComDescontoEComissaoEImposto,
           faturamentoBrutoPorModulo,
           faturamentoLiquidoPorModulo,
           valorFinanciado,
           opcoesFinanciamento,
+          editImposto, // ✅ Checkbox do imposto (ativo ou não)
+    porcentagemImposto: parseFloat(porcentagemImposto || "7"),
           estruturaProjeto,
           financiamentoSelecionado: financiamentoSelecionado || null,
 
           // 📊 Margem final
           margemLucroLiquida:
             totalVenda > 0
-              ? Math.round((lucroFinalComDescontoEComissao / totalVenda) * 100)
+              ? Math.round((lucroFinalComDescontoEComissaoEImposto / totalVenda) * 100)
               : 0,
         },
         { merge: true }
@@ -543,6 +551,8 @@ export default function dadosPrecificacao() {
       qtdParcelas,
       parcelaSelecionada,
       quantidadePlacas,
+      editImposto, // ✅ adicionar aqui
+  porcentagemImposto,
     };
 
     // 🔎 Compara os dados antigos com os atuais
@@ -611,18 +621,20 @@ export default function dadosPrecificacao() {
           valorVendaKit,
           valorVendaEletricista,
           valorComissaoInterna,
-          lucroFinalComDescontoEComissao,
+          lucroFinalComDescontoEComissaoEImposto,
           faturamentoBrutoPorModulo,
           faturamentoLiquidoPorModulo,
           valorFinanciado,
           opcoesFinanciamento,
+          editImposto, // ✅ Checkbox do imposto (ativo ou não)
+          porcentagemImposto: parseFloat(porcentagemImposto || "7"), // ✅ Porcentagem editável
           estruturaProjeto,
           financiamentoSelecionado: financiamentoSelecionado || null,
 
           // 📊 Margem de lucro
           margemLucroLiquida:
             totalVenda > 0
-              ? Math.round((lucroFinalComDescontoEComissao / totalVenda) * 100)
+              ? Math.round((lucroFinalComDescontoEComissaoEImposto / totalVenda) * 100)
               : 0,
         },
         { merge: true }
@@ -803,7 +815,7 @@ export default function dadosPrecificacao() {
             Ajustes de Custos Variáveis
             <p className="text-gray-500 text-sm font-semibold">
               <FontAwesomeIcon icon={faBell} className="mr-2" />
-              Selecione o checkbox para incluir a comissão por indicação!!
+              Selecione o checkbox para incluir a comissão por indicação e o imposto!!
             </p>
           </h2>
 
@@ -833,6 +845,30 @@ export default function dadosPrecificacao() {
               />
             )}
           </div>
+          {/* IMPOSTO SOBRE NOTA FISCAL */}
+<div className="flex items-center justify-between mt-6">
+  <div className="flex flex-col text-sm text-white">
+    <span className="font-semibold">Imposto Nota Fiscal (%)</span>
+    <span className="text-xs text-gray-400">
+      Valor padrão: 7%
+    </span>
+  </div>
+  <input
+    type="checkbox"
+    className="checkbox"
+    checked={editImposto}
+    onChange={() => setEditImposto(!editImposto)}
+  />
+</div>
+{editImposto && (
+  <input
+    type="text"
+    className="input input-sm input-bordered w-full text-center mt-2"
+    value={porcentagemImposto}
+    onChange={(e) => setPorcentagemImposto(e.target.value)}
+    placeholder="Informe % de imposto"
+  />
+)}
         </div>
 
         {/* TABELA DE RESUMO FINAL */}
@@ -1168,7 +1204,7 @@ export default function dadosPrecificacao() {
                 <div>
                   Final (com dedução comissão):
                   <br />
-                  R$ {lucroFinalComDescontoEComissao.toFixed(2)}
+                  R$ {lucroFinalComDescontoEComissaoEImposto.toFixed(2)}
                 </div>
               </td>
             </tr>

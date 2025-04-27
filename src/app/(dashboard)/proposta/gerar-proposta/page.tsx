@@ -87,6 +87,8 @@ export default function GerarPropostaPage() {
     
     const cpfOuCnpjCampo =
       cliente.tipoPessoa === "pj" ? cliente.cnpj : cliente.cpf;
+
+      const nomeClienteAssinaturaCampo = cliente.tipoPessoa === "pj" ? cliente.razaoSocial : cliente.nomeCliente;
     
       const qtdPlacasUsadas = projeto.modo === "manual"
   ? projeto.qtdPlacasManual || projeto.qtdPlacas || "---"
@@ -103,24 +105,37 @@ export default function GerarPropostaPage() {
         geracao_media: projeto.modo === "manual" ? `${projeto.geracaoMensalManual ?? projeto.geracaoMensal ?? "---"} kWh/mês` : `${projeto.geracaoMensal ?? projeto.geracaoMensalManual ?? "---"} kWh/mês`,
         potencia_placas: `${projeto.potenciaPlaca} W`,
         potencia_instalada: `${projeto.potenciaPico} kWp`,
-        estrutura: "Telhado colonial",
+        estrutura: dadosPrecificacao?.estruturaProjeto || "---",
         quantidade_placas: qtdPlacasUsadas,
         qtd_painel_helius: qtdPlacasUsadas,
         inversor_microinversor: dadosPrecificacao.inversor_microinversor ?? "---",
         nome_projeto: projeto?.nomeProjeto || "---",
         qtd_inversor_microinversor: dadosPrecificacao.qtd_inversor_microinversor ?? "---",
         area_necessaria: `${projeto.areaMinimaTotal} m²`,
-        total_venda: dadosPrecificacao?.totalVenda ? `R$${dadosPrecificacao.totalVenda.toFixed(2)}` : "---",
         potencia_inversor_microinversor: dadosPrecificacao?.potenciaInversorDigitada
         ? `${dadosPrecificacao.potenciaInversorDigitada} kWp`
         : "---",
+        valor_a_vista: dadosPrecificacao?.totalVenda
+  ? `R$ ${dadosPrecificacao.totalVenda.toFixed(2)}`
+  : "---",
+
+total_financiado: (() => {
+  if (!dadosPrecificacao?.financiamentoSelecionado) return "---";
+
+  const entrada = parseFloat(dadosPrecificacao.entrada || "0");
+  const totalPago = dadosPrecificacao.financiamentoSelecionado.totalPago || 0;
+
+  const total = entrada + totalPago;
+
+  return `R$ ${total.toFixed(2)}`;
+})(),
         forma_pagamento: gerarFormaPagamento(
           dadosPrecificacao?.parcelaSelecionada,
           dadosPrecificacao?.entrada,
           dadosPrecificacao?.financiamentoSelecionado
         ),
         data_assinatura: `${new Date().toLocaleDateString("pt-BR")}`,
-        nome_cliente_assinatura: cliente.nomeCliente,
+        nome_cliente_assinatura: nomeClienteAssinaturaCampo || "---",
         consumo_medio_mensal: projeto.modo === "manual"
           ? projeto.consumoMedioMesManual ?? projeto.consumoMedioMes ?? "---"
           : projeto.consumoMedioMes ?? projeto.consumoMedioMesManual ?? "---",
