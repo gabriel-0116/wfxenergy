@@ -39,17 +39,17 @@ export default function ClientesPage() {
     const unsubscribe = onSnapshot(collection(db, "clientes"), (snapshot) => {
       const lista: Cliente[] = snapshot.docs.map((doc) => {
         const data = doc.data();
-
+      
         return {
           id: doc.id,
           nome: data.nomeCliente || "Sem nome",
-          cnpjCpf: data.cpf || data.cnpj || "",
+          cnpjCpf: data.tipoPessoa === "PJ" ? data.cnpj || "" : data.cpf || "", // 👈 AQUI
           telefone: data.telefone || "",
           situacao: data.situacao || "Ativo",
           tipo: data.tipoPessoa === "PJ" ? "Pessoa Jurídica" : "Pessoa Física",
         };
       });
-
+      
       setClientes(lista);
     });
 

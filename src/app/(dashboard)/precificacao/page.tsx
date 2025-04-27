@@ -72,49 +72,48 @@ export default function PrecificacaoPage() {
           );
 
           if (!precificacaoSnap.empty) {
-            const precificacaoDoc = precificacaoSnap.docs[0];
-            const precificacaoId = precificacaoDoc.id;
-            const precificacaoData = precificacaoDoc.data();
-            const statusProjeto = precificacaoData.status || "emAndamento";
-
-            const dadosPrecRef = doc(
-              db,
-              `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}/dadosPrecificacao`,
-              precificacaoId
-            );
-            const dadosPrecSnap = await getDoc(dadosPrecRef);
-            const dadosPrec = dadosPrecSnap.exists()
-              ? dadosPrecSnap.data()
-              : {};
-
-            projetos.push({
-              id: projetoId,
-              nomeProjeto: dadosProjeto.nomeProjeto,
-              criadoEm: dadosProjeto.criadoEm?.toDate() ?? new Date(),
-              consumoMedioMes: dadosProjeto.consumoMedioMes,
-              consumoMedioDia: dadosProjeto.consumoMedioDia,
-              qtdPlacas: dadosProjeto.qtdPlacas,
-              qtdPlacasManual: dadosProjeto.qtdPlacasManual,
-              modo: dadosProjeto.modo,
-              potenciaPlaca: dadosProjeto.potenciaPlaca,
-              potenciaInversor: dadosProjeto.potenciaInversor,
-              potenciaInversorManual: dadosProjeto.potenciaInversorManual,
-              areaMinimaTotal: dadosProjeto.areaMinimaTotal,
-              totalComImposto: dadosProjeto.totalComImposto,
-              precificacaoId,
-              status: statusProjeto,
-              valorFinalProjeto: dadosPrec.valorFinalProjeto || null,
-              parcelaSelecionada: dadosPrec.parcelaSelecionada || null,
-              entrada: dadosPrec.entrada || 0,
-              qtdParcelas: dadosPrec.qtdParcelas || 0,
-              financiamentoSelecionado:
-                dadosPrec.financiamentoSelecionado || null,
-                margemLucroLiquida:
-                dadosPrec.margemLucroLiquida !== undefined &&
-                dadosPrec.margemLucroLiquida !== null
-                  ? Number(dadosPrec.margemLucroLiquida)
-                  : null,              
-            });
+            for (const precificacaoDoc of precificacaoSnap.docs) {
+              const precificacaoId = precificacaoDoc.id;
+              const precificacaoData = precificacaoDoc.data();
+              
+              const dadosPrecRef = doc(
+                db,
+                `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}/dadosPrecificacao`,
+                precificacaoId
+              );
+              const dadosPrecSnap = await getDoc(dadosPrecRef);
+              const dadosPrec = dadosPrecSnap.exists()
+                ? dadosPrecSnap.data()
+                : {};
+            
+                projetos.push({
+                  id: projetoId, // ✅ agora o ID é só o projetoId correto
+                  projetoId: projetoId, // ✅ salva o projetoId separado para usar depois
+                  nomeProjeto: dadosProjeto.nomeProjeto,
+                  criadoEm: dadosProjeto.criadoEm?.toDate() ?? new Date(),
+                  consumoMedioMes: dadosProjeto.consumoMedioMes,
+                  consumoMedioDia: dadosProjeto.consumoMedioDia,
+                  qtdPlacas: dadosProjeto.qtdPlacas,
+                  qtdPlacasManual: dadosProjeto.qtdPlacasManual,
+                  modo: dadosProjeto.modo,
+                  potenciaPlaca: dadosProjeto.potenciaPlaca,
+                  potenciaInversor: dadosProjeto.potenciaInversor,
+                  potenciaInversorManual: dadosProjeto.potenciaInversorManual,
+                  areaMinimaTotal: dadosProjeto.areaMinimaTotal,
+                  totalComImposto: dadosProjeto.totalComImposto,
+                  precificacaoId,
+                  status: precificacaoData.status || "emAndamento",
+                  valorFinalProjeto: dadosPrec.valorFinalProjeto || null,
+                  parcelaSelecionada: dadosPrec.parcelaSelecionada || null,
+                  entrada: dadosPrec.entrada || 0,
+                  qtdParcelas: dadosPrec.qtdParcelas || 0,
+                  financiamentoSelecionado: dadosPrec.financiamentoSelecionado || null,
+                  margemLucroLiquida: dadosPrec.margemLucroLiquida !== undefined && dadosPrec.margemLucroLiquida !== null
+                    ? Number(dadosPrec.margemLucroLiquida)
+                    : null,
+                });
+                ;
+            }
           }
         }
 
@@ -149,14 +148,26 @@ export default function PrecificacaoPage() {
       "Deseja realmente excluir esta precificação?"
     );
     if (!confirmado) return;
-
+  
     try {
+      // ✅ Deleta o dadosPrecificacao primeiro
+      await deleteDoc(
+        doc(
+          db,
+          `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}/dadosPrecificacao`,
+          precificacaoId
+        )
+      );
+  
+      // ✅ Depois deleta a precificação
       await deleteDoc(
         doc(
           db,
           `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}`
         )
       );
+  
+      // Atualiza a tela removendo
       setClientesComPrecificacao((prev) =>
         prev
           .map((cli) =>
@@ -567,7 +578,7 @@ export default function PrecificacaoPage() {
                   </tr>
                   {clienteAberto === cliente.id &&
                     cliente.projetos.map((proj: any) => (
-                      <tr key={proj.id}>
+                      <tr key={`${proj.projetoId}_${proj.precificacaoId}`}>
                         <td colSpan={3} className="">
                           <div className="bg-[#1e293b] border border-[#334155] p-5 rounded-lg flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                             <div className="flex-1">
@@ -701,24 +712,20 @@ export default function PrecificacaoPage() {
                             </div>
                             <button
                               onClick={() =>
-                                handleVerProjeto(
-                                  cliente.id,
-                                  proj.id,
-                                  proj.precificacaoId
-                                )
+                                handleVerProjeto(cliente.id, proj.projetoId, proj.precificacaoId)
                               }
                               className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg shadow-2xl transition duration-300"
                             >
                               Ver Precificação
                             </button>
                             <button
-                              onClick={() =>
-                                handleExcluirProjeto(
-                                  cliente.id,
-                                  proj.id,
-                                  proj.precificacaoId
-                                )
-                              }
+                        onClick={() =>
+                          handleExcluirProjeto(
+                            cliente.id,
+                            proj.id.split("_")[0], // ✅ separa o projetoId
+                            proj.precificacaoId
+                          )
+                        }
                               className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm transition"
                             >
                               Excluir

@@ -7,6 +7,7 @@ import { db } from "@/firebase/firebaseConfig";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBell,
+  faBolt,
   faClipboard,
   faExclamation,
   faGear,
@@ -14,7 +15,6 @@ import {
 import { nomesLegiveis } from "@/utils/nomesLegiveis";
 
 export default function dadosPrecificacao() {
-  // Captura os parâmetros da URL (clienteId e projetoId)
   const searchParams = useSearchParams();
   const clienteId = searchParams.get("clienteId");
   const projetoId = searchParams.get("projetoId");
@@ -22,64 +22,49 @@ export default function dadosPrecificacao() {
   const precificacaoId = searchParams.get("precificacaoId");
   const autoSaveTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // 🔁 Importante: adicione no início do seu componente
-  const [consumoMedioMes, setConsumoMedioMes] = useState<number | null>(null);
-  const [consumoMedioDia, setConsumoMedioDia] = useState<number | null>(null);
-  const [modo, setModo] = useState<string | null>(null);
+  // 🔁 Estados de projeto
+  const [modo, setModo] = useState("recomendado");
   const [qtdPlacas, setQtdPlacas] = useState<number | null>(null);
   const [qtdPlacasManual, setQtdPlacasManual] = useState<number | null>(null);
-  const [potenciaInversor, setPotenciaInversor] = useState<number | null>(null);
-  const [potenciaInversorManual, setPotenciaInversorManual] = useState<
-    number | null
+  const [carregandoDados, setCarregandoDados] = useState(false);
+  const [potenciaInversor, setPotenciaInversor] = useState(0);
+  const [potenciaInversorManual, setPotenciaInversorManual] = useState(0);
+  const [areaMinima, setAreaMinima] = useState(0);
+  const [potenciaPlaca, setPotenciaPlaca] = useState(0);
+  const [potenciaPico, setPotenciaPico] = useState(0);
+  const [potenciaPicoManual, setPotenciaPicoManual] = useState(0);
+  const [geracaoMensal, setGeracaoMensal] = useState(0);
+  const [geracaoMensalManual, setGeracaoMensalManual] = useState(0);
+  const [geracaoDiaria, setGeracaoDiaria] = useState(0);
+  const [geracaoDiariaManual, setGeracaoDiariaManual] = useState(0);
+  const [totalComImposto, setTotalComImposto] = useState(0);
+  const [consumoMedioMes, setConsumoMedioMes] = useState(0);
+  const [consumoMedioDia, setConsumoMedioDia] = useState(0);
+  const [estruturaProjeto, setEstruturaProjeto] = useState("");
+
+  // 🔧 Valores editáveis como string para permitir apagar "0"
+  const [kitFotovoltaico, setKitFotovoltaico] = useState("");
+  const [valorProjeto, setValorProjeto] = useState("62.7"); // ✅ valor padrão
+  const [valorPlacaAdvertencia, setValorPlacaAdvertencia] = useState("60"); // ✅ valor padrão
+  const [margemLucroBruta, setMargemLucroBruta] = useState("27"); // ✅ já tá certo
+  const [porcentagemComissao, setPorcentagemComissao] = useState("3"); // ✅ valor padrão
+  const [valorEletricistaUnit, setValorEletricistaUnit] = useState("200"); // ✅ valor padrão
+  const [valorInfraUnit, setValorInfraUnit] = useState("62.5"); // ✅ valor padrão
+  const [valorComissaoUnit, setValorComissaoUnit] = useState("50"); // ✅ valor padrão
+  const [desconto, setDesconto] = useState("0"); // ✅ valor padrão
+  const [entrada, setEntrada] = useState("0");
+  const [potenciaInversorDigitada, setPotenciaInversorDigitada] =
+    useState<string>("");
+  const [juros, setJuros] = useState("0");
+  const [qtdParcelas, setQtdParcelas] = useState("1");
+  const [tipoInversor, setTipoInversor] = useState("");
+  const [quantidadeInversor, setQuantidadeInversor] = useState("");
+  const [parcelaSelecionada, setParcelaSelecionada] = useState<
+    number | "avista" | null
   >(null);
-  const [areaMinima, setAreaMinima] = useState<number | null>(null);
-  const [totalComImposto, setTotalComImposto] = useState<number | null>(null);
-  const [potenciaPlaca, setPotenciaPlaca] = useState<number | null>(null);
-  const [potenciaPico, setPotenciaPico] = useState<number | null>(null);
-  const [potenciaPicoManual, setPotenciaPicoManual] = useState<number | null>(
-    null
-  );
-  const [geracaoMensal, setGeracaoMensal] = useState<number | null>(null);
-  const [geracaoMensalManual, setGeracaoMensalManual] = useState<number | null>(
-    null
-  );
-  const [geracaoDiaria, setGeracaoDiaria] = useState<number | null>(null);
-  const [geracaoDiariaManual, setGeracaoDiariaManual] = useState<number | null>(
-    null
-  );
-
-  // Dados vindos do banco e inputs editáveis
-  const [quantidadePlacas, setQuantidadePlacas] = useState<number>(0);
-  const [kitFotovoltaico, setKitFotovoltaico] = useState(""); // em string por causa do input de texto
-  const [valorProjeto, setValorProjeto] = useState(62.57);
-  const [valorPlacaAdvertencia, setValorPlacaAdvertencia] = useState(60.0);
-
-  // Margem de lucro e desconto
-  const [margemLucroBruta, setMargemLucroBruta] = useState(27); // valor padrão 27%
-  const [desconto, setDesconto] = useState(0); // valor manual
-  const [porcentagemComissao, setPorcentagemComissao] = useState(3); // padrão 3%
-
   const [editEletricista, setEditEletricista] = useState(false);
   const [editInfra, setEditInfra] = useState(false);
   const [editComissao, setEditComissao] = useState(true);
-  const [entrada, setEntrada] = useState(0);
-
-  // Valores por unidade (por placa)
-  const [valorEletricistaUnit, setValorEletricistaUnit] = useState(200);
-  const [valorInfraUnit, setValorInfraUnit] = useState(62.5);
-  const [valorComissaoUnit, setValorComissaoUnit] = useState(50);
-
-  // Estados necessários para o card
-  const [juros, setJuros] = useState(0); // valor de juros (%)
-  const [qtdParcelas, setQtdParcelas] = useState(1); // número de parcelas
-  const [parcelaSelecionada, setParcelaSelecionada] = useState<
-    number | "avista" | null
-  >(0);
-  const [carregandoDados, setCarregandoDados] = useState(true);
-
-  const custoInfra = quantidadePlacas * valorInfraUnit;
-  const custoComissao = editComissao ? quantidadePlacas * valorComissaoUnit : 0;
-
   const [opcoesFinanciamento, setOpcoesFinanciamento] = useState([
     { parcelas: 12, taxa: 2.3 },
     { parcelas: 18, taxa: 2.5 },
@@ -89,11 +74,52 @@ export default function dadosPrecificacao() {
     { parcelas: 60, taxa: 3.3 },
     { parcelas: 72, taxa: 3.5 },
   ]);
+  const [quantidadePlacas, setQuantidadePlacas] = useState<string>("0");
+  const [dadosAntigos, setDadosAntigos] = useState<any>({});
 
   const placas = modo === "manual" ? qtdPlacasManual : qtdPlacas;
-  const custoEletricista = (placas || 0) * valorEletricistaUnit;
+  const numPlacas = placas || 0;
+  const custoEletricista = numPlacas * parseFloat(valorEletricistaUnit || "0");
+  const custoInfra = numPlacas * parseFloat(valorInfraUnit || "0");
+  const custoComissao = editComissao
+    ? numPlacas * parseFloat(valorComissaoUnit || "0")
+    : 0;
   const valorVendaEletricista = custoEletricista * 2;
   const lucroEletricista = valorVendaEletricista - custoEletricista;
+  const totalCusto =
+    parseFloat(kitFotovoltaico || "0") +
+    parseFloat(valorProjeto || "0") +
+    parseFloat(valorPlacaAdvertencia || "0") +
+    custoEletricista +
+    custoInfra +
+    custoComissao;
+  const valorVendaKit =
+    parseFloat(kitFotovoltaico || "0") +
+    (parseFloat(margemLucroBruta || "0") / 100) *
+      parseFloat(kitFotovoltaico || "0") -
+    parseFloat(desconto || "0");
+  const valorLucroKit = valorVendaKit - parseFloat(kitFotovoltaico || "0");
+  const totalVenda =
+    valorVendaKit +
+    parseFloat(valorProjeto || "0") +
+    parseFloat(valorPlacaAdvertencia || "0") +
+    valorVendaEletricista +
+    custoInfra +
+    custoComissao;
+  const valorComissaoInterna =
+    (parseFloat(porcentagemComissao || "0") / 100) * totalVenda;
+  const totalLucro = totalVenda - totalCusto - parseFloat(desconto || "0");
+  const lucroFinalComDescontoEComissao = totalLucro - valorComissaoInterna;
+  const placasUsadas = numPlacas;
+  const faturamentoBrutoPorModulo =
+    placasUsadas > 0 ? totalVenda / placasUsadas : 0;
+  const faturamentoLiquidoPorModulo =
+    placasUsadas > 0 ? lucroFinalComDescontoEComissao / placasUsadas : 0;
+  const valorFinanciado = totalVenda - parseFloat(entrada || "0");
+  const margemLucroLiquida =
+    totalVenda > 0
+      ? ((lucroFinalComDescontoEComissao / totalVenda) * 100).toFixed(0)
+      : "0";
 
   const atualizarTaxa = (index: number, novaTaxa: number) => {
     const novaLista = [...opcoesFinanciamento];
@@ -101,61 +127,28 @@ export default function dadosPrecificacao() {
     setOpcoesFinanciamento(novaLista);
   };
 
-  const totalCusto =
-    parseFloat(kitFotovoltaico || "0") +
-    valorProjeto +
-    valorPlacaAdvertencia +
-    custoEletricista +
-    custoInfra +
-    (editComissao ? custoComissao : 0);
-
-  // Valor de venda é calculado com margem sobre o kit + duplicação do eletricista + valores fixos
-  const valorVendaKit =
-    parseFloat(kitFotovoltaico || "0") +
-    (margemLucroBruta / 100) * parseFloat(kitFotovoltaico || "0") -
-    desconto;
-
-  const valorLucroKit = valorVendaKit - parseFloat(kitFotovoltaico || "0");
-
-  const totalVenda =
-    valorVendaKit +
-    valorProjeto +
-    valorPlacaAdvertencia +
-    valorVendaEletricista +
-    custoInfra +
-    (editComissao ? custoComissao : 0); // ✅ Adiciona comissão se estiver ativa
-
-  const totalLucro = totalVenda - totalCusto - desconto;
-  const valorComissaoInterna = (porcentagemComissao / 100) * totalVenda;
-  const lucroFinalComDescontoEComissao = totalLucro - valorComissaoInterna;
-
-  const placasUsadas =
-    modo === "manual"
-      ? qtdPlacasManual ?? qtdPlacas ?? 0
-      : qtdPlacas ?? qtdPlacasManual ?? 0;
-
-  const faturamentoBrutoPorModulo =
-    placasUsadas > 0 ? totalVenda / placasUsadas : 0;
-
-  const faturamentoLiquidoPorModulo =
-    placasUsadas > 0 ? lucroFinalComDescontoEComissao / placasUsadas : 0;
-
-  const valorFinanciado = totalVenda - entrada;
-  const margemLucroLiquida =
-    totalVenda > 0
-      ? ((lucroFinalComDescontoEComissao / totalVenda) * 100).toFixed(0)
-      : "0";
-
   const dadosParcelas = opcoesFinanciamento.map((opcao) => {
+    const entradaNumber = parseFloat(entrada || "0");
+    const totalCustoNumber = parseFloat(totalCusto?.toString() || "0");
+    const valorComissaoInternaNumber = parseFloat(
+      valorComissaoInterna?.toString() || "0"
+    );
+    const valorFinanciadoNumber = totalVenda - entradaNumber;
+
     const valorParcela =
-      (valorFinanciado * (opcao.taxa / 100)) /
+      (valorFinanciadoNumber * (opcao.taxa / 100)) /
       (1 - Math.pow(1 + 0.02, -opcao.parcelas));
 
     const totalPago = Math.ceil(opcao.parcelas * valorParcela * 100) / 100;
-    const jurosReais = totalPago - valorFinanciado;
-    const jurosPercentual = (jurosReais / valorFinanciado) * 100;
-    const valorFinalProjeto = totalPago + entrada;
-    const lucroFinal = valorFinalProjeto - totalCusto - valorComissaoInterna;
+    const jurosReais = totalPago - valorFinanciadoNumber;
+    const jurosPercentual =
+      valorFinanciadoNumber > 0
+        ? (jurosReais / valorFinanciadoNumber) * 100
+        : 0;
+
+    const valorFinalProjeto = totalPago + entradaNumber;
+    const lucroFinal =
+      valorFinalProjeto - totalCustoNumber - valorComissaoInternaNumber;
 
     return {
       ...opcao,
@@ -171,55 +164,41 @@ export default function dadosPrecificacao() {
   useEffect(() => {
     const buscarProjeto = async () => {
       if (!clienteId || !projetoId) return;
+      try {
+        const docRef = doc(db, `clientes/${clienteId}/projetos/${projetoId}`);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const data = snap.data();
 
-      const docRef = doc(db, `clientes/${clienteId}/projetos/${projetoId}`);
-      const snap = await getDoc(docRef);
-
-      if (snap.exists()) {
-        const data = snap.data();
-
-        // Já existia
-        if (data.qtdPlacas) setQuantidadePlacas(data.qtdPlacas);
-
-        // 👇 Adiciona os novos estados aqui
-        if (data.consumoMedioMes) setConsumoMedioMes(data.consumoMedioMes);
-        if (data.consumoMedioDia) setConsumoMedioDia(data.consumoMedioDia);
-        if (data.modo) setModo(data.modo);
-        if (data.qtdPlacas) setQtdPlacas(data.qtdPlacas);
-        if (data.qtdPlacasManual) setQtdPlacasManual(data.qtdPlacasManual);
-        if (data.potenciaPlaca) setPotenciaPlaca(data.potenciaPlaca);
-        if (data.potenciaInversor) setPotenciaInversor(data.potenciaInversor);
-        if (data.potenciaPico) setPotenciaPico(data.potenciaPico);
-        if (data.potenciaPicoManual)
-          setPotenciaPicoManual(data.potenciaPicoManual);
-        if (data.potenciaInversorManual)
-          setPotenciaInversorManual(data.potenciaInversorManual);
-        if (data.areaMinimaTotal) setAreaMinima(data.areaMinimaTotal);
-        if (data.totalComImposto) setTotalComImposto(data.totalComImposto);
-        if (data.geracaoMensal) setGeracaoMensal(data.geracaoMensal);
-        if (data.geracaoMensalManual)
-          setGeracaoMensalManual(data.geracaoMensalManual);
-        if (data.geracaoDiaria) setGeracaoDiaria(data.geracaoDiaria);
-        if (data.geracaoDiariaManual)
-          setGeracaoDiariaManual(data.geracaoDiariaManual);
-      }
-    };
-
-    buscarProjeto();
-  }, [clienteId, projetoId]);
-
-  // BUSCAR DADOS DO FIRESTORE
-  useEffect(() => {
-    const buscarProjeto = async () => {
-      if (!clienteId || !projetoId) return;
-      const docRef = doc(db, `clientes/${clienteId}/projetos/${projetoId}`);
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const data = snap.data();
-        if (data.qtdPlacas) {
-          setQuantidadePlacas(data.qtdPlacas);
+          if (data.qtdPlacas) setQuantidadePlacas(String(data.qtdPlacas));
+          if (data.qtdPlacas) setQtdPlacas(data.qtdPlacas);
+          if (data.qtdPlacasManual) setQtdPlacasManual(data.qtdPlacasManual);
+          if (data.consumoMedioMes) setConsumoMedioMes(data.consumoMedioMes);
+          if (data.consumoMedioDia) setConsumoMedioDia(data.consumoMedioDia);
+          if (data.modo) setModo(data.modo);
+          if (data.qtdPlacas) {
+            setQuantidadePlacas(String(data.qtdPlacas)); // ✅ para input tipo string
+            setQtdPlacas(data.qtdPlacas); // ✅ se for usado como number nos cálculos
+          }
+          if (data.qtdPlacasManual) setQtdPlacasManual(data.qtdPlacasManual);
+          if (data.potenciaPlaca) setPotenciaPlaca(data.potenciaPlaca);
+          if (data.potenciaInversor) setPotenciaInversor(data.potenciaInversor);
+          if (data.potenciaPico) setPotenciaPico(data.potenciaPico);
+          if (data.potenciaPicoManual)
+            setPotenciaPicoManual(data.potenciaPicoManual);
+          if (data.potenciaInversorManual)
+            setPotenciaInversorManual(data.potenciaInversorManual);
+          if (data.areaMinimaTotal) setAreaMinima(data.areaMinimaTotal);
+          if (data.totalComImposto) setTotalComImposto(data.totalComImposto);
+          if (data.geracaoMensal) setGeracaoMensal(data.geracaoMensal);
+          if (data.geracaoMensalManual)
+            setGeracaoMensalManual(data.geracaoMensalManual);
+          if (data.geracaoDiaria) setGeracaoDiaria(data.geracaoDiaria);
+          if (data.geracaoDiariaManual)
+            setGeracaoDiariaManual(data.geracaoDiariaManual);
         }
-        
+      } catch (error) {
+        console.error("Erro ao buscar projeto:", error);
       }
     };
     buscarProjeto();
@@ -228,46 +207,155 @@ export default function dadosPrecificacao() {
   useEffect(() => {
     const carregarPrecificacao = async () => {
       if (!clienteId || !projetoId || !precificacaoId) return;
-
-      // Caminho correto para buscar os dados salvos
-      const docRef = doc(
-        db,
-        `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}/dadosPrecificacao`,
-        precificacaoId
-      );
-      const snap = await getDoc(docRef);
-
-      if (snap.exists()) {
-        const data = snap.data();
-
-        // Agora sim, recuperando o kitFotovoltaico salvo corretamente
-        setKitFotovoltaico(data.kitFotovoltaico || "");
-        setValorProjeto(data.valorProjeto || 0);
-        setValorPlacaAdvertencia(data.valorPlacaAdvertencia || 0);
-        setMargemLucroBruta(data.margemLucroBruta || 0);
-        setDesconto(data.desconto || 0);
-        setPorcentagemComissao(data.porcentagemComissao || 0);
-        setEditEletricista(data.editEletricista || false);
-        setEditInfra(data.editInfra || false);
-        setEditComissao(
-          data.editComissao !== undefined ? data.editComissao : true
+      setCarregandoDados(true);
+      try {
+        const docRef = doc(
+          db,
+          `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}/dadosPrecificacao`,
+          precificacaoId
         );
-        setValorEletricistaUnit(data.valorEletricistaUnit || 200);
-        setValorInfraUnit(data.valorInfraUnit || 62.5);
-        setValorComissaoUnit(data.valorComissaoUnit || 50);
-        setEntrada(data.entrada || 0);
-        setJuros(data.juros || 0);
-        setQtdParcelas(data.qtdParcelas || 1);
-        setParcelaSelecionada(data.parcelaSelecionada ?? null);
-        if (Array.isArray(data.opcoesFinanciamento)) {
-          setOpcoesFinanciamento(data.opcoesFinanciamento);
+        const snap = await getDoc(docRef);
+
+        if (snap.exists()) {
+          const data = snap.data();
+
+          // 🔥 Corrigido: usando !== undefined para aceitar 0 como valor válido
+          setKitFotovoltaico(
+            data.kitFotovoltaico !== undefined
+              ? String(data.kitFotovoltaico)
+              : "0"
+          );
+          setValorProjeto(
+            data.valorProjeto !== undefined ? String(data.valorProjeto) : "62.7"
+          );
+          setValorPlacaAdvertencia(
+            data.valorPlacaAdvertencia !== undefined
+              ? String(data.valorPlacaAdvertencia)
+              : "60"
+          );
+          setMargemLucroBruta(
+            data.margemLucroBruta !== undefined
+              ? String(data.margemLucroBruta)
+              : "27"
+          );
+          setDesconto(
+            data.desconto !== undefined ? String(data.desconto) : "0"
+          );
+          setPorcentagemComissao(
+            data.porcentagemComissao !== undefined
+              ? String(data.porcentagemComissao)
+              : "3"
+          );
+
+          setValorEletricistaUnit(
+            data.valorEletricistaUnit !== undefined
+              ? String(data.valorEletricistaUnit)
+              : "200"
+          );
+          setValorInfraUnit(
+            data.valorInfraUnit !== undefined
+              ? String(data.valorInfraUnit)
+              : "62.5"
+          );
+          setValorComissaoUnit(
+            data.valorComissaoUnit !== undefined
+              ? String(data.valorComissaoUnit)
+              : "50"
+          );
+
+          setEntrada(data.entrada !== undefined ? String(data.entrada) : "0");
+          setJuros(data.juros !== undefined ? String(data.juros) : "0");
+          setQtdParcelas(
+            data.qtdParcelas !== undefined ? String(data.qtdParcelas) : "1"
+          );
+
+          setEditEletricista(data.editEletricista ?? false);
+          setEditInfra(data.editInfra ?? false);
+          setEstruturaProjeto(data.estruturaProjeto ?? "");
+          setEditComissao(
+            data.editComissao !== undefined ? data.editComissao : true
+          );
+
+          setParcelaSelecionada(data.parcelaSelecionada ?? null);
+          setTipoInversor(data.tipoInversor ?? "");
+          setQuantidadeInversor(
+            data.quantidadeInversor !== undefined
+              ? String(data.quantidadeInversor)
+              : "0"
+          );
+
+          if (Array.isArray(data.opcoesFinanciamento)) {
+            setOpcoesFinanciamento(data.opcoesFinanciamento);
+          }
+          if (data.potenciaInversorDigitada !== undefined) {
+            setPotenciaInversorDigitada(data.potenciaInversorDigitada);
+          }
+
+          // 🔥 Atualiza dadosAntigos corretamente
+          setDadosAntigos({
+            kitFotovoltaico: String(data.kitFotovoltaico ?? "0"),
+            valorProjeto: String(data.valorProjeto ?? "62.7"),
+            valorPlacaAdvertencia: String(data.valorPlacaAdvertencia ?? "60"),
+            margemLucroBruta: String(data.margemLucroBruta ?? "27"),
+            desconto: String(data.desconto ?? "0"),
+            porcentagemComissao: String(data.porcentagemComissao ?? "3"),
+            valorEletricistaUnit: String(data.valorEletricistaUnit ?? "200"),
+            valorInfraUnit: String(data.valorInfraUnit ?? "62.5"),
+            valorComissaoUnit: String(data.valorComissaoUnit ?? "50"),
+            entrada: String(data.entrada ?? "0"),
+            juros: String(data.juros ?? "0"),
+            qtdParcelas: String(data.qtdParcelas ?? "1"),
+            parcelaSelecionada: data.parcelaSelecionada ?? null,
+            quantidadePlacas: "0",
+          });
+        } else {
+          // 🆕 Se não existe precificação, carrega valores padrão
+          setKitFotovoltaico("0");
+          setValorProjeto("62.7");
+          setValorPlacaAdvertencia("60");
+          setMargemLucroBruta("27");
+          setDesconto("0");
+          setPorcentagemComissao("3");
+          setValorEletricistaUnit("200");
+          setValorInfraUnit("62.5");
+          setValorComissaoUnit("50");
+          setEntrada("0");
+          setJuros("0");
+          setQtdParcelas("1");
+          setQuantidadeInversor("0");
+          setPotenciaInversorDigitada("0");
+          setParcelaSelecionada(null);
+          setEditEletricista(false);
+          setEditInfra(false);
+          setEditComissao(true);
+          setEstruturaProjeto("");
+
+          setDadosAntigos({
+            kitFotovoltaico: "0",
+            valorProjeto: "62.7",
+            valorPlacaAdvertencia: "60",
+            margemLucroBruta: "27",
+            desconto: "0",
+            porcentagemComissao: "3",
+            valorEletricistaUnit: "200",
+            valorInfraUnit: "62.5",
+            valorComissaoUnit: "50",
+            entrada: "0",
+            juros: "0",
+            qtdParcelas: "1",
+            parcelaSelecionada: null,
+            quantidadePlacas: "0",
+          });
         }
+      } catch (error) {
+        console.error("Erro ao carregar precificação:", error);
+      } finally {
+        setCarregandoDados(false);
       }
-      setCarregandoDados(false);
     };
 
     carregarPrecificacao();
-  }, [clienteId, projetoId, precificacaoId]); // ⬅ adicione o `precificacaoId` como dependência
+  }, [clienteId, projetoId, precificacaoId]);
 
   const salvarPrecificacao = async () => {
     if (!clienteId || !projetoId || !precificacaoId) {
@@ -278,8 +366,8 @@ export default function dadosPrecificacao() {
     // VALIDAÇÃO dos campos obrigatórios da precificação
     const camposObrigatorios: { nome: string; valor: any }[] = [
       // Valores principais
-      { nome: "kitFotovoltaico", valor: kitFotovoltaico },
-      { nome: "valorProjeto", valor: valorProjeto },
+      { nome: "kitFotovoltaico", valor: kitFotovoltaico.trim() },
+      { nome: "valorProjeto", valor: valorProjeto.trim() },
       { nome: "valorPlacaAdvertencia", valor: valorPlacaAdvertencia },
       { nome: "margemLucroBruta", valor: margemLucroBruta },
       { nome: "desconto", valor: desconto },
@@ -302,7 +390,7 @@ export default function dadosPrecificacao() {
       { nome: "parcelaSelecionada", valor: parcelaSelecionada },
 
       // Dados técnicos
-      { nome: "quantidadePlacas", valor: quantidadePlacas },
+      { nome: "quantidadePlacas", valor: String(quantidadePlacas).trim() },
 
       // Valores calculados importantes
       { nome: "totalCusto", valor: totalCusto },
@@ -318,6 +406,8 @@ export default function dadosPrecificacao() {
         valor: faturamentoLiquidoPorModulo,
       },
       { nome: "valorFinanciado", valor: valorFinanciado },
+      { nome: "tipoInversor", valor: tipoInversor },
+      { nome: "quantidadeInversor", valor: quantidadeInversor },
     ];
 
     const camposFaltando = camposObrigatorios.filter(
@@ -360,21 +450,34 @@ export default function dadosPrecificacao() {
           precificacaoId
         ),
         {
-          kitFotovoltaico,
-          valorProjeto,
-          valorPlacaAdvertencia,
-          margemLucroBruta,
-          desconto,
-          porcentagemComissao,
+          // 🔢 Campos editáveis como string → convertidos para número
+          kitFotovoltaico: parseFloat(kitFotovoltaico || "0"),
+          valorProjeto: parseFloat(valorProjeto || "62.7"), // 🆕 Valor padrão 62.7
+          valorPlacaAdvertencia: parseFloat(valorPlacaAdvertencia || "60"), // 🆕 Valor padrão 60
+          margemLucroBruta: parseFloat(margemLucroBruta || "27"), // 🆕 Valor padrão 27%
+          desconto: parseFloat(desconto || "0"),
+          porcentagemComissao: parseFloat(porcentagemComissao || "3"), // 🆕 Valor padrão 3%
+          entrada: parseFloat(entrada || "0"),
+          juros: parseFloat(juros || "0"),
+
+          qtdParcelas: parseInt(qtdParcelas || "1"),
+
+          // 🔵 Valores de custo unitário com valor padrão
+          valorEletricistaUnit: parseFloat(valorEletricistaUnit || "200"), // 🆕 Valor padrão 200
+          valorInfraUnit: parseFloat(valorInfraUnit || "62.5"), // 🆕 Valor padrão 62.5
+          valorComissaoUnit: parseFloat(valorComissaoUnit || "50"), // 🆕 Valor padrão 50
+
+          // ⚙️ Booleans e enums
           editEletricista,
           editInfra,
           editComissao,
-          valorEletricistaUnit,
-          valorInfraUnit,
-          valorComissaoUnit,
-          entrada,
-          juros,
-          qtdParcelas,
+          parcelaSelecionada,
+          tipoInversor,
+
+          // 🔧 Campos novos de inversor (digitados como string)
+          quantidadeInversor: parseFloat(quantidadeInversor || "0"),
+          potenciaInversorDigitada: parseFloat(potenciaInversorDigitada || "0"),
+          // 💰 Dados calculados (já estão como número)
           totalCusto,
           totalVenda,
           totalLucro,
@@ -386,9 +489,11 @@ export default function dadosPrecificacao() {
           faturamentoBrutoPorModulo,
           faturamentoLiquidoPorModulo,
           valorFinanciado,
-          parcelaSelecionada,
           opcoesFinanciamento,
+          estruturaProjeto,
           financiamentoSelecionado: financiamentoSelecionado || null,
+
+          // 📊 Margem final
           margemLucroLiquida:
             totalVenda > 0
               ? Math.round((lucroFinalComDescontoEComissao / totalVenda) * 100)
@@ -410,11 +515,48 @@ export default function dadosPrecificacao() {
     }
   };
 
-  // ✅ Função que salva no Firestore sem redirecionar ou alertar
+  // 🔥 Função de auto-save corrigida
   const autoSaveFirestore = async () => {
     if (!clienteId || !projetoId || !precificacaoId) return;
 
+    // 🛡️ Proteção: Se ainda estiver carregando dados, não faz nada
+    if (carregandoDados) {
+      console.log(
+        "⏩ Auto-save bloqueado porque ainda está carregando dados..."
+      );
+      return;
+    }
+
+    // 📦 Captura os dados atuais
+    const dadosAtuais = {
+      kitFotovoltaico,
+      valorProjeto,
+      valorPlacaAdvertencia,
+      margemLucroBruta,
+      desconto,
+      porcentagemComissao,
+      valorEletricistaUnit,
+      valorInfraUnit,
+      valorComissaoUnit,
+      entrada,
+      juros,
+      qtdParcelas,
+      parcelaSelecionada,
+      quantidadePlacas,
+    };
+
+    // 🔎 Compara os dados antigos com os atuais
+    const mudouAlgo =
+      JSON.stringify(dadosAntigos) !== JSON.stringify(dadosAtuais);
+
+    if (!mudouAlgo) {
+      console.log("⏩ Nada mudou, não salvou no Firestore.");
+      return;
+    }
+
     try {
+      console.log("✅ Mudou, salvando no Firestore...");
+
       const financiamentoSelecionado =
         parcelaSelecionada === "avista"
           ? {
@@ -436,25 +578,32 @@ export default function dadosPrecificacao() {
           precificacaoId
         ),
         {
-          // DADOS MANUAIS
-          kitFotovoltaico,
-          valorProjeto,
-          valorPlacaAdvertencia,
-          margemLucroBruta,
-          desconto,
-          porcentagemComissao,
+          // 🔢 Conversões numéricas corretas
+          kitFotovoltaico: parseFloat(kitFotovoltaico || "0"),
+          valorProjeto: parseFloat(valorProjeto || "62.7"),
+          valorPlacaAdvertencia: parseFloat(valorPlacaAdvertencia || "60"),
+          margemLucroBruta: parseFloat(margemLucroBruta || "27"),
+          desconto: parseFloat(desconto || "0"),
+          porcentagemComissao: parseFloat(porcentagemComissao || "3"),
+          entrada: parseFloat(entrada || "0"),
+          juros: parseFloat(juros || "0"),
+          qtdParcelas: parseInt(qtdParcelas.toString() || "1"),
+          valorEletricistaUnit: parseFloat(valorEletricistaUnit || "200"),
+          valorInfraUnit: parseFloat(valorInfraUnit || "62.5"),
+          valorComissaoUnit: parseFloat(valorComissaoUnit || "50"),
+
+          // ⚙️ Booleanos e enums
           editEletricista,
           editInfra,
           editComissao,
-          valorEletricistaUnit,
-          valorInfraUnit,
-          valorComissaoUnit,
-          entrada,
-          juros,
-          qtdParcelas,
           parcelaSelecionada,
+          tipoInversor,
 
-          // DADOS CALCULADOS
+          // 🔧 Campos adicionais
+          quantidadeInversor: parseFloat(quantidadeInversor || "0"),
+          potenciaInversorDigitada: parseFloat(potenciaInversorDigitada || "0"),
+
+          // 💰 Dados calculados
           totalCusto,
           totalVenda,
           totalLucro,
@@ -466,30 +615,15 @@ export default function dadosPrecificacao() {
           faturamentoBrutoPorModulo,
           faturamentoLiquidoPorModulo,
           valorFinanciado,
+          opcoesFinanciamento,
+          estruturaProjeto,
           financiamentoSelecionado: financiamentoSelecionado || null,
+
+          // 📊 Margem de lucro
           margemLucroLiquida:
             totalVenda > 0
               ? Math.round((lucroFinalComDescontoEComissao / totalVenda) * 100)
               : 0,
-
-          // DADOS DO PROJETO
-          consumoMedioMes,
-          consumoMedioDia,
-          modo,
-          qtdPlacas,
-          qtdPlacasManual,
-          potenciaPlaca,
-          potenciaInversor,
-          potenciaInversorManual,
-          potenciaPico,
-          potenciaPicoManual,
-          areaMinimaTotal: areaMinima,
-          totalComImposto,
-          geracaoMensal,
-          geracaoMensalManual,
-          geracaoDiaria,
-          geracaoDiariaManual,
-          opcoesFinanciamento,
         },
         { merge: true }
       );
@@ -501,27 +635,32 @@ export default function dadosPrecificacao() {
   };
 
   useEffect(() => {
-    // ⚠️ Não executa o auto-save enquanto os dados estão sendo carregados
-    if (carregandoDados || !clienteId || !projetoId || !precificacaoId) return;
+    if (!clienteId || !projetoId || !precificacaoId) return;
 
-    // 🔄 Limpa o timeout anterior (se o usuário ainda está digitando)
+    // 🛡️ Não dispara auto-save se estiver carregando ainda
+    if (carregandoDados) {
+      console.log("⏩ Esperando terminar o carregamento...");
+      return;
+    }
+
+    // 🔄 Limpa timeout antigo (se existia)
     if (autoSaveTimeout.current) {
       clearTimeout(autoSaveTimeout.current);
     }
 
-    // ⏱️ Aguarda 1s após a última mudança para salvar
+    // ⏱️ Aguardar 1s para salvar
     autoSaveTimeout.current = setTimeout(() => {
-      autoSaveFirestore(); // ✅ Salva sem redirecionar
+      autoSaveFirestore();
     }, 1000);
 
-    // 🔄 Limpa o timeout se desmontar ou mudar muito rápido
+    // 🔄 Limpeza se desmontar ou atualizar muito rápido
     return () => {
       if (autoSaveTimeout.current) {
         clearTimeout(autoSaveTimeout.current);
       }
     };
   }, [
-    carregandoDados,
+    carregandoDados, // 🔥 Adicionado para controlar corretamente
     kitFotovoltaico,
     valorProjeto,
     valorPlacaAdvertencia,
@@ -632,8 +771,12 @@ export default function dadosPrecificacao() {
             <br />
             <strong>
               {(modo === "manual"
-                ? potenciaPicoManual ?? potenciaPico
-                : potenciaPico ?? potenciaPicoManual) ?? "---"}{" "}
+                ? potenciaPicoManual > 0
+                  ? potenciaPicoManual
+                  : potenciaPico
+                : potenciaPico > 0
+                ? potenciaPico
+                : potenciaPicoManual) ?? "---"}{" "}
               kW
             </strong>
           </div>
@@ -652,7 +795,7 @@ export default function dadosPrecificacao() {
 
       <div className="flex justify-between mb-6">
         {/* CARD DE AJUSTE DE VALORES */}
-        <div className="bg-[#1a1a1a] p-5 rounded-2xl shadow-xl w-full max-w-md border border-base-300">
+        <div className="bg-[#1a1a1a] p-5 rounded-2xl shadow-2xl w-full max-w-md border border-base-300">
           <h2 className="font-bold text-white text-lg mb-4 text-center gap-2">
             <span className="text-gray-400">
               <FontAwesomeIcon icon={faGear} />
@@ -682,10 +825,10 @@ export default function dadosPrecificacao() {
             </div>
             {editComissao && (
               <input
-                type="number"
+                type="text"
                 className="input input-sm input-bordered w-full text-center"
                 value={valorComissaoUnit}
-                onChange={(e) => setValorComissaoUnit(Number(e.target.value))}
+                onChange={(e) => setValorComissaoUnit(e.target.value)}
                 placeholder="Informe valor por placa"
               />
             )}
@@ -709,12 +852,10 @@ export default function dadosPrecificacao() {
                 </td>
                 <td className="px-4 py-2 text-right">
                   <input
-                    type="number"
+                    type="text"
                     className="input input-sm input-bordered w-24 text-right"
                     value={margemLucroBruta}
-                    onChange={(e) =>
-                      setMargemLucroBruta(Number(e.target.value))
-                    }
+                    onChange={(e) => setMargemLucroBruta(e.target.value)}
                   />
                 </td>
               </tr>
@@ -738,10 +879,10 @@ export default function dadosPrecificacao() {
                 <td className="font-semibold px-4 py-2">Desconto</td>
                 <td className="px-4 py-2 text-right">
                   <input
-                    type="number"
+                    type="text"
                     className="input input-sm input-bordered w-24 text-right"
                     value={desconto}
-                    onChange={(e) => setDesconto(Number(e.target.value))}
+                    onChange={(e) => setDesconto(e.target.value)}
                   />
                 </td>
               </tr>
@@ -775,12 +916,10 @@ export default function dadosPrecificacao() {
                 {/* Porcentagem editável */}
                 <td>
                   <input
-                    type="number"
+                    type="text"
                     className="input input-sm input-bordered w-20 text-center"
                     value={porcentagemComissao}
-                    onChange={(e) =>
-                      setPorcentagemComissao(Number(e.target.value))
-                    }
+                    onChange={(e) => setPorcentagemComissao(e.target.value)}
                   />
                 </td>
 
@@ -855,47 +994,55 @@ export default function dadosPrecificacao() {
             <tr>
               <td className="text-center">
                 <input
-                  type="number"
+                  type="text"
                   className="input input-sm input-bordered w-32 text-center"
                   value={valorProjeto}
-                  onChange={(e) => setValorProjeto(parseFloat(e.target.value))}
+                  onChange={(e) => setValorProjeto(e.target.value)}
                 />
               </td>
             </tr>
             <tr>
               <td className="text-center">
                 <input
-                  type="number"
+                  type="text"
                   className="input input-sm input-bordered w-32 text-center"
                   value={valorPlacaAdvertencia}
-                  onChange={(e) =>
-                    setValorPlacaAdvertencia(parseFloat(e.target.value))
-                  }
+                  onChange={(e) => setValorPlacaAdvertencia(e.target.value)}
                 />
               </td>
             </tr>
             <tr>
-              <td className="text-center">
+              <td className="text-center flex justify-between">
+                <p className="flex text-center justify-center items-center mr-5">
+                  {placasUsadas} x
+                </p>
                 <input
-                  type="number"
+                  type="text"
                   className="input input-sm input-bordered w-32 text-center"
                   value={valorEletricistaUnit}
-                  onChange={(e) =>
-                    setValorEletricistaUnit(Number(e.target.value))
-                  }
+                  onChange={(e) => setValorEletricistaUnit(e.target.value)}
                   placeholder="R$"
                 />
+                <p className="flex text-center justify-center items-center">
+                  = {lucroEletricista}
+                </p>
               </td>
             </tr>
             <tr>
-              <td className="text-center">
+              <td className="text-center flex justify-between">
+                <p className="flex text-center justify-center items-center mr-5">
+                  {placasUsadas} x
+                </p>
                 <input
-                  type="number"
+                  type="text"
                   className="input input-sm input-bordered w-32 text-center"
                   value={valorInfraUnit}
-                  onChange={(e) => setValorInfraUnit(Number(e.target.value))}
+                  onChange={(e) => setValorInfraUnit(e.target.value)}
                   placeholder="R$"
                 />
+                <p className="flex text-center justify-center items-center">
+                  = {custoInfra}
+                </p>
               </td>
             </tr>
             {editComissao && (
@@ -930,12 +1077,12 @@ export default function dadosPrecificacao() {
             </tr>
             <tr>
               <td className="text-center">
-                <p>R$ {valorProjeto.toFixed(2)}</p>
+                <p>R$ {parseFloat(valorProjeto || "0").toFixed(2)}</p>
               </td>
             </tr>
             <tr>
               <td className="text-center">
-                <p>R$ {valorPlacaAdvertencia.toFixed(2)}</p>
+                <p>R$ {parseFloat(valorPlacaAdvertencia || "0").toFixed(2)}</p>
               </td>
             </tr>
             <tr>
@@ -990,7 +1137,9 @@ export default function dadosPrecificacao() {
             </tr>
             <tr>
               <td className="text-center">
-                <p>R$ {lucroEletricista.toFixed(2)}</p>
+                <p>
+                  R$ {parseFloat(lucroEletricista.toString() || "0").toFixed(2)}
+                </p>
               </td>
             </tr>
             <tr>
@@ -1046,13 +1195,9 @@ export default function dadosPrecificacao() {
                 <td className="px-4 py-2 font-medium bg-zinc-800">Entrada</td>
                 <td className="px-4 py-2 text-right bg-zinc-900">
                   <input
-                    type="number"
-                    min={0}
-                    step="100"
+                    type="text"
                     value={entrada}
-                    onChange={(e) =>
-                      setEntrada(parseFloat(e.target.value) || 0)
-                    }
+                    onChange={(e) => setEntrada(e.target.value)}
                     className="bg-transparent border border-gray-500 px-2 py-1 w-30 text-right rounded"
                   />
                 </td>
@@ -1083,10 +1228,9 @@ export default function dadosPrecificacao() {
                 </td>
                 <td className="px-4 py-2 text-right bg-zinc-900">
                   <input
-                    type="number"
-                    step="0.01"
+                    type="text"
                     value={juros}
-                    onChange={(e) => setJuros(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => setJuros(e.target.value)}
                     className="bg-transparent border border-gray-500 px-2 py-1 w-24 text-right rounded"
                   />
                 </td>
@@ -1099,12 +1243,9 @@ export default function dadosPrecificacao() {
                 </td>
                 <td className="px-4 py-2 text-right bg-zinc-900">
                   <input
-                    type="number"
-                    min={1}
+                    type="text"
                     value={qtdParcelas}
-                    onChange={(e) =>
-                      setQtdParcelas(parseInt(e.target.value) || 1)
-                    }
+                    onChange={(e) => setQtdParcelas(e.target.value)}
                     className="bg-transparent border border-gray-500 px-2 py-1 w-24 text-right rounded"
                   />
                 </td>
@@ -1118,8 +1259,9 @@ export default function dadosPrecificacao() {
                 <td className="px-4 py-2 text-right bg-zinc-900">
                   R${" "}
                   {(
-                    (parseFloat(kitFotovoltaico || "0") + juros) /
-                    (qtdParcelas || 1)
+                    (parseFloat(kitFotovoltaico || "0") +
+                      parseFloat(juros || "0")) /
+                    parseFloat(qtdParcelas || "1")
                   ).toFixed(2)}
                 </td>
               </tr>
@@ -1128,7 +1270,11 @@ export default function dadosPrecificacao() {
               <tr>
                 <td className="px-4 py-2 font-medium bg-zinc-800">Total</td>
                 <td className="px-4 py-2 text-right bg-zinc-900">
-                  R$ {(parseFloat(kitFotovoltaico || "0") + juros).toFixed(2)}
+                  R${" "}
+                  {(
+                    parseFloat(kitFotovoltaico || "0") +
+                    parseFloat(juros || "0")
+                  ).toFixed(2)}
                 </td>
               </tr>
             </tbody>
@@ -1255,6 +1401,100 @@ export default function dadosPrecificacao() {
           </tbody>
         </table>
       </div>
+      <div className="flex justify-center gap-20">
+        {/* CARD: Tipo e Quantidade de Inversor */}
+        <div className="bg-[#1a1a1a] p-5 rounded-2xl shadow-2xl w-full max-w-md border border-base-300 flex flex-col justify-self-center mt-10">
+          <h2 className="font-bold text-white text-lg mb-1 text-center gap-2">
+            <span className="text-yellow-400">
+              <FontAwesomeIcon icon={faBolt} />
+            </span>{" "}
+            Inversor
+          </h2>
+          <p className="text-gray-500 text-sm font-semibold mb-2">
+            <FontAwesomeIcon icon={faBell} className="mr-2" />
+            Selecione o tipo do inversor e a quantidade para prosseguir
+          </p>
+
+          {/* Select do tipo de inversor */}
+          <div className="mb-4 w-full flex items-center">
+            <label className="block text-sm text-white mb-1 text-center w-44">
+              Tipo de Inversor:
+            </label>
+            <select
+              className="select select-bordered w-full"
+              value={tipoInversor}
+              onChange={(e) => setTipoInversor(e.target.value)}
+              required
+            >
+              <option value="">Selecione...</option>
+              <option value="Inversor">Inversor</option>
+              <option value="Micro Inversor">Micro Inversor</option>
+            </select>
+          </div>
+
+          {/* Input da quantidade */}
+          <div className="w-full flex items-center">
+            <label className="block text-sm text-white mb-1 mx-2">
+              Quantidade:
+            </label>
+
+            <input
+              type="text"
+              className="input input-bordered w-20 text-center"
+              value={quantidadeInversor}
+              onChange={(e) => setQuantidadeInversor(e.target.value)}
+              required
+            />
+          </div>
+          <div className="w-full flex items-center">
+            <label className="block text-sm text-white mb-1 mx-2">
+              Potência do Inversor (kWp):{" "}
+            </label>
+            <input
+              type="text"
+              className="input input-sm input-bordered w-32 text-center"
+              value={potenciaInversorDigitada}
+              onChange={(e) => setPotenciaInversorDigitada(e.target.value)}
+              placeholder="Ex: 4.5"
+            />
+          </div>
+        </div>
+        {/* CARD: Tipo de Estrutura do Projeto */}
+        <div className="bg-[#1a1a1a] p-5 rounded-2xl shadow-2xl w-full max-w-md border border-base-300 flex flex-col justify-self-center mt-10">
+          <h2 className="font-bold text-white text-lg mb-1 text-center gap-2">
+            <span className="text-yellow-400">
+              <FontAwesomeIcon icon={faBolt} />
+            </span>{" "}
+            Estrutura do Projeto
+          </h2>
+
+          <p className="text-gray-500 text-sm font-semibold mb-2">
+            <FontAwesomeIcon icon={faBell} className="mr-2" />
+            Selecione o tipo de estrutura
+          </p>
+
+          {/* Select do tipo de estrutura */}
+          <div className="mb-4 w-full flex items-center">
+            <label className="block text-sm text-white mb-1 text-center w-44">
+              Estrutura:
+            </label>
+            <select
+              className="select select-bordered w-full"
+              value={estruturaProjeto}
+              onChange={(e) => setEstruturaProjeto(e.target.value)}
+              required
+            >
+              <option value="">Selecione...</option>
+              <option value="Telhado Fibrocimento">Telhado Fibrocimento</option>
+              <option value="Telhado Colonial">Telhado Colonial</option>
+              <option value="Telhado Metal">Telhado Metal</option>
+              <option value="Laje">Laje</option>
+              <option value="Solo">Solo</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div className="flex justify-end items-center gap-6 mt-20">
         <button
           type="button"

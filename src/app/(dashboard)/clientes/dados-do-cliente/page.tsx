@@ -98,30 +98,30 @@ export default function DadosDoClientePage() {
       setErroNome("O nome é obrigatório.");
       return;
     }
-
+  
     if (!telefone.trim()) {
       setErroTelefone("O telefone é obrigatório.");
       return;
     }
-
+  
     // Valida CPF apenas se foi preenchido
     if (tipoPessoa === "PF" && cpf.trim() !== "" && !validCPF(cpf)) {
       setErroCpf("CPF inválido. Verifique e tente novamente.");
       return;
     }
-
+  
     // Valida CNPJ apenas se foi preenchido
     if (tipoPessoa === "PJ" && cnpj.trim() !== "" && !validCNPJ(cnpj)) {
       setErroCnpj("CNPJ inválido. Verifique e tente novamente.");
       return;
     }
-
+  
     setErroNome(null);
     setErroCpf(null);
     setErroTelefone(null);
     setErroCnpj(null);
-
-    // 1. Cria um objeto com os dados do formulário
+  
+    // 🛠️ Cria o objeto de dados que será salvo
     const dados: any = {
       tipoPessoa,
       situacao,
@@ -131,80 +131,99 @@ export default function DadosDoClientePage() {
       link,
       observacao,
       rg,
-      enderecos, // salvando o array de endereço junto
-      ...(clienteId ? {} : { dataCadastro: new Date() }),
+      enderecos, // 🏠 salvando o array de endereço
+      ...(clienteId ? {} : { dataCadastro: new Date() }), // adiciona data de cadastro apenas se for novo cliente
     };
-
-    // 2. Adiciona os campos dependendo do tipo de pessoa
+  
     if (tipoPessoa === "PF") {
       dados.nomeCliente = nome;
       dados.cpf = cpf;
       dados.dataNascimento = dataNascimento;
       dados.genero = genero;
+    
+      // Zera os campos de PJ
+      dados.razaoSocial = "";
+      dados.nomeFantasia = "";
+      dados.cnpj = "";
+      dados.inscricaoEstadual = "";
+      dados.inscricaoMunicipal = "";
     } else {
       dados.razaoSocial = razaoSocial;
       dados.nomeFantasia = nomeFantasia;
       dados.cnpj = cnpj;
       dados.inscricaoEstadual = inscricaoEstadual;
       dados.inscricaoMunicipal = inscricaoMunicipal;
+    
+      // Zera os campos de PF
+      dados.nomeCliente = "";
+      dados.cpf = "";
+      dados.dataNascimento = "";
+      dados.genero = "";
     }
-
+    
+  
     try {
-      // 3. Se clienteId existir, atualiza os dados existentes
       if (clienteId) {
         const ref = doc(db, "clientes", clienteId);
         await updateDoc(ref, dados);
-        setShowAlerta(true); // mostra alerta de sucesso
+        setShowAlerta(true);
       } else {
-        // 4. Caso contrário, cria um novo cliente
         const docRef = await addDoc(collection(db, "clientes"), dados);
-        setShowAlerta(true); // mostra alerta de sucesso
-        // 5. Redireciona para a mesma página com o novo ID na URL
+        setShowAlerta(true);
         router.push(`/clientes`);
       }
-
-      // 6. Esconde o alerta depois de 3 segundos
+  
       setTimeout(() => setShowAlerta(false), 3000);
     } catch (err) {
       console.error("Erro ao salvar:", err);
       alert("Erro ao salvar dados.");
     }
   };
+  
 
   // Carrega os dados do cliente ao abrir a página
   useEffect(() => {
     const buscarCliente = async () => {
       if (!clienteId) return;
-
+  
       const ref = doc(db, "clientes", clienteId);
       const snap = await getDoc(ref);
-
+  
       if (snap.exists()) {
         const data = snap.data();
-
+  
         setTipoPessoa(data.tipoPessoa || "PF");
         setSituacao(data.situacao || "Ativo");
         setIsento(data.isento || false);
-        setNome(data.nomeCliente || "");
-        setCpf(data.cpf || "");
-        setDataNascimento(data.dataNascimento || "");
-        setGenero(data.genero || "");
         setTelefone(data.telefone || "");
         setEmail(data.email || "");
         setLink(data.link || "");
         setObservacao(data.observacao || "");
         setRg(data.rg || "");
-        setRazaoSocial(data.razaoSocial || "");
-        setNomeFantasia(data.nomeFantasia || "");
-        setCnpj(data.cnpj || "");
-        setInscricaoEstadual(data.inscricaoEstadual || "");
-        setInscricaoMunicipal(data.inscricaoMunicipal || "");
         setEnderecos(data.enderecos || enderecos);
+  
+        if (data.tipoPessoa === "PF") {
+          setNome(data.nomeCliente || "");
+          setCpf(data.cpf || "");
+          setDataNascimento(data.dataNascimento || "");
+          setGenero(data.genero || "");
+        } else {
+          setNomeFantasia(data.nomeFantasia || "");
+          setRazaoSocial(data.razaoSocial || "");
+          setCnpj(data.cnpj || "");
+          setInscricaoEstadual(data.inscricaoEstadual || "");
+          setInscricaoMunicipal(data.inscricaoMunicipal || "");
+          // ⚡ Para segurança: se nomeCliente existir no banco, mas nomeFantasia não, preenche com nomeCliente
+          if (!data.nomeFantasia && data.nomeCliente) {
+            setNomeFantasia(data.nomeCliente);
+          }
+        }
       }
     };
-
+  
     buscarCliente();
   }, [clienteId]);
+  
 
   return (
     <div className="p-6">

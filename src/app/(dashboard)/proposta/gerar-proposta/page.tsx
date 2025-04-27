@@ -41,14 +41,7 @@ export default function GerarPropostaPage() {
 
         const precSnap = await getDoc(doc(
           db,
-          "clientes",
-          clienteId,
-          "projetos",
-          projetoId,
-          "precificacao",
-          precificacaoId,
-          "dadosPrecificacao",
-          precificacaoId
+          `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}/dadosPrecificacao/${precificacaoId}`
         ));
         if (precSnap.exists()) setDadosPrecificacao(precSnap.data());
       } catch (error) {
@@ -89,10 +82,19 @@ export default function GerarPropostaPage() {
 
     setGerando(true);
     try {
-      const qtdPlacasUsadas = projeto.modo === "manual" ? projeto.qtdPlacasManual ?? projeto.qtdPlacas : projeto.qtdPlacas ?? projeto.qtdPlacasManual;
+      const nomeClienteCampo =
+      cliente.tipoPessoa === "pj" ? cliente.razaoSocial : cliente.nomeCliente;
+    
+    const cpfOuCnpjCampo =
+      cliente.tipoPessoa === "pj" ? cliente.cnpj : cliente.cpf;
+    
+      const qtdPlacasUsadas = projeto.modo === "manual"
+  ? projeto.qtdPlacasManual || projeto.qtdPlacas || "---"
+  : projeto.qtdPlacas || projeto.qtdPlacasManual || "---";
+      
       const campos = {
-        nome_cliente: cliente.nomeCliente,
-        cpf: cliente.cpf || "---",
+        nome_cliente: nomeClienteCampo || "---",
+  cpf: cpfOuCnpjCampo || "---",
         telefone: cliente.telefone || "---",
         cidade: cliente.cidade || "---",
         estado: cliente.estado || "---",
@@ -104,9 +106,14 @@ export default function GerarPropostaPage() {
         estrutura: "Telhado colonial",
         quantidade_placas: qtdPlacasUsadas,
         qtd_painel_helius: qtdPlacasUsadas,
-        qtd_microinversor: 2,
+        inversor_microinversor: dadosPrecificacao.inversor_microinversor ?? "---",
+        nome_projeto: projeto?.nomeProjeto || "---",
+        qtd_inversor_microinversor: dadosPrecificacao.qtd_inversor_microinversor ?? "---",
         area_necessaria: `${projeto.areaMinimaTotal} m²`,
         total_venda: dadosPrecificacao?.totalVenda ? `R$${dadosPrecificacao.totalVenda.toFixed(2)}` : "---",
+        potencia_inversor_microinversor: dadosPrecificacao?.potenciaInversorDigitada
+        ? `${dadosPrecificacao.potenciaInversorDigitada} kWp`
+        : "---",
         forma_pagamento: gerarFormaPagamento(
           dadosPrecificacao?.parcelaSelecionada,
           dadosPrecificacao?.entrada,
@@ -120,6 +127,7 @@ export default function GerarPropostaPage() {
         consumo_medio_diario: projeto.modo === "manual"
           ? projeto.consumoMedioDiaManual ?? projeto.consumoMedioDia ?? "---"
           : projeto.consumoMedioDia ?? projeto.consumoMedioDiaManual ?? "---",
+          
       };
 
       const response = await fetch("/api/download-template", {
