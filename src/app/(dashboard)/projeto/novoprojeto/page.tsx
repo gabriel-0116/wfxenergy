@@ -155,6 +155,7 @@ if (clienteIdFromUrl && projetoIdFromUrl && !dadosEditados) {
           nomeProjeto: nomeProjeto || null,
           criadoEm: Timestamp.now(),
           criadoPor: user.uid,
+          ultimaModificacao: Timestamp.now(),
         }
       );
 

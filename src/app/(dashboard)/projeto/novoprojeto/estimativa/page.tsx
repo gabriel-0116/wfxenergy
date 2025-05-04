@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { db } from "@/firebase/firebaseConfig";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, Timestamp, updateDoc } from "firebase/firestore";
 import BottomNavButtons from "@/components/BottomNavButtons";
 import { faDollarSign } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -70,6 +70,7 @@ export default function EstimativaPage() {
       totalSemImposto,
       percentualImposto: percentualImpostoNum,
       totalComImposto,
+      ultimaModificacao: Timestamp.now(),
     };
 
     try {

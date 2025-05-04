@@ -41,6 +41,12 @@ export default function PrecificacaoPage() {
   );
   const [clienteAberto, setClienteAberto] = useState<string | null>(null);
   const [filtro, setFiltro] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState<
+    "todos" | "ativo" | "inativo"
+  >("todos");
+  const [tipoOrdenacao, setTipoOrdenacao] = useState<
+    "modificacao_recente" | "modificacao_antiga" | "nome_az" | "nome_za"
+  >("modificacao_recente");
 
   const toggleCliente = (id: string) => {
     setClienteAberto(clienteAberto === id ? null : id);
@@ -75,7 +81,9 @@ export default function PrecificacaoPage() {
             for (const precificacaoDoc of precificacaoSnap.docs) {
               const precificacaoId = precificacaoDoc.id;
               const precificacaoData = precificacaoDoc.data();
-              
+              const ultimaModificacao =
+                precificacaoData.ultimaModificacao?.toDate?.() ?? new Date();
+
               const dadosPrecRef = doc(
                 db,
                 `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}/dadosPrecificacao`,
@@ -85,34 +93,38 @@ export default function PrecificacaoPage() {
               const dadosPrec = dadosPrecSnap.exists()
                 ? dadosPrecSnap.data()
                 : {};
-            
-                projetos.push({
-                  id: projetoId, // ✅ agora o ID é só o projetoId correto
-                  projetoId: projetoId, // ✅ salva o projetoId separado para usar depois
-                  nomeProjeto: dadosProjeto.nomeProjeto,
-                  criadoEm: dadosProjeto.criadoEm?.toDate() ?? new Date(),
-                  consumoMedioMes: dadosProjeto.consumoMedioMes,
-                  consumoMedioDia: dadosProjeto.consumoMedioDia,
-                  qtdPlacas: dadosProjeto.qtdPlacas,
-                  qtdPlacasManual: dadosProjeto.qtdPlacasManual,
-                  modo: dadosProjeto.modo,
-                  potenciaPlaca: dadosProjeto.potenciaPlaca,
-                  potenciaInversor: dadosProjeto.potenciaInversor,
-                  potenciaInversorManual: dadosProjeto.potenciaInversorManual,
-                  areaMinimaTotal: dadosProjeto.areaMinimaTotal,
-                  totalComImposto: dadosProjeto.totalComImposto,
-                  precificacaoId,
-                  status: precificacaoData.status || "emAndamento",
-                  valorFinalProjeto: dadosPrec.valorFinalProjeto || null,
-                  parcelaSelecionada: dadosPrec.parcelaSelecionada || null,
-                  entrada: dadosPrec.entrada || 0,
-                  qtdParcelas: dadosPrec.qtdParcelas || 0,
-                  financiamentoSelecionado: dadosPrec.financiamentoSelecionado || null,
-                  margemLucroLiquida: dadosPrec.margemLucroLiquida !== undefined && dadosPrec.margemLucroLiquida !== null
+
+              projetos.push({
+                id: projetoId, // ✅ agora o ID é só o projetoId correto
+                projetoId: projetoId, // ✅ salva o projetoId separado para usar depois
+                nomeProjeto: dadosProjeto.nomeProjeto,
+                criadoEm: dadosProjeto.criadoEm?.toDate() ?? new Date(),
+                consumoMedioMes: dadosProjeto.consumoMedioMes,
+                consumoMedioDia: dadosProjeto.consumoMedioDia,
+                qtdPlacas: dadosProjeto.qtdPlacas,
+                qtdPlacasManual: dadosProjeto.qtdPlacasManual,
+                modo: dadosProjeto.modo,
+                potenciaPlaca: dadosProjeto.potenciaPlaca,
+                potenciaInversor: dadosProjeto.potenciaInversor,
+                potenciaInversorManual: dadosProjeto.potenciaInversorManual,
+                areaMinimaTotal: dadosProjeto.areaMinimaTotal,
+                totalComImposto: dadosProjeto.totalComImposto,
+                precificacaoId,
+                status: precificacaoData.status || "emAndamento",
+                valorFinalProjeto: dadosPrec.valorFinalProjeto || null,
+                parcelaSelecionada: dadosPrec.parcelaSelecionada || null,
+                entrada: dadosPrec.entrada || 0,
+                ultimaModificacao: precificacaoData.ultimaModificacao ?? null,
+                totalVenda: dadosPrec.totalVenda || null,
+                qtdParcelas: dadosPrec.qtdParcelas || 0,
+                financiamentoSelecionado:
+                  dadosPrec.financiamentoSelecionado || null,
+                margemLucroLiquida:
+                  dadosPrec.margemLucroLiquida !== undefined &&
+                  dadosPrec.margemLucroLiquida !== null
                     ? Number(dadosPrec.margemLucroLiquida)
                     : null,
-                });
-                ;
+              });
             }
           }
         }
@@ -138,6 +150,58 @@ export default function PrecificacaoPage() {
     fetchClientes();
   }, []);
 
+  const clientesFiltrados = clientesComPrecificacao.filter((cliente) => {
+    const nome = cliente.nomeCliente?.toLowerCase() || "";
+    const telefone = cliente.telefone?.toLowerCase() || "";
+    const correspondeBusca = nome.includes(filtro) || telefone.includes(filtro);
+    const correspondeStatus =
+      filtroStatus === "todos" || cliente.statusCliente === filtroStatus;
+    return correspondeBusca && correspondeStatus;
+  });
+
+  const clientesOrdenados = [...clientesFiltrados].sort((a, b) => {
+    if (tipoOrdenacao === "modificacao_recente") {
+      const dataA = Math.max(
+        ...a.projetos.map(
+          (p: any) =>
+            p.ultimaModificacao?.toDate?.().getTime?.() ||
+            p.criadoEm?.toDate?.().getTime?.() ||
+            0
+        )
+      );
+      const dataB = Math.max(
+        ...b.projetos.map(
+          (p: any) => p.ultimaModificacao?.toDate?.().getTime?.() ?? 0
+        )
+      );
+      return dataB - dataA;
+    }
+
+    if (tipoOrdenacao === "modificacao_antiga") {
+      const dataA = Math.max(
+        ...a.projetos.map(
+          (p: any) => p.ultimaModificacao?.toDate?.().getTime?.() ?? 0
+        )
+      );
+      const dataB = Math.max(
+        ...b.projetos.map(
+          (p: any) => p.ultimaModificacao?.toDate?.().getTime?.() ?? 0
+        )
+      );
+      return dataA - dataB;
+    }
+
+    if (tipoOrdenacao === "nome_az") {
+      return a.nomeCliente.localeCompare(b.nomeCliente);
+    }
+
+    if (tipoOrdenacao === "nome_za") {
+      return b.nomeCliente.localeCompare(a.nomeCliente);
+    }
+
+    return 0;
+  });
+
   // 🔥 Agora com confirmação
   const handleExcluirProjeto = async (
     clienteId: string,
@@ -148,7 +212,7 @@ export default function PrecificacaoPage() {
       "Deseja realmente excluir esta precificação?"
     );
     if (!confirmado) return;
-  
+
     try {
       // ✅ Deleta o dadosPrecificacao primeiro
       await deleteDoc(
@@ -158,7 +222,7 @@ export default function PrecificacaoPage() {
           precificacaoId
         )
       );
-  
+
       // ✅ Depois deleta a precificação
       await deleteDoc(
         doc(
@@ -166,7 +230,7 @@ export default function PrecificacaoPage() {
           `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}`
         )
       );
-  
+
       // Atualiza a tela removendo
       setClientesComPrecificacao((prev) =>
         prev
@@ -228,6 +292,7 @@ export default function PrecificacaoPage() {
       criadoEm: Timestamp;
       status: string;
       margemLucroLiquida: number;
+      ultimaModificacao: Timestamp;
     }[]
   >([]);
 
@@ -258,7 +323,8 @@ export default function PrecificacaoPage() {
           for (const precificacaoDoc of precificacoesSnap.docs) {
             const precificacaoId = precificacaoDoc.id;
             const precificacaoData = precificacaoDoc.data();
-
+            const ultimaModificacao =
+              precificacaoData.ultimaModificacao?.toDate?.() || new Date();
             // Verifica se existe contrato com o mesmo ID da precificação
             const contratoSnap = await getDocs(
               collection(
@@ -278,6 +344,7 @@ export default function PrecificacaoPage() {
               precificacaoId,
               criadoEm: precificacaoData.criadoEm || Timestamp.now(),
               status: precificacaoData.status || "emAndamento",
+              ultimaModificacao,
               margemLucroLiquida:
                 Number(precificacaoData.margemLucroLiquida) || 0,
             });
@@ -522,7 +589,7 @@ export default function PrecificacaoPage() {
 
       {/* Tabela */}
       <div className="overflow-x-auto mx-10">
-        <div className="flex items-center justify-end mb-6">
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center w-96">
             <button className="btn btn-square rounded-r-none">
               <FontAwesomeIcon icon={faSearch} />
@@ -534,6 +601,35 @@ export default function PrecificacaoPage() {
               value={filtro}
               onChange={(e) => setFiltro(e.target.value.toLowerCase())}
             />
+          </div>
+          <div className="ml-6">
+            <label className="text-white font-medium mr-2">Status:</label>
+            <select
+              value={filtroStatus}
+              onChange={(e) => setFiltroStatus(e.target.value as any)}
+              className="select select-bordered bg-gray-800 text-white"
+            >
+              <option value="todos">Todos</option>
+              <option value="ativo">Ativos</option>
+              <option value="inativo">Inativos</option>
+            </select>
+          </div>
+          <div className="ml-6">
+            <label className="text-white font-medium mr-2 flex items-center w-32">
+              Ordenar por:
+            </label>
+            <select
+              value={tipoOrdenacao}
+              onChange={(e) => setTipoOrdenacao(e.target.value as any)}
+              className="select select-bordered bg-gray-800 text-white"
+            >
+              <option value="modificacao_recente">
+                Mais recentes primeiro
+              </option>
+              <option value="modificacao_antiga">Mais antigos primeiro</option>
+              <option value="nome_az">Nome A → Z</option>
+              <option value="nome_za">Nome Z → A</option>
+            </select>
           </div>
         </div>
 
@@ -548,194 +644,247 @@ export default function PrecificacaoPage() {
                 <FontAwesomeIcon icon={faPhone} className="mr-2 text-red-500" />
                 Telefone
               </th>
+              <th className="p-4">Última Modificação</th>
               <th className="p-4">Status</th>
             </tr>
           </thead>
           <tbody>
-            {clientesComPrecificacao
-              .filter((cliente) => {
-                const nome = cliente.nomeCliente?.toLowerCase() || "";
-                const telefone = cliente.telefone?.toLowerCase() || "";
-                return nome.includes(filtro) || telefone.includes(filtro);
-              })
-              .map((cliente) => (
-                <Fragment key={cliente.id}>
-                  <tr
-                    className="hover:bg-base-200 cursor-pointer"
-                    onClick={() => toggleCliente(cliente.id)}
-                  >
-                    <td className="p-4 text-white font-medium">
-                      {cliente.nomeCliente}
-                    </td>
-                    <td className="p-4 text-gray-300">{cliente.telefone}</td>
-                    <td className="p-4">
-                      {cliente.statusCliente === "ativo" ? (
-                        <span className="badge badge-success">Ativo</span>
-                      ) : (
-                        <span className="badge badge-error">Inativo</span>
-                      )}
-                    </td>
-                  </tr>
-                  {clienteAberto === cliente.id &&
-                    cliente.projetos.map((proj: any) => (
-                      <tr key={`${proj.projetoId}_${proj.precificacaoId}`}>
-                        <td colSpan={3} className="">
-                          <div className="bg-[#1e293b] border border-[#334155] p-5 rounded-lg flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-6 mb-2">
-                                <div>
-                                  <span className="font-bold text-white">
-                                    Status:
-                                  </span>{" "}
-                                  {proj.status === "finalizado" ? (
-                                    <span className="badge badge-success">
-                                      Finalizado
-                                    </span>
-                                  ) : (
-                                    <span className="badge badge-warning">
-                                      Em Andamento
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="font-semibold text-md flex items-center gap-2">
-                                  <FontAwesomeIcon
-                                    icon={faFolderOpen}
-                                    className="text-blue-400"
-                                  />
-                                  Projeto:{" "}
-                                  <span className="font-normal">
-                                    {proj.nomeProjeto}
+            {clientesOrdenados.map((cliente) => (
+              <Fragment key={cliente.id}>
+                <tr
+                  className="hover:bg-base-200 cursor-pointer"
+                  onClick={() => toggleCliente(cliente.id)}
+                >
+                  <td className="p-4 text-white font-medium">
+                    {cliente.nomeCliente}
+                  </td>
+                  <td className="p-4 text-gray-300">{cliente.telefone}</td>
+                  <td className="p-4">
+                    {format(
+                      Math.max(
+                        ...cliente.projetos.map((p: any) => {
+                          const data =
+                            p.ultimaModificacao?.toDate?.() ??
+                            p.ultimaModificacao ??
+                            p.criadoEm;
+                          return data?.getTime?.() ?? 0;
+                        })
+                      )
+                      ,
+                      "dd/MM/yyyy",
+                      { locale: ptBR }
+                    )}
+                  </td>
+                  <td className="p-4">
+                    {cliente.statusCliente === "ativo" ? (
+                      <span className="badge badge-success">Ativo</span>
+                    ) : (
+                      <span className="badge badge-error">Inativo</span>
+                    )}
+                  </td>
+                </tr>
+                {clienteAberto === cliente.id &&
+                  cliente.projetos.map((proj: any) => (
+                    <tr key={`${proj.projetoId}_${proj.precificacaoId}`}>
+                      <td colSpan={4} className="">
+                        <div className="bg-[#1e293b] border border-[#334155] p-5 rounded-lg flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-6 mb-2">
+                              <div>
+                                <span className="font-bold text-white">
+                                  Status:
+                                </span>{" "}
+                                {proj.status === "finalizado" ? (
+                                  <span className="badge badge-success">
+                                    Finalizado
                                   </span>
-                                </p>
-                                <p className="font-semibold text-md flex items-center gap-2">
-                                  <FontAwesomeIcon
-                                    icon={faCalendarAlt}
-                                    className="text-blue-400"
-                                  />
-                                  Data de Criação:{" "}
-                                  <span className="font-normal">
-                                    {format(proj.criadoEm, "dd/MM/yyyy", {
-                                      locale: ptBR,
-                                    })}
+                                ) : (
+                                  <span className="badge badge-warning">
+                                    Em Andamento
                                   </span>
-                                </p>
+                                )}
                               </div>
-                              <div className="mt-2 flex flex-wrap gap-x-8 gap-y-1 text-sm text-gray-300">
-                                <div>
-                                  <span className="font-bold text-white">
-                                    Consumo:
-                                  </span>{" "}
-                                  {proj.consumoMedioMes ?? "-"} kWh/mês{" "}
-                                  {proj.consumoMedioDia
-                                    ? `| ${proj.consumoMedioDia} kWh/dia`
-                                    : ""}
-                                </div>
-                                <div>
-                                  <span className="font-bold text-white">
-                                    Qtd. Placas:
-                                  </span>{" "}
-                                  {proj.modo === "manual"
-                                    ? `${
-                                        proj.qtdPlacasManual || "-"
-                                      } placas | ${
-                                        proj.potenciaInversorManual || "-"
-                                      } kWp | ${proj.potenciaPlaca || "-"} W`
-                                    : `${proj.qtdPlacas || "-"} placas | ${
-                                        proj.potenciaInversor || "-"
-                                      } kWp | ${proj.potenciaPlaca || "-"} W`}
-                                </div>
-                                {proj.areaMinimaTotal && (
-                                  <div>
-                                    <span className="font-bold text-white">
-                                      Área Mínima:
+                              <p className="font-semibold text-md flex items-center gap-2">
+                                <FontAwesomeIcon
+                                  icon={faFolderOpen}
+                                  className="text-blue-400"
+                                />
+                                Projeto:{" "}
+                                <span className="font-normal">
+                                  {proj.nomeProjeto}
+                                </span>
+                              </p>
+                              <div className="font-semibold text-md flex items-center gap-2">
+                                <FontAwesomeIcon
+                                  icon={faCalendarAlt}
+                                  className="text-blue-400"
+                                />
+                                Data de Criação:{" "}
+                                <span className="font-normal">
+                                  {format(proj.criadoEm, "dd/MM/yyyy", {
+                                    locale: ptBR,
+                                  })}
+                                </span>
+                              </div>
+                              <div>
+                                {proj.ultimaModificacao && (
+                                  <p>
+                                    <span className="font-semibold">
+                                      🕒 Última Modificação:
                                     </span>{" "}
-                                    {proj.areaMinimaTotal.toFixed(2)} m²
-                                  </div>
+                                    <span className="font-normal">
+                                      {format(
+                                        Math.max(
+                                          ...cliente.projetos.map((p: any) => {
+                                            const data =
+                                              p.ultimaModificacao?.toDate?.() ??
+                                              p.ultimaModificacao ??
+                                              p.criadoEm;
+                                            return data?.getTime?.() ?? 0;
+                                          })
+                                        )
+                                        ,
+                                        "dd/MM/yyyy",
+                                        { locale: ptBR }
+                                      )}
+                                    </span>
+                                  </p>
                                 )}
-                                {proj.totalComImposto && (
-                                  <div>
-                                    <span className="font-bold text-white">
-                                      Estimativa:
-                                    </span>{" "}
-                                    R$ {proj.totalComImposto.toFixed(2)}
-                                  </div>
-                                )}
-                                {/* ✅ NOVO BLOCO DE INFORMAÇÕES */}
-                                {proj.valorFinalProjeto && (
-                                  <div>
-                                    <span className="font-bold text-white">
-                                      Valor Final:
-                                    </span>{" "}
-                                    R$ {proj.valorFinalProjeto.toFixed(2)}
-                                  </div>
-                                )}
-
-                                <div>
-                                  <span className="font-bold text-white">
-                                    Entrada:
-                                  </span>{" "}
-                                  R$ {proj.entrada?.toFixed(2) ?? 0}
-                                </div>
-                                {proj.parcelaSelecionada && (
-                                  <div>
-                                    <span className="font-bold text-white">
-                                      Forma de Pagamento:
-                                    </span>{" "}
-                                    {proj.parcelaSelecionada === "avista"
-                                      ? "À Vista"
-                                      : `Parcelado em ${
-                                          proj.financiamentoSelecionado
-                                            ?.parcelas || "?"
-                                        }x`}
-                                  </div>
-                                )}
-
-                                {proj.financiamentoSelecionado
-                                  ?.valorParcela && (
-                                  <div>
-                                    <span className="font-bold text-white">
-                                      Valor da Parcela:
-                                    </span>{" "}
-                                    R${" "}
-                                    {proj.financiamentoSelecionado.valorParcela.toFixed(
-                                      2
-                                    )}
-                                  </div>
-                                )}
-                               {proj.margemLucroLiquida !== null && (
-  <div>
-    <span className="font-bold text-white">Margem de Lucro Líquida:</span>{" "}
-    {proj.margemLucroLiquida.toFixed(0)}%
-  </div>
-)}
                               </div>
                             </div>
-                            <button
-                              onClick={() =>
-                                handleVerProjeto(cliente.id, proj.projetoId, proj.precificacaoId)
-                              }
-                              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg shadow-2xl transition duration-300"
-                            >
-                              Ver Precificação
-                            </button>
-                            <button
-                        onClick={() =>
-                          handleExcluirProjeto(
-                            cliente.id,
-                            proj.id.split("_")[0], // ✅ separa o projetoId
-                            proj.precificacaoId
-                          )
-                        }
-                              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm transition"
-                            >
-                              Excluir
-                            </button>
+                            <div className="mt-2 flex flex-wrap gap-x-8 gap-y-1 text-sm text-gray-300">
+                              <div>
+                                <span className="font-bold text-white">
+                                  Consumo:
+                                </span>{" "}
+                                {proj.consumoMedioMes ?? "-"} kWh/mês{" "}
+                                {proj.consumoMedioDia
+                                  ? `| ${proj.consumoMedioDia} kWh/dia`
+                                  : ""}
+                              </div>
+                              <div>
+                                <span className="font-bold text-white">
+                                  Qtd. Placas:
+                                </span>{" "}
+                                {proj.modo === "manual"
+                                  ? `${proj.qtdPlacasManual || "-"} placas | ${
+                                      proj.potenciaInversorManual || "-"
+                                    } kWp | ${proj.potenciaPlaca || "-"} W`
+                                  : `${proj.qtdPlacas || "-"} placas | ${
+                                      proj.potenciaInversor || "-"
+                                    } kWp | ${proj.potenciaPlaca || "-"} W`}
+                              </div>
+                              {proj.areaMinimaTotal && (
+                                <div>
+                                  <span className="font-bold text-white">
+                                    Área Mínima:
+                                  </span>{" "}
+                                  {proj.areaMinimaTotal.toFixed(2)} m²
+                                </div>
+                              )}
+                              {proj.totalComImposto && (
+                                <div>
+                                  <span className="font-bold text-white">
+                                    Estimativa:
+                                  </span>{" "}
+                                  R$ {proj.totalComImposto.toFixed(2)}
+                                </div>
+                              )}
+                              {/* ✅ NOVO BLOCO DE INFORMAÇÕES */}
+                              {proj.valorFinalProjeto && (
+                                <div>
+                                  <span className="font-bold text-white">
+                                    Valor Final:
+                                  </span>{" "}
+                                  R$ {proj.valorFinalProjeto.toFixed(2)}
+                                </div>
+                              )}
+
+                              <div>
+                                <span className="font-bold text-white">
+                                  Entrada:
+                                </span>{" "}
+                                R$ {proj.entrada?.toFixed(2) ?? 0}
+                              </div>
+                              {proj.parcelaSelecionada && (
+                                <div>
+                                  <span className="font-bold text-white">
+                                    Forma de Pagamento:
+                                  </span>{" "}
+                                  {proj.parcelaSelecionada === "avista"
+                                    ? "À Vista"
+                                    : `Parcelado em ${
+                                        proj.financiamentoSelecionado
+                                          ?.parcelas || "?"
+                                      }x`}
+                                </div>
+                              )}
+
+                              {proj.financiamentoSelecionado?.valorParcela && (
+                                <div>
+                                  <span className="font-bold text-white">
+                                    Valor da Parcela:
+                                  </span>{" "}
+                                  R${" "}
+                                  {proj.financiamentoSelecionado.valorParcela.toFixed(
+                                    2
+                                  )}
+                                </div>
+                              )}
+                              {proj.margemLucroLiquida !== null && (
+                                <div>
+                                  <span className="font-bold text-white">
+                                    Margem de Lucro Líquida:
+                                  </span>{" "}
+                                  {proj.margemLucroLiquida.toFixed(0)}%
+                                </div>
+                              )}
+                              <p>
+                                <strong>Valor à Vista:</strong> R${" "}
+                                {proj?.totalVenda?.toFixed(2) ?? "---"}
+                              </p>
+
+                              <p>
+                                <strong>Total Financiado:</strong>{" "}
+                                {proj?.financiamentoSelecionado
+                                  ? `R$ ${(
+                                      parseFloat(proj.entrada || "0") +
+                                      proj.financiamentoSelecionado.totalPago
+                                    ).toFixed(2)}`
+                                  : "---"}
+                              </p>
+                            </div>
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                </Fragment>
-              ))}
+                          <button
+                            onClick={() =>
+                              handleVerProjeto(
+                                cliente.id,
+                                proj.projetoId,
+                                proj.precificacaoId
+                              )
+                            }
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg shadow-2xl transition duration-300"
+                          >
+                            Ver Precificação
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleExcluirProjeto(
+                                cliente.id,
+                                proj.id.split("_")[0], // ✅ separa o projetoId
+                                proj.precificacaoId
+                              )
+                            }
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm transition"
+                          >
+                            Excluir
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </Fragment>
+            ))}
           </tbody>
         </table>
       </div>

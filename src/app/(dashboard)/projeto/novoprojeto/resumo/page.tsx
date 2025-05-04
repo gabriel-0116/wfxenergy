@@ -123,6 +123,7 @@ export default function ResumoProjetoPage() {
           criadoEm: Timestamp.now(),
           criadoPor: user.uid,
           status: "emAndamento",
+          ultimaModificacao: Timestamp.now(),
         }
       );
 

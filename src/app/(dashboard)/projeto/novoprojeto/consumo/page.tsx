@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { db } from "@/firebase/firebaseConfig";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, Timestamp } from "firebase/firestore";
 import BottomNavButtons from "@/components/BottomNavButtons";
 
 
@@ -85,6 +85,7 @@ export default function ConsumoPage() {
         consumoMensal: valoresNumericos,
         consumoMedioMes: parseFloat(media.toFixed(2)),
         consumoMedioDia: parseFloat(mediaDia.toFixed(2)),
+        ultimaModificacao: Timestamp.now(),
       });
   
       // 🔄 Redireciona corretamente após salvar

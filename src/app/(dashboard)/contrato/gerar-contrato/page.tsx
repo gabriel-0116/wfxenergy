@@ -53,26 +53,106 @@ export default function GerarContratoPage() {
   }, []);
 
   const montarCampos = () => {
-    const qtdPlacas = projeto?.modo === "manual" ? projeto.qtdPlacasManual : projeto.qtdPlacas;
-    const geracao = projeto?.modo === "manual" ? projeto.geracaoMensalManual : projeto.geracaoMensal;
-
-    return {
-      nome_cliente: cliente?.nomeCliente ?? "---",
-      telefone: cliente?.telefone ?? "---",
-      cidade: cliente?.cidade ?? "---",
-      estado: cliente?.estado ?? "---",
-      projeto_nome: projeto?.nomeProjeto ?? "---",
-      qtd_placas: qtdPlacas ?? 0,
-      potencia_placa: projeto?.potenciaPlaca ?? "---",
-      potencia_total: projeto?.potenciaPico ?? "---",
-      area_total: projeto?.areaMinimaTotal ?? "---",
-      geracao_mensal: geracao ?? "---",
-      valor_total: dadosPrecificacao?.totalVenda
+    const nomeClienteCampo =
+      cliente.tipoPessoa === "pj" ? cliente.razaoSocial : cliente.nomeCliente;
+  
+    const cpfOuCnpjCampo =
+      cliente.tipoPessoa === "pj" ? cliente.cnpj : cliente.cpf;
+  
+    const nomeClienteAssinaturaCampo =
+      cliente.tipoPessoa === "pj" ? cliente.razaoSocial : cliente.nomeCliente;
+  
+    const qtdPlacasUsadas =
+      projeto.modo === "manual"
+        ? projeto.qtdPlacasManual || projeto.qtdPlacas || "---"
+        : projeto.qtdPlacas || projeto.qtdPlacasManual || "---";
+  
+    const geracaoMensal =
+      projeto.modo === "manual"
+        ? projeto.geracaoMensalManual ?? projeto.geracaoMensal ?? "---"
+        : projeto.geracaoMensal ?? projeto.geracaoMensalManual ?? "---";
+  
+    const consumoMedioMensal =
+      projeto.modo === "manual"
+        ? projeto.consumoMedioMesManual ?? projeto.consumoMedioMes ?? "---"
+        : projeto.consumoMedioMes ?? projeto.consumoMedioMesManual ?? "---";
+  
+    const consumoMedioDiario =
+      projeto.modo === "manual"
+        ? projeto.consumoMedioDiaManual ?? projeto.consumoMedioDia ?? "---"
+        : projeto.consumoMedioDia ?? projeto.consumoMedioDiaManual ?? "---";
+  
+    const entrada = parseFloat(dadosPrecificacao?.entrada || "0");
+    const totalPago = dadosPrecificacao?.financiamentoSelecionado?.totalPago || 0;
+    const totalFinanciado = entrada + totalPago;
+  
+    function gerarFormaPagamento(dadosPrecificacao: any): string {
+      const entrada = parseFloat(dadosPrecificacao?.entrada || "0");
+      const parcelas = dadosPrecificacao?.parcelaSelecionada;
+      const valorParcela = dadosPrecificacao?.financiamentoSelecionado?.valorParcela;
+      const totalVenda = dadosPrecificacao?.totalVenda;
+  
+      if (parcelas === "avista") {
+        if (entrada > 0) {
+          return `Entrada: R$ ${entrada.toFixed(2)} | Valor à vista: R$ ${totalVenda.toFixed(2)}`;
+        } else {
+          return `R$ ${totalVenda.toFixed(2)}`;
+        }
+      }
+  
+      if (typeof parcelas === "number" && valorParcela) {
+        if (entrada > 0) {
+          return `Entrada: R$ ${entrada.toFixed(2)} | ${parcelas}x de R$ ${valorParcela.toFixed(2)}`;
+        } else {
+          return `${parcelas}x de R$ ${valorParcela.toFixed(2)}`;
+        }
+      }
+  
+      return "---";
+    }
+  
+    // Objeto base com todos os campos
+    const campos: Record<string, string> = {
+      nome_cliente: nomeClienteCampo || "---",
+      cpf: cpfOuCnpjCampo || "---",
+      telefone: cliente.telefone || "---",
+      cidade: cliente.cidade || "---",
+      estado: cliente.estado || "---",
+      criado_em: new Date().toLocaleDateString("pt-BR"),
+      validade: "7 dias",
+      geracao_media: `${geracaoMensal} kWh/mês`,
+      potencia_placas: `${projeto.potenciaPlaca} W`,
+      potencia_instalada: `${projeto.potenciaPico} kWp`,
+      estrutura: dadosPrecificacao?.estruturaProjeto || "---",
+      quantidade_placas: qtdPlacasUsadas,
+      qtd_painel_helius: qtdPlacasUsadas,
+      inversor_microinversor: dadosPrecificacao?.tipoInversor ?? "---",
+      nome_projeto: projeto?.nomeProjeto || "---",
+      qtd_inversor_microinversor:
+        dadosPrecificacao?.qtd_inversor_microinversor ?? "---",
+      area_necessaria: `${projeto.areaMinimaTotal} m²`,
+      potencia_inversor_microinversor: dadosPrecificacao?.potenciaInversorDigitada
+        ? `${dadosPrecificacao.potenciaInversorDigitada} kWp`
+        : "---",
+      valor_a_vista: dadosPrecificacao?.totalVenda
         ? `R$ ${dadosPrecificacao.totalVenda.toFixed(2)}`
         : "---",
+      total_financiado: `R$ ${totalFinanciado.toFixed(2)}`,
+      forma_pagamento: gerarFormaPagamento(dadosPrecificacao),
       data_assinatura: new Date().toLocaleDateString("pt-BR"),
+      nome_cliente_assinatura: nomeClienteAssinaturaCampo || "---",
+      consumo_medio_mensal: consumoMedioMensal,
+      consumo_medio_diario: consumoMedioDiario,
     };
+  
+    // ✅ Se for pessoa física, adiciona o RG
+    if (cliente.tipoPessoa === "pf") {
+      campos.rg = cliente.rg ?? "";
+    }
+  
+    return campos;
   };
+  
 
   const handleGerarContrato = async () => {
     if (!templateSelecionado || !cliente || !projeto || !dadosPrecificacao) {

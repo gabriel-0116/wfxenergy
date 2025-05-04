@@ -166,15 +166,27 @@ export default function ResumoProjeto({
           kWh
         </p>
         <p>
-          <strong>Potência pico:</strong> {projeto.potenciaPico} kW
-        </p>
+  <strong>Potência pico:</strong>{" "}
+  {projeto.modo === "manual"
+    ? projeto.potenciaPicoManual ?? "---"
+    : projeto.potenciaPico ?? "---"}{" "}
+  kW
+</p>
+<p>
+  <strong>Excedente:</strong>{" "}
+  {projeto.modo === "manual"
+    ? projeto.excedenteManual ?? projeto.excedente ?? "---"
+    : projeto.excedente ?? "---"}
+  %
+</p>
         <p>
-          <strong>Excedente:</strong> {projeto.excedente}%
-        </p>
-        <p>
-          <strong>Potência mínima do inversor:</strong>{" "}
-          {projeto.potenciaInversor || projeto.potenciaInversorManual} kW
-        </p>
+  <strong>Potência mínima do inversor:</strong>{" "}
+  {projeto.modo === "manual"
+    ? projeto.potenciaInversorManual ?? "---"
+    : projeto.potenciaInversor ?? "---"}{" "}
+  kW
+</p>
+
         <p>
           <strong>Excedente Unidade:</strong>{" "}
           {projeto.modo === "manual"

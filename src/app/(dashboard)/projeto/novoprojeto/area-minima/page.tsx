@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, Timestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/firebase/firebaseConfig";
 import BottomNavButtons from "@/components/BottomNavButtons";
 
@@ -16,40 +16,44 @@ export default function AreaMinima() {
   const [modoManual, setModoManual] = useState(false);
   const [comprimento, setComprimento] = useState(2.43);
   const [largura, setLargura] = useState(1.23);
-  const [qtdPlacas, setQtdPlacas] = useState<number | null>(null);
+  const [qtdPlacasManual, setQtdPlacasManual] = useState<number | null>(null);
+  const [qtdPlacasRecomendada, setQtdPlacasRecomendada] = useState<number | null>(null);
+  const [modoSelecionado, setModoSelecionado] = useState<"manual" | "recomendado">("recomendado");
   const [loading, setLoading] = useState(true);
 
   // Buscar dados do projeto
   useEffect(() => {
     async function fetchProjeto() {
       if (!clienteId || !projetoId) return;
-
+  
       const ref = doc(db, "clientes", clienteId, "projetos", projetoId);
       const snap = await getDoc(ref);
-
+  
       if (snap.exists()) {
         const data = snap.data();
-
-        const qtd = data.qtdPlacas ?? data.qtdPlacasManual;
-        setQtdPlacas(qtd);
-
-        // 🟩 Sempre tenta restaurar os valores salvos (mesmo se estiver no modo padrão)
+      
+        setQtdPlacasManual(data.qtdPlacasManual ?? null);
+        setQtdPlacasRecomendada(data.qtdPlacas ?? null);
+      
+        setModoSelecionado(data.modo || "recomendado"); // 🟩 isso aqui!
         setModoManual(data.modoManualDimensao || false);
         setComprimento(data.comprimento ?? 2.43);
         setLargura(data.largura ?? 1.23);
       }
-
+  
       setLoading(false);
     }
-
+  
     fetchProjeto();
   }, [clienteId, projetoId]);
+  
 
   const handleSubmit = async () => {
-    if (!clienteId || !projetoId || !qtdPlacas) return;
+    const qtdPlacasUsada =
+    modoSelecionado === "manual" ? qtdPlacasManual : qtdPlacasRecomendada;
+if (!clienteId || !projetoId || !qtdPlacasUsada) return;
 
-    const areaTotal = Math.ceil(largura * comprimento * qtdPlacas);
-
+const areaTotal = Math.ceil(largura * comprimento * qtdPlacasUsada);
     const ref = doc(db, "clientes", clienteId, "projetos", projetoId);
 
     await updateDoc(ref, {
@@ -57,6 +61,7 @@ export default function AreaMinima() {
       modoManualDimensao: modoManual,
       comprimento,
       largura,
+      ultimaModificacao: Timestamp.now(),
     });
 
     console.log("✅ Área mínima salva:", areaTotal, "m²");
@@ -133,18 +138,29 @@ export default function AreaMinima() {
           )}
 
           {/* Mostrar área calculada (opcional) */}
-          {qtdPlacas && (
-            <div className="mt-6 text-center bg-[#272727] shadow-2xl card p-10">
-              <h1 className="mb-4">
-                Quantidade de placas selecionadas:{" "}
-                <span className="font-bold">{qtdPlacas}</span>
-              </h1>
-              <p>Área mínima calculada: </p>
-              <p className="font-bold text-xl mt-1">
-                {Math.ceil(comprimento * largura * qtdPlacas)} m²
-              </p>
-            </div>
-          )}
+          {(qtdPlacasManual || qtdPlacasRecomendada) && (
+  <div className="mt-6 text-center bg-[#272727] shadow-2xl card p-10">
+    <h1 className="mb-4">
+      Quantidade de placas selecionadas:{" "}
+      <span className="font-bold">
+        {modoSelecionado === "manual" ? qtdPlacasManual : qtdPlacasRecomendada}
+      </span>
+    </h1>
+    <p>Área mínima calculada: </p>
+    <p className="font-bold text-xl mt-1">
+      {Math.ceil(
+        comprimento *
+          largura *
+          (modoSelecionado === "manual"
+            ? qtdPlacasManual ?? 0
+            : qtdPlacasRecomendada ?? 0)
+      )}{" "}
+      m²
+    </p>
+  </div>
+)}
+
+
         </div>
 
         {/* Botões */}

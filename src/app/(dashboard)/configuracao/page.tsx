@@ -2,6 +2,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { variaveisProposta } from "@/utils/variaveisProposta";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCopy } from "@fortawesome/free-solid-svg-icons";
 
 const bucketURL = "wfxenergy-5cb37.firebasestorage.app";
 
@@ -156,9 +159,18 @@ export default function Configuracoes() {
     URL.revokeObjectURL(url);
   };
 
+  const copiarTexto = async (texto: string) => {
+    try {
+      await navigator.clipboard.writeText(texto);
+      alert("Variável copiada para a área de transferência! 📋");
+    } catch (error) {
+      console.error("Erro ao copiar:", error);
+    }
+  };
+
   return (
     <div className="p-6 max-w-screen-xl mx-auto">
-      <h1 className="text-3xl font-bold mb-4">⚙️ Configurações</h1>
+      <h1 className="text-3xl font-bold mb-10 text-center">⚙️ Configurações</h1>
 
       {mensagem && (
         <div
@@ -170,18 +182,37 @@ export default function Configuracoes() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="col-span-2 space-y-4">
-          <div className="bg-base-100 p-6 rounded-lg shadow-sm border border-base-300">
-            <h2 className="text-lg font-semibold">
-              🔧 Em breve: outras configurações
-            </h2>
-            <p className="text-gray-500 mt-2">
-              Aqui você poderá editar preferências gerais do sistema, usuários,
-              permissões e mais.
-            </p>
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <section className="">
+        <h2 className="text-3xl font-bold mb-6 flex items-center gap-2">
+          📄 Variáveis da Proposta e Contrato
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {variaveisProposta.map((variavel, index) => (
+            <div
+              key={index}
+              className="relative border border-gray-700 rounded-xl p-5 bg-gray-800 shadow-md hover:shadow-lg transition"
+            >
+              {/* Botão copiar */}
+              <button
+                onClick={() => copiarTexto(variavel.nome)}
+                className="absolute top-3 right-3 text-gray-400 hover:text-white transition"
+              >
+                <FontAwesomeIcon icon={faCopy} size="sm" />
+              </button>
+
+              {/* Nome da variável */}
+              <p className="font-mono text-md text-blue-400 break-words">
+                {variavel.nome}
+              </p>
+
+              {/* Descrição da variável */}
+              <p className="mt-2 text-sm text-gray-300">{variavel.descricao}</p>
+            </div>
+          ))}
         </div>
+      </section>
 
         <div className="space-y-6">
           {["proposta", "contrato"].map((tipo) => {

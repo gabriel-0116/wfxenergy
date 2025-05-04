@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { db } from "@/firebase/firebaseConfig";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { deleteField, doc, getDoc, Timestamp, updateDoc } from "firebase/firestore";
 import BottomNavButtons from "@/components/BottomNavButtons";
 
 export default function QuantidadePlacasPage() {
@@ -72,36 +72,41 @@ export default function QuantidadePlacasPage() {
     const projetoRef = doc(db, "clientes", clienteId, "projetos", projetoId);
 
     try {
+      const camposBase = {
+        potenciaPlaca: potenciaNumerica,
+        valorIrradiacao: usarIrradiacaoPersonalizada ? valorIrradiacao : 4.42,
+        ultimaModificacao: Timestamp.now(), // comum nos dois
+      };
+      
       if (modoSelecionado === "manual") {
         await updateDoc(projetoRef, {
+          ...camposBase,
           modo: "manual",
           qtdPlacasManual: qtdManual,
-          potenciaPlaca: potenciaNumerica,
+          qtdPlacas: deleteField(),
           geracaoMensal: parseFloat(geracaoMensalManual.toFixed(2)),
           geracaoDiaria: parseFloat(geracaoDiariaManual.toFixed(2)),
-          geracaoMensalManual: parseFloat(geracaoMensalManual.toFixed(2)), // <- ADICIONE ESTA LINHA
-          geracaoDiariaManual: parseFloat(geracaoDiariaManual.toFixed(2)), // <- E ESTA TAMBÉM
+          geracaoMensalManual: parseFloat(geracaoMensalManual.toFixed(2)),
+          geracaoDiariaManual: parseFloat(geracaoDiariaManual.toFixed(2)),
           potenciaPico: parseFloat(potenciaPicoManual.toFixed(2)),
           excedente: parseFloat(excedenteManual.toFixed(2)),
           potenciaInversorManual: parseFloat(potenciaInversorManual.toFixed(2)),
           excedenteUnidadeManual: parseFloat(excedenteUnidadeManual.toFixed(2)),
-          valorIrradiacao: usarIrradiacaoPersonalizada ? valorIrradiacao : 4.42,
         });
       } else {
         await updateDoc(projetoRef, {
+          ...camposBase,
           modo: "recomendado",
           qtdPlacas,
-          potenciaPlaca: potenciaNumerica,
+          qtdPlacasManual: deleteField(), 
           geracaoMensal: parseFloat(geracaoMensal.toFixed(2)),
           geracaoDiaria: parseFloat(geracaoDiaria.toFixed(2)),
           potenciaPico: parseFloat(potenciaPico.toFixed(2)),
           excedente: parseFloat(excedente.toFixed(2)),
           potenciaInversor: parseFloat(potenciaInversor.toFixed(2)),
           excedenteUnidade: parseFloat(excedenteUnidade.toFixed(2)),
-          valorIrradiacao: usarIrradiacaoPersonalizada ? valorIrradiacao : 4.42,
         });
       }
-
       router.push(`/projeto/novoprojeto/area-minima?clienteId=${clienteId}&projetoId=${projetoId}`);
     } catch (error) {
       console.error("Erro ao salvar:", error);
