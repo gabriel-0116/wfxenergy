@@ -27,6 +27,7 @@ export default function GerarPropostaPage() {
   const [gerando, setGerando] = useState(false);
   const [dadosPrecificacao, setDadosPrecificacao] = useState<any>(null);
   const printRef = useRef<HTMLDivElement>(null);
+  const [erros, setErros] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -93,6 +94,17 @@ export default function GerarPropostaPage() {
   
 
   const handleGerarProposta = async () => {
+    const errosValidacao = validarCamposProposta({
+      cliente,
+      projeto,
+      dadosPrecificacao,
+    });
+  
+    if (errosValidacao.length > 0) {
+      setErros(errosValidacao);
+      return;
+    }
+
     if (!cliente || !projeto || !templateSelecionado || !dadosPrecificacao) {
       alert(
         "Ainda carregando dados da precificação. Tente novamente em alguns segundos."
@@ -216,11 +228,81 @@ export default function GerarPropostaPage() {
       saveAs(out, nomeArquivo);
     } catch (err) {
       console.error("Erro inesperado:", err);
-      alert("Erro inesperado ao gerar proposta.");
+      setErros(["Erro inesperado ao gerar proposta."]);
     } finally {
       setGerando(false);
     }
   };
+
+  // ✅ Função de validação antes de gerar proposta
+function validarCamposProposta({
+  cliente,
+  projeto,
+  dadosPrecificacao,
+}: {
+  cliente: any;
+  projeto: any;
+  dadosPrecificacao: any;
+}): string[] {
+  const erros: string[] = [];
+
+  // 📌 Validação de cliente
+  if (!cliente.tipoPessoa) erros.push("Tipo de pessoa não informado.");
+  if (cliente.tipoPessoa === "pj" && !cliente.cnpj)
+    erros.push("CNPJ da empresa não informado.");
+  if (cliente.tipoPessoa === "pf" && !cliente.cpf)
+    erros.push("CPF do cliente não informado.");
+  if (!cliente.telefone) erros.push("Telefone do cliente não informado.");
+  if (!cliente.cidade) erros.push("Cidade do cliente não informada.");
+  if (!cliente.estado) erros.push("Estado do cliente não informado.");
+
+  // 📌 Validação do projeto
+  if (!projeto.nomeProjeto) erros.push("Nome do projeto não informado.");
+  if (!projeto.potenciaPlaca) erros.push("Potência da placa não informada.");
+  if (!projeto.potenciaPico) erros.push("Potência pico não informada.");
+  if (!projeto.areaMinimaTotal)
+    erros.push("Área mínima do projeto não informada.");
+  if (
+    projeto.modo === "manual" &&
+    (!projeto.qtdPlacasManual || !projeto.geracaoMensalManual)
+  ) {
+    erros.push("Informações manuais incompletas (quantidade ou geração).");
+  }
+  if (
+    projeto.modo === "recomendado" &&
+    (!projeto.qtdPlacas || !projeto.geracaoMensal)
+  ) {
+    erros.push("Informações recomendadas incompletas (quantidade ou geração).");
+  }
+
+  // 📌 Validação da precificação
+  if (!dadosPrecificacao.kitFotovoltaico)
+    erros.push("Valor do kit fotovoltaico não informado.");
+  if (!dadosPrecificacao.totalVenda)
+    erros.push("Valor de venda não informado.");
+  if (!dadosPrecificacao.tipoInversor)
+    erros.push("Tipo de inversor não informado.");
+  if (!dadosPrecificacao.qtd_inversor_microinversor)
+    erros.push("Quantidade de inversores não informada.");
+
+  // 📌 Se for parcelado, verificar financiamento
+  if (
+    dadosPrecificacao.parcelaSelecionada !== "avista" &&
+    !dadosPrecificacao.financiamentoSelecionado
+  ) {
+    erros.push("Dados de financiamento não informados.");
+  }
+
+  return erros;
+}
+
+useEffect(() => {
+  if (erros.length > 0) {
+    const timer = setTimeout(() => setErros([]), 5000);
+    return () => clearTimeout(timer);
+  }
+}, [erros]);
+
 
   if (!cliente || !projeto) {
     return <div className="text-white p-10">Carregando proposta...</div>;
@@ -228,6 +310,13 @@ export default function GerarPropostaPage() {
 
   return (
     <section className="text-white px-6 py-6 space-y-8">
+      {erros.map((erro, i) => (
+  <div key={i} className="toast toast-top toast-end z-50">
+    <div className="alert alert-error">
+      <span>{erro}</span>
+    </div>
+  </div>
+))}
       <h1 className="text-3xl font-bold text-center">Proposta Comercial 📄</h1>
 
       {/* ✅ Resumo reutilizável */}

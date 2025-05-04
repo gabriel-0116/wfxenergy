@@ -25,6 +25,7 @@ export default function GerarContratoPage() {
   const [templateSelecionado, setTemplateSelecionado] = useState("");
   const [templatesStorage, setTemplatesStorage] = useState<string[]>([]);
   const [gerando, setGerando] = useState(false);
+  const [erros, setErros] = useState<string[]>([]);
 
   useEffect(() => {
     if (!clienteId || !projetoId || !precificacaoId) return;
@@ -155,6 +156,18 @@ export default function GerarContratoPage() {
   
 
   const handleGerarContrato = async () => {
+    const errosValidacao = validarCamposContrato({
+      cliente,
+      projeto,
+      dadosPrecificacao,
+    });
+    
+    if (errosValidacao.length > 0) {
+      setErros(errosValidacao); // <- usar estado como você já fez na proposta
+      return;
+    }
+
+    
     if (!templateSelecionado || !cliente || !projeto || !dadosPrecificacao) {
       alert("Preencha todas as informações antes de gerar o contrato.");
       return;
@@ -186,12 +199,92 @@ export default function GerarContratoPage() {
     }
   };
 
+  function validarCamposContrato({
+    cliente,
+    projeto,
+    dadosPrecificacao,
+  }: {
+    cliente: any;
+    projeto: any;
+    dadosPrecificacao: any;
+  }): string[] {
+    const erros: string[] = [];
+  
+    // 📌 Cliente
+    if (!cliente.tipoPessoa) erros.push("Tipo de pessoa não informado.");
+    if (cliente.tipoPessoa === "pj" && !cliente.cnpj)
+      erros.push("CNPJ não informado.");
+    if (cliente.tipoPessoa === "pf" && !cliente.cpf)
+      erros.push("CPF não informado.");
+    if (!cliente.telefone) erros.push("Telefone do cliente não informado.");
+    if (!cliente.cidade) erros.push("Cidade do cliente não informada.");
+    if (!cliente.estado) erros.push("Estado do cliente não informado.");
+    if (cliente.tipoPessoa === "pf" && !cliente.rg)
+      erros.push("RG do cliente não informado.");
+  
+    // 📌 Projeto
+    if (!projeto.nomeProjeto) erros.push("Nome do projeto não informado.");
+    if (!projeto.potenciaPlaca) erros.push("Potência da placa não informada.");
+    if (!projeto.potenciaPico) erros.push("Potência pico não informada.");
+    if (!projeto.areaMinimaTotal)
+      erros.push("Área mínima não informada.");
+  
+    if (projeto.modo === "manual") {
+      if (!projeto.qtdPlacasManual) erros.push("Qtd. de placas (manual) não informada.");
+      if (!projeto.geracaoMensalManual) erros.push("Geração mensal (manual) não informada.");
+    }
+  
+    if (projeto.modo === "recomendado") {
+      if (!projeto.qtdPlacas) erros.push("Qtd. de placas (recomendada) não informada.");
+      if (!projeto.geracaoMensal) erros.push("Geração mensal (recomendada) não informada.");
+    }
+  
+    // 📌 Precificação
+    if (!dadosPrecificacao.kitFotovoltaico)
+      erros.push("Valor do kit fotovoltaico não informado.");
+    if (!dadosPrecificacao.totalVenda)
+      erros.push("Valor total de venda não informado.");
+    if (!dadosPrecificacao.tipoInversor)
+      erros.push("Tipo de inversor não informado.");
+    if (!dadosPrecificacao.qtd_inversor_microinversor)
+      erros.push("Qtd. de inversores não informada.");
+    if (!dadosPrecificacao.potenciaInversorDigitada)
+      erros.push("Potência do inversor não informada.");
+  
+    if (
+      dadosPrecificacao.parcelaSelecionada !== "avista" &&
+      !dadosPrecificacao.financiamentoSelecionado
+    ) {
+      erros.push("Dados do financiamento não informados.");
+    }
+  
+    return erros;
+  }
+
+  useEffect(() => {
+    if (erros.length > 0) {
+      const timer = setTimeout(() => {
+        setErros([]);
+      }, 5000); // esconde após 5 segundos
+      return () => clearTimeout(timer);
+    }
+  }, [erros]);
+  
+  
+
   if (!cliente || !projeto || !dadosPrecificacao) {
     return <div className="text-white p-10">Carregando contrato...</div>;
   }
 
   return (
     <section className="text-white px-6 py-6 space-y-8">
+      {erros.map((erro, i) => (
+  <div key={i} className="toast toast-top toast-end z-50">
+    <div className="alert alert-error">
+      <span>{erro}</span>
+    </div>
+  </div>
+))}
       <h1 className="text-3xl font-bold text-center">Gerar Contrato 📄</h1>
 
       {/* 🔁 Resumo reutilizável */}
