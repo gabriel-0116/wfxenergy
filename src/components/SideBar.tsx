@@ -109,6 +109,11 @@ export default function Sidebar() {
               </li>
             </ul>
           </nav>
+          <div className="my-6 border-t border-white mx-4" />
+          <div className="flex-1 items-center justify-center p-6">
+            <h1 className="text-center font-bold text-lg">Versão 1.1</h1>
+            <p className="text-center font-normal text-sm">Correção do bug Gerar Proposta</p>
+          </div>
         </div>
       </aside>
 
