@@ -32,8 +32,22 @@ export default function GerarContratoPage() {
 
     const fetchData = async () => {
       const clienteSnap = await getDoc(doc(db, "clientes", clienteId));
-      const projetoSnap = await getDoc(doc(db, "clientes", clienteId, "projetos", projetoId));
-      const precSnap = await getDoc(doc(db, "clientes", clienteId, "projetos", projetoId, "precificacao", precificacaoId, "dadosPrecificacao", precificacaoId));
+      const projetoSnap = await getDoc(
+        doc(db, "clientes", clienteId, "projetos", projetoId)
+      );
+      const precSnap = await getDoc(
+        doc(
+          db,
+          "clientes",
+          clienteId,
+          "projetos",
+          projetoId,
+          "precificacao",
+          precificacaoId,
+          "dadosPrecificacao",
+          precificacaoId
+        )
+      );
 
       if (clienteSnap.exists()) setCliente(clienteSnap.data());
       if (projetoSnap.exists()) setProjeto(projetoSnap.data());
@@ -54,71 +68,79 @@ export default function GerarContratoPage() {
   }, []);
 
   const montarCampos = () => {
+    const enderecoPrincipal = cliente.enderecos?.[0] || {};
+
     const nomeClienteCampo =
       cliente.tipoPessoa === "pj" ? cliente.razaoSocial : cliente.nomeCliente;
-  
+
     const cpfOuCnpjCampo =
       cliente.tipoPessoa === "pj" ? cliente.cnpj : cliente.cpf;
-  
+
     const nomeClienteAssinaturaCampo =
       cliente.tipoPessoa === "pj" ? cliente.razaoSocial : cliente.nomeCliente;
-  
+
     const qtdPlacasUsadas =
       projeto.modo === "manual"
         ? projeto.qtdPlacasManual || projeto.qtdPlacas || "---"
         : projeto.qtdPlacas || projeto.qtdPlacasManual || "---";
-  
+
     const geracaoMensal =
       projeto.modo === "manual"
         ? projeto.geracaoMensalManual ?? projeto.geracaoMensal ?? "---"
         : projeto.geracaoMensal ?? projeto.geracaoMensalManual ?? "---";
-  
+
     const consumoMedioMensal =
       projeto.modo === "manual"
         ? projeto.consumoMedioMesManual ?? projeto.consumoMedioMes ?? "---"
         : projeto.consumoMedioMes ?? projeto.consumoMedioMesManual ?? "---";
-  
+
     const consumoMedioDiario =
       projeto.modo === "manual"
         ? projeto.consumoMedioDiaManual ?? projeto.consumoMedioDia ?? "---"
         : projeto.consumoMedioDia ?? projeto.consumoMedioDiaManual ?? "---";
-  
+
     const entrada = parseFloat(dadosPrecificacao?.entrada || "0");
-    const totalPago = dadosPrecificacao?.financiamentoSelecionado?.totalPago || 0;
+    const totalPago =
+      dadosPrecificacao?.financiamentoSelecionado?.totalPago || 0;
     const totalFinanciado = entrada + totalPago;
-  
+
     function gerarFormaPagamento(dadosPrecificacao: any): string {
       const entrada = parseFloat(dadosPrecificacao?.entrada || "0");
       const parcelas = dadosPrecificacao?.parcelaSelecionada;
-      const valorParcela = dadosPrecificacao?.financiamentoSelecionado?.valorParcela;
+      const valorParcela =
+        dadosPrecificacao?.financiamentoSelecionado?.valorParcela;
       const totalVenda = dadosPrecificacao?.totalVenda;
-  
+
       if (parcelas === "avista") {
         if (entrada > 0) {
-          return `Entrada: R$ ${entrada.toFixed(2)} | Valor à vista: R$ ${totalVenda.toFixed(2)}`;
+          return `Entrada: R$ ${entrada.toFixed(
+            2
+          )} | Valor à vista: R$ ${totalVenda.toFixed(2)}`;
         } else {
           return `R$ ${totalVenda.toFixed(2)}`;
         }
       }
-  
+
       if (typeof parcelas === "number" && valorParcela) {
         if (entrada > 0) {
-          return `Entrada: R$ ${entrada.toFixed(2)} | ${parcelas}x de R$ ${valorParcela.toFixed(2)}`;
+          return `Entrada: R$ ${entrada.toFixed(
+            2
+          )} | ${parcelas}x de R$ ${valorParcela.toFixed(2)}`;
         } else {
           return `${parcelas}x de R$ ${valorParcela.toFixed(2)}`;
         }
       }
-  
+
       return "---";
     }
-  
+
     // Objeto base com todos os campos
     const campos: Record<string, string> = {
       nome_cliente: nomeClienteCampo || "---",
       cpf: cpfOuCnpjCampo || "---",
       telefone: cliente.telefone || "---",
-      cidade: cliente.cidade || "---",
-      estado: cliente.estado || "---",
+      cidade: enderecoPrincipal.cidade || "---",
+      estado: enderecoPrincipal.estado || "---",
       criado_em: new Date().toLocaleDateString("pt-BR"),
       validade: "7 dias",
       geracao_media: `${geracaoMensal} kWh/mês`,
@@ -130,11 +152,12 @@ export default function GerarContratoPage() {
       inversor_microinversor: dadosPrecificacao?.tipoInversor ?? "---",
       nome_projeto: projeto?.nomeProjeto || "---",
       qtd_inversor_microinversor:
-        dadosPrecificacao?.qtd_inversor_microinversor ?? "---",
+        dadosPrecificacao?.quantidadeInversor ?? "---",
       area_necessaria: `${projeto.areaMinimaTotal} m²`,
-      potencia_inversor_microinversor: dadosPrecificacao?.potenciaInversorDigitada
-        ? `${dadosPrecificacao.potenciaInversorDigitada} kWp`
-        : "---",
+      potencia_inversor_microinversor:
+        dadosPrecificacao?.potenciaInversorDigitada
+          ? `${dadosPrecificacao.potenciaInversorDigitada} kWp`
+          : "---",
       valor_a_vista: dadosPrecificacao?.totalVenda
         ? `R$ ${dadosPrecificacao.totalVenda.toFixed(2)}`
         : "---",
@@ -145,15 +168,14 @@ export default function GerarContratoPage() {
       consumo_medio_mensal: consumoMedioMensal,
       consumo_medio_diario: consumoMedioDiario,
     };
-  
+
     // ✅ Se for pessoa física, adiciona o RG
     if (cliente.tipoPessoa === "pf") {
       campos.rg = cliente.rg ?? "";
     }
-  
+
     return campos;
   };
-  
 
   const handleGerarContrato = async () => {
     const errosValidacao = validarCamposContrato({
@@ -161,13 +183,12 @@ export default function GerarContratoPage() {
       projeto,
       dadosPrecificacao,
     });
-    
+
     if (errosValidacao.length > 0) {
       setErros(errosValidacao); // <- usar estado como você já fez na proposta
       return;
     }
 
-    
     if (!templateSelecionado || !cliente || !projeto || !dadosPrecificacao) {
       alert("Preencha todas as informações antes de gerar o contrato.");
       return;
@@ -186,9 +207,24 @@ export default function GerarContratoPage() {
       if (!response.ok) throw new Error("Erro ao gerar contrato");
 
       const blob = await response.blob();
-      const nomeArquivo = `Contrato-${cliente.nomeCliente.replace(/\s+/g, "_")}-${new Date()
-        .toISOString()
-        .split("T")[0]}.docx`;
+
+      // 🔧 Função para limpar o nome (tirar acentos, espaços, caracteres especiais)
+      const limparNome = (texto: string) =>
+        texto
+          .normalize("NFD") // Normaliza caracteres acentuados
+          .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+          .replace(/\s+/g, "_") // Substitui espaços por underscore
+          .replace(/[^a-zA-Z0-9_-]/g, ""); // Remove outros caracteres especiais
+
+      // ✅ Garantir que nome do projeto exista, senão usa 'SemProjeto'
+      const nomeProjeto = projeto?.nomeProjeto || "SemProjeto";
+
+      // 📁 Monta nome do arquivo com cliente + projeto + data
+      const nomeArquivo = `Contrato-${limparNome(
+        cliente.nomeCliente
+      )}-${limparNome(nomeProjeto)}-${
+        new Date().toISOString().split("T")[0]
+      }.docx`;
 
       saveAs(blob, nomeArquivo);
     } catch (error) {
@@ -209,7 +245,7 @@ export default function GerarContratoPage() {
     dadosPrecificacao: any;
   }): string[] {
     const erros: string[] = [];
-  
+
     // 📌 Cliente
     if (!cliente.tipoPessoa) erros.push("Tipo de pessoa não informado.");
     if (cliente.tipoPessoa === "pj" && !cliente.cnpj)
@@ -217,28 +253,33 @@ export default function GerarContratoPage() {
     if (cliente.tipoPessoa === "pf" && !cliente.cpf)
       erros.push("CPF não informado.");
     if (!cliente.telefone) erros.push("Telefone do cliente não informado.");
-    if (!cliente.cidade) erros.push("Cidade do cliente não informada.");
-    if (!cliente.estado) erros.push("Estado do cliente não informado.");
+    if (!cliente.enderecos?.[0]?.cidade)
+      erros.push("Cidade do cliente não informada.");
+    if (!cliente.enderecos?.[0]?.estado)
+      erros.push("Estado do cliente não informado.");
     if (cliente.tipoPessoa === "pf" && !cliente.rg)
       erros.push("RG do cliente não informado.");
-  
+
     // 📌 Projeto
     if (!projeto.nomeProjeto) erros.push("Nome do projeto não informado.");
     if (!projeto.potenciaPlaca) erros.push("Potência da placa não informada.");
     if (!projeto.potenciaPico) erros.push("Potência pico não informada.");
-    if (!projeto.areaMinimaTotal)
-      erros.push("Área mínima não informada.");
-  
+    if (!projeto.areaMinimaTotal) erros.push("Área mínima não informada.");
+
     if (projeto.modo === "manual") {
-      if (!projeto.qtdPlacasManual) erros.push("Qtd. de placas (manual) não informada.");
-      if (!projeto.geracaoMensalManual) erros.push("Geração mensal (manual) não informada.");
+      if (!projeto.qtdPlacasManual)
+        erros.push("Qtd. de placas (manual) não informada.");
+      if (!projeto.geracaoMensalManual)
+        erros.push("Geração mensal (manual) não informada.");
     }
-  
+
     if (projeto.modo === "recomendado") {
-      if (!projeto.qtdPlacas) erros.push("Qtd. de placas (recomendada) não informada.");
-      if (!projeto.geracaoMensal) erros.push("Geração mensal (recomendada) não informada.");
+      if (!projeto.qtdPlacas)
+        erros.push("Qtd. de placas (recomendada) não informada.");
+      if (!projeto.geracaoMensal)
+        erros.push("Geração mensal (recomendada) não informada.");
     }
-  
+
     // 📌 Precificação
     if (!dadosPrecificacao.kitFotovoltaico)
       erros.push("Valor do kit fotovoltaico não informado.");
@@ -246,18 +287,18 @@ export default function GerarContratoPage() {
       erros.push("Valor total de venda não informado.");
     if (!dadosPrecificacao.tipoInversor)
       erros.push("Tipo de inversor não informado.");
-    if (!dadosPrecificacao.qtd_inversor_microinversor)
+    if (!dadosPrecificacao.quantidadeInversor)
       erros.push("Qtd. de inversores não informada.");
     if (!dadosPrecificacao.potenciaInversorDigitada)
       erros.push("Potência do inversor não informada.");
-  
+
     if (
       dadosPrecificacao.parcelaSelecionada !== "avista" &&
       !dadosPrecificacao.financiamentoSelecionado
     ) {
       erros.push("Dados do financiamento não informados.");
     }
-  
+
     return erros;
   }
 
@@ -269,8 +310,6 @@ export default function GerarContratoPage() {
       return () => clearTimeout(timer);
     }
   }, [erros]);
-  
-  
 
   if (!cliente || !projeto || !dadosPrecificacao) {
     return <div className="text-white p-10">Carregando contrato...</div>;
@@ -279,22 +318,21 @@ export default function GerarContratoPage() {
   return (
     <section className="text-white px-6 py-6 space-y-8">
       {erros.map((erro, i) => (
-  <div key={i} className="toast toast-top toast-end z-50">
-    <div className="alert alert-error">
-      <span>{erro}</span>
-    </div>
-  </div>
-))}
+        <div key={i} className="toast toast-top toast-end z-50">
+          <div className="alert alert-error">
+            <span>{erro}</span>
+          </div>
+        </div>
+      ))}
       <h1 className="text-3xl font-bold text-center">Gerar Contrato 📄</h1>
 
       {/* 🔁 Resumo reutilizável */}
       <ResumoProjeto
-  cliente={cliente}
-  projeto={projeto}
-  dadosPrecificacao={dadosPrecificacao}
-  variante="contrato"
-/>
-
+        cliente={cliente}
+        projeto={projeto}
+        dadosPrecificacao={dadosPrecificacao}
+        variante="contrato"
+      />
 
       {/* 📄 Seletor de template */}
       <div className="max-w-md mx-auto">
@@ -318,7 +356,10 @@ export default function GerarContratoPage() {
 
       {/* 🎯 Botões */}
       <div className="flex justify-end gap-4">
-        <button onClick={() => router.push("/contrato")} className="btn btn-outline">
+        <button
+          onClick={() => router.push("/contrato")}
+          className="btn btn-outline"
+        >
           Voltar
         </button>
         <button

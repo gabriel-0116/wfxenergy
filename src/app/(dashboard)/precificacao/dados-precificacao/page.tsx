@@ -14,7 +14,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { nomesLegiveis } from "@/utils/nomesLegiveis";
 
-export default function dadosPrecificacao() {
+export default function DadosPrecificacao() {
   const searchParams = useSearchParams();
   const clienteId = searchParams.get("clienteId");
   const projetoId = searchParams.get("projetoId");
@@ -42,7 +42,7 @@ export default function dadosPrecificacao() {
   const [consumoMedioDia, setConsumoMedioDia] = useState(0);
   const [estruturaProjeto, setEstruturaProjeto] = useState("");
   const [clienteNome, setClienteNome] = useState("");
-const [nomeProjeto, setNomeProjeto] = useState("");
+  const [nomeProjeto, setNomeProjeto] = useState("");
 
   // 🔧 Valores editáveis como string para permitir apagar "0"
   const [kitFotovoltaico, setKitFotovoltaico] = useState("");
@@ -81,34 +81,35 @@ const [nomeProjeto, setNomeProjeto] = useState("");
   const [quantidadePlacas, setQuantidadePlacas] = useState<string>("0");
   const [dadosAntigos, setDadosAntigos] = useState<any>({});
 
-  const parseDecimal = (valor: string): number => {
-    if (!valor) return 0;
-    return parseFloat(valor.replace(",", ".").trim()) || 0;
+  const parseDecimal = (valor: any): number => {
+    if (valor === null || valor === undefined) return 0;
+    return parseFloat(String(valor).replace(",", ".").trim()) || 0;
   };
-  
+
   const placas = modo === "manual" ? qtdPlacasManual : qtdPlacas;
   const numPlacas = placas || 0;
-  const custoEletricista = numPlacas * parseDecimal(valorEletricistaUnit || "0");
+  const custoEletricista =
+    numPlacas * parseDecimal(valorEletricistaUnit || "0");
   const custoInfra = numPlacas * parseDecimal(valorInfraUnit || "0");
   const custoComissao = editComissao
     ? numPlacas * parseDecimal(valorComissaoUnit || "0")
     : 0;
-    const valorVendaKit =
+  const valorVendaKit =
     parseDecimal(kitFotovoltaico) +
     (parseDecimal(margemLucroBruta) / 100) * parseDecimal(kitFotovoltaico) -
     parseDecimal(desconto);
   const valorVendaEletricista = custoEletricista * 2;
   const lucroEletricista = valorVendaEletricista - custoEletricista;
   const totalVenda =
-  valorVendaKit +
-  parseDecimal(valorProjeto || "0") +
-  parseDecimal(valorPlacaAdvertencia || "0") +
-  valorVendaEletricista +
-  custoInfra +
-  custoComissao;
+    valorVendaKit +
+    parseDecimal(valorProjeto || "0") +
+    parseDecimal(valorPlacaAdvertencia || "0") +
+    valorVendaEletricista +
+    custoInfra +
+    custoComissao;
   const custoImposto = editImposto
-  ? (parseDecimal(porcentagemImposto || "0") / 100) * totalVenda
-  : 0;
+    ? (parseDecimal(porcentagemImposto || "0") / 100) * totalVenda
+    : 0;
   const totalCusto =
     parseDecimal(kitFotovoltaico || "0") +
     parseDecimal(valorProjeto || "0") +
@@ -121,12 +122,15 @@ const [nomeProjeto, setNomeProjeto] = useState("");
   const valorComissaoInterna =
     (parseDecimal(porcentagemComissao || "0") / 100) * totalVenda;
   const totalLucro = totalVenda - totalCusto - parseDecimal(desconto || "0");
-  const lucroFinalComDescontoEComissaoEImposto = totalVenda - totalCusto - parseDecimal(desconto || "0");
+  const lucroFinalComDescontoEComissaoEImposto =
+    totalVenda - totalCusto - parseDecimal(desconto || "0");
   const placasUsadas = numPlacas;
   const faturamentoBrutoPorModulo =
     placasUsadas > 0 ? totalVenda / placasUsadas : 0;
   const faturamentoLiquidoPorModulo =
-    placasUsadas > 0 ? lucroFinalComDescontoEComissaoEImposto / placasUsadas : 0;
+    placasUsadas > 0
+      ? lucroFinalComDescontoEComissaoEImposto / placasUsadas
+      : 0;
   const valorFinanciado = totalVenda - parseDecimal(entrada || "0");
   const margemLucroLiquida =
     totalVenda > 0
@@ -173,18 +177,32 @@ const [nomeProjeto, setNomeProjeto] = useState("");
     };
   });
 
+  const potenciaPicoFinal =
+    modo === "manual"
+      ? potenciaPicoManual || potenciaPico
+      : potenciaPico || potenciaPicoManual;
+
+  const potenciaInversorFinal =
+    modo === "manual"
+      ? potenciaInversorManual || potenciaInversor
+      : potenciaInversor || potenciaInversorManual;
+
+  function sanitizeNumericInput(value: string) {
+    return value.replace(/[^\d.,]/g, "").replace(/,/g, ".");
+  }
+
   useEffect(() => {
     const buscarProjeto = async () => {
       if (!clienteId || !projetoId) return;
-  
+
       try {
         // 🔍 Busca os dados do projeto
         const docRef = doc(db, `clientes/${clienteId}/projetos/${projetoId}`);
         const snap = await getDoc(docRef);
-  
+
         if (snap.exists()) {
           const data = snap.data();
-  
+
           if (data.qtdPlacas) setQuantidadePlacas(String(data.qtdPlacas));
           if (data.qtdPlacas) setQtdPlacas(data.qtdPlacas);
           if (data.qtdPlacasManual) setQtdPlacasManual(data.qtdPlacasManual);
@@ -195,16 +213,20 @@ const [nomeProjeto, setNomeProjeto] = useState("");
           if (data.potenciaInversor) setPotenciaInversor(data.potenciaInversor);
           if (data.potenciaPico) setPotenciaPico(data.potenciaPico);
           if (data.nomeProjeto) setNomeProjeto(data.nomeProjeto); // 👈 nome do projeto
-          if (data.potenciaPicoManual) setPotenciaPicoManual(data.potenciaPicoManual);
-          if (data.potenciaInversorManual) setPotenciaInversorManual(data.potenciaInversorManual);
+          if (data.potenciaPicoManual)
+            setPotenciaPicoManual(data.potenciaPicoManual);
+          if (data.potenciaInversorManual)
+            setPotenciaInversorManual(data.potenciaInversorManual);
           if (data.areaMinimaTotal) setAreaMinima(data.areaMinimaTotal);
           if (data.totalComImposto) setTotalComImposto(data.totalComImposto);
           if (data.geracaoMensal) setGeracaoMensal(data.geracaoMensal);
-          if (data.geracaoMensalManual) setGeracaoMensalManual(data.geracaoMensalManual);
+          if (data.geracaoMensalManual)
+            setGeracaoMensalManual(data.geracaoMensalManual);
           if (data.geracaoDiaria) setGeracaoDiaria(data.geracaoDiaria);
-          if (data.geracaoDiariaManual) setGeracaoDiariaManual(data.geracaoDiariaManual);
+          if (data.geracaoDiariaManual)
+            setGeracaoDiariaManual(data.geracaoDiariaManual);
         }
-  
+
         // 🔍 Busca o nome do cliente
         const clienteSnap = await getDoc(doc(db, `clientes/${clienteId}`));
         if (clienteSnap.exists()) {
@@ -215,7 +237,7 @@ const [nomeProjeto, setNomeProjeto] = useState("");
         console.error("Erro ao buscar projeto e cliente:", error);
       }
     };
-  
+
     buscarProjeto();
   }, [clienteId, projetoId]);
 
@@ -458,15 +480,17 @@ const [nomeProjeto, setNomeProjeto] = useState("");
             }
           : dadosParcelas.find((p) => p.parcelas === parcelaSelecionada);
 
-          // Atualiza o documento pai com a data da última modificação
-await setDoc(
-  doc(db, `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}`),
-  {
-    ultimaModificacao: Timestamp.now()
-  },
-  { merge: true }
-);
-
+      // Atualiza o documento pai com a data da última modificação
+      await setDoc(
+        doc(
+          db,
+          `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}`
+        ),
+        {
+          ultimaModificacao: Timestamp.now(),
+        },
+        { merge: true }
+      );
 
       await setDoc(
         doc(
@@ -501,7 +525,9 @@ await setDoc(
 
           // 🔧 Campos novos de inversor (digitados como string)
           quantidadeInversor: parseDecimal(quantidadeInversor || "0"),
-          potenciaInversorDigitada: parseDecimal(potenciaInversorDigitada || "0"),
+          potenciaInversorDigitada: parseDecimal(
+            potenciaInversorDigitada || "0"
+          ),
           // 💰 Dados calculados (já estão como número)
           totalCusto,
           totalVenda,
@@ -517,14 +543,16 @@ await setDoc(
           opcoesFinanciamento,
           ultimaModificacao: Timestamp.now(),
           editImposto, // ✅ Checkbox do imposto (ativo ou não)
-    porcentagemImposto: parseDecimal(porcentagemImposto || "7"),
+          porcentagemImposto: parseDecimal(porcentagemImposto || "7"),
           estruturaProjeto,
           financiamentoSelecionado: financiamentoSelecionado || null,
 
           // 📊 Margem final
           margemLucroLiquida:
             totalVenda > 0
-              ? Math.round((lucroFinalComDescontoEComissaoEImposto / totalVenda) * 100)
+              ? Math.round(
+                  (lucroFinalComDescontoEComissaoEImposto / totalVenda) * 100
+                )
               : 0,
         },
         { merge: true }
@@ -570,9 +598,10 @@ await setDoc(
       juros,
       qtdParcelas,
       parcelaSelecionada,
+      estruturaProjeto,
       quantidadePlacas,
       editImposto, // ✅ adicionar aqui
-  porcentagemImposto,
+      porcentagemImposto,
     };
 
     // 🔎 Compara os dados antigos com os atuais
@@ -601,15 +630,17 @@ await setDoc(
             }
           : dadosParcelas.find((p) => p.parcelas === parcelaSelecionada);
 
-          // Atualiza o documento pai com a data da última modificação
-await setDoc(
-  doc(db, `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}`),
-  {
-    ultimaModificacao: Timestamp.now()
-  },
-  { merge: true }
-);
-
+      // Atualiza o documento pai com a data da última modificação
+      await setDoc(
+        doc(
+          db,
+          `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}`
+        ),
+        {
+          ultimaModificacao: Timestamp.now(),
+        },
+        { merge: true }
+      );
 
       await setDoc(
         doc(
@@ -642,7 +673,9 @@ await setDoc(
 
           // 🔧 Campos adicionais
           quantidadeInversor: parseDecimal(quantidadeInversor || "0"),
-          potenciaInversorDigitada: parseDecimal(potenciaInversorDigitada || "0"),
+          potenciaInversorDigitada: parseDecimal(
+            potenciaInversorDigitada || "0"
+          ),
 
           // 💰 Dados calculados
           totalCusto,
@@ -665,7 +698,9 @@ await setDoc(
           // 📊 Margem de lucro
           margemLucroLiquida:
             totalVenda > 0
-              ? Math.round((lucroFinalComDescontoEComissaoEImposto / totalVenda) * 100)
+              ? Math.round(
+                  (lucroFinalComDescontoEComissaoEImposto / totalVenda) * 100
+                )
               : 0,
         },
         { merge: true }
@@ -746,14 +781,16 @@ await setDoc(
       {/* 🔷 PAINEL DE RESUMO DO PROJETO (acima da precificação) */}
       <div className="bg-[#1a1a1a] p-4 rounded-xl mb-6 shadow-2xl border border-[#1a1a1a] text-sm text-white">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-center">
-        <div className="mb-4">
-    <p className="text-lg font-semibold text-purple-300">
-      Cliente: <span className="text-white">{clienteNome || "---"}</span>
-    </p>
-    <p className="text-md text-purple-200">
-      Projeto: <span className="text-white">{nomeProjeto || "---"}</span>
-    </p>
-  </div>
+          <div className="mb-4">
+            <p className="text-lg font-semibold text-purple-300">
+              Cliente:{" "}
+              <span className="text-white">{clienteNome || "---"}</span>
+            </p>
+            <p className="text-md text-purple-200">
+              Projeto:{" "}
+              <span className="text-white">{nomeProjeto || "---"}</span>
+            </p>
+          </div>
           <div>
             <span className="text-gray-400">Geração Mensal:</span>
             <br />
@@ -810,26 +847,12 @@ await setDoc(
           <div>
             <span className="text-gray-400">Potência Inversor:</span>
             <br />
-            <strong>
-              {modo === "manual"
-                ? potenciaInversorManual ?? "---"
-                : potenciaInversor ?? "---"}{" "}
-              kW
-            </strong>
+            <strong>{potenciaInversorFinal ?? "---"} kW</strong>
           </div>
           <div>
             <span className="text-gray-400">Potência de Pico:</span>
             <br />
-            <strong>
-              {(modo === "manual"
-                ? potenciaPicoManual > 0
-                  ? potenciaPicoManual
-                  : potenciaPico
-                : potenciaPico > 0
-                ? potenciaPico
-                : potenciaPicoManual) ?? "---"}{" "}
-              kW
-            </strong>
+            <strong>{potenciaPicoFinal ?? "---"} kW</strong>
           </div>
           <div>
             <span className="text-gray-400">Área Mínima:</span>
@@ -854,7 +877,8 @@ await setDoc(
             Ajustes de Custos Variáveis
             <p className="text-gray-500 text-sm font-semibold">
               <FontAwesomeIcon icon={faBell} className="mr-2" />
-              Selecione o checkbox para incluir a comissão por indicação e o imposto!!
+              Selecione o checkbox para incluir a comissão por indicação e o
+              imposto!!
             </p>
           </h2>
 
@@ -879,35 +903,37 @@ await setDoc(
                 type="text"
                 className="input input-sm input-bordered w-full text-center"
                 value={valorComissaoUnit}
-                onChange={(e) => setValorComissaoUnit(e.target.value)}
+                onChange={(e) =>
+                  setValorComissaoUnit(sanitizeNumericInput(e.target.value))
+                }
                 placeholder="Informe valor por placa"
               />
             )}
           </div>
           {/* IMPOSTO SOBRE NOTA FISCAL */}
-<div className="flex items-center justify-between mt-6">
-  <div className="flex flex-col text-sm text-white">
-    <span className="font-semibold">Imposto Nota Fiscal (%)</span>
-    <span className="text-xs text-gray-400">
-      Valor padrão: 7%
-    </span>
-  </div>
-  <input
-    type="checkbox"
-    className="checkbox"
-    checked={editImposto}
-    onChange={() => setEditImposto(!editImposto)}
-  />
-</div>
-{editImposto && (
-  <input
-    type="text"
-    className="input input-sm input-bordered w-full text-center mt-2"
-    value={porcentagemImposto}
-    onChange={(e) => setPorcentagemImposto(e.target.value)}
-    placeholder="Informe % de imposto"
-  />
-)}
+          <div className="flex items-center justify-between mt-6">
+            <div className="flex flex-col text-sm text-white">
+              <span className="font-semibold">Imposto Nota Fiscal (%)</span>
+              <span className="text-xs text-gray-400">Valor padrão: 7%</span>
+            </div>
+            <input
+              type="checkbox"
+              className="checkbox"
+              checked={editImposto}
+              onChange={() => setEditImposto(!editImposto)}
+            />
+          </div>
+          {editImposto && (
+            <input
+              type="text"
+              className="input input-sm input-bordered w-full text-center mt-2"
+              value={porcentagemImposto}
+              onChange={(e) =>
+                setPorcentagemImposto(sanitizeNumericInput(e.target.value))
+              }
+              placeholder="Informe % de imposto"
+            />
+          )}
         </div>
 
         {/* TABELA DE RESUMO FINAL */}
@@ -930,7 +956,9 @@ await setDoc(
                     type="text"
                     className="input input-sm input-bordered w-24 text-right"
                     value={margemLucroBruta}
-                    onChange={(e) => setMargemLucroBruta(e.target.value)}
+                    onChange={(e) =>
+                      setMargemLucroBruta(sanitizeNumericInput(e.target.value))
+                    }
                   />
                 </td>
               </tr>
@@ -957,7 +985,9 @@ await setDoc(
                     type="text"
                     className="input input-sm input-bordered w-24 text-right"
                     value={desconto}
-                    onChange={(e) => setDesconto(e.target.value)}
+                    onChange={(e) =>
+                      setDesconto(sanitizeNumericInput(e.target.value))
+                    }
                   />
                 </td>
               </tr>
@@ -994,7 +1024,11 @@ await setDoc(
                     type="text"
                     className="input input-sm input-bordered w-20 text-center"
                     value={porcentagemComissao}
-                    onChange={(e) => setPorcentagemComissao(e.target.value)}
+                    onChange={(e) =>
+                      setPorcentagemComissao(
+                        sanitizeNumericInput(e.target.value)
+                      )
+                    }
                   />
                 </td>
 
@@ -1062,7 +1096,9 @@ await setDoc(
                   className="input input-sm input-bordered w-32 text-center"
                   placeholder="R$"
                   value={kitFotovoltaico}
-                  onChange={(e) => setKitFotovoltaico(e.target.value)}
+                  onChange={(e) =>
+                    setKitFotovoltaico(sanitizeNumericInput(e.target.value))
+                  }
                 />
               </td>
             </tr>
@@ -1072,7 +1108,9 @@ await setDoc(
                   type="text"
                   className="input input-sm input-bordered w-32 text-center"
                   value={valorProjeto}
-                  onChange={(e) => setValorProjeto(e.target.value)}
+                  onChange={(e) =>
+                    setValorProjeto(sanitizeNumericInput(e.target.value))
+                  }
                 />
               </td>
             </tr>
@@ -1082,7 +1120,11 @@ await setDoc(
                   type="text"
                   className="input input-sm input-bordered w-32 text-center"
                   value={valorPlacaAdvertencia}
-                  onChange={(e) => setValorPlacaAdvertencia(e.target.value)}
+                  onChange={(e) =>
+                    setValorPlacaAdvertencia(
+                      sanitizeNumericInput(e.target.value)
+                    )
+                  }
                 />
               </td>
             </tr>
@@ -1095,7 +1137,11 @@ await setDoc(
                   type="text"
                   className="input input-sm input-bordered w-32 text-center"
                   value={valorEletricistaUnit}
-                  onChange={(e) => setValorEletricistaUnit(e.target.value)}
+                  onChange={(e) =>
+                    setValorEletricistaUnit(
+                      sanitizeNumericInput(e.target.value)
+                    )
+                  }
                   placeholder="R$"
                 />
                 <p className="flex text-center justify-center items-center">
@@ -1112,7 +1158,9 @@ await setDoc(
                   type="text"
                   className="input input-sm input-bordered w-32 text-center"
                   value={valorInfraUnit}
-                  onChange={(e) => setValorInfraUnit(e.target.value)}
+                  onChange={(e) =>
+                    setValorInfraUnit(sanitizeNumericInput(e.target.value))
+                  }
                   placeholder="R$"
                 />
                 <p className="flex text-center justify-center items-center">
@@ -1157,7 +1205,9 @@ await setDoc(
             </tr>
             <tr>
               <td className="text-center">
-                <p>R$ {parseDecimal(valorPlacaAdvertencia || "0").toFixed(2)}</p>
+                <p>
+                  R$ {parseDecimal(valorPlacaAdvertencia || "0").toFixed(2)}
+                </p>
               </td>
             </tr>
             <tr>
@@ -1213,7 +1263,8 @@ await setDoc(
             <tr>
               <td className="text-center">
                 <p>
-                  R$ {parseDecimal(lucroEletricista.toString() || "0").toFixed(2)}
+                  R${" "}
+                  {parseDecimal(lucroEletricista.toString() || "0").toFixed(2)}
                 </p>
               </td>
             </tr>
@@ -1272,7 +1323,9 @@ await setDoc(
                   <input
                     type="text"
                     value={entrada}
-                    onChange={(e) => setEntrada(e.target.value)}
+                    onChange={(e) =>
+                      setEntrada(sanitizeNumericInput(e.target.value))
+                    }
                     className="bg-transparent border border-gray-500 px-2 py-1 w-30 text-right rounded"
                   />
                 </td>
@@ -1305,7 +1358,9 @@ await setDoc(
                   <input
                     type="text"
                     value={juros}
-                    onChange={(e) => setJuros(e.target.value)}
+                    onChange={(e) =>
+                      setJuros(sanitizeNumericInput(e.target.value))
+                    }
                     className="bg-transparent border border-gray-500 px-2 py-1 w-24 text-right rounded"
                   />
                 </td>
@@ -1320,7 +1375,9 @@ await setDoc(
                   <input
                     type="text"
                     value={qtdParcelas}
-                    onChange={(e) => setQtdParcelas(e.target.value)}
+                    onChange={(e) =>
+                      setQtdParcelas(sanitizeNumericInput(e.target.value))
+                    }
                     className="bg-transparent border border-gray-500 px-2 py-1 w-24 text-right rounded"
                   />
                 </td>
@@ -1517,7 +1574,11 @@ await setDoc(
               type="text"
               className="input input-bordered w-20 text-center"
               value={quantidadeInversor}
-              onChange={(e) => setQuantidadeInversor(e.target.value.replace(",", "."))}
+              onChange={(e) =>
+                setQuantidadeInversor(
+                  sanitizeNumericInput(e.target.value.replace(",", "."))
+                )
+              }
               required
             />
           </div>
@@ -1529,7 +1590,11 @@ await setDoc(
               type="text"
               className="input input-sm input-bordered w-32 text-center"
               value={potenciaInversorDigitada}
-              onChange={(e) => setPotenciaInversorDigitada(e.target.value.replace(",", "."))}
+              onChange={(e) =>
+                setPotenciaInversorDigitada(
+                  sanitizeNumericInput(e.target.value.replace(",", "."))
+                )
+              }
               placeholder="Ex: 4.5"
             />
           </div>
@@ -1556,7 +1621,9 @@ await setDoc(
             <select
               className="select select-bordered w-full"
               value={estruturaProjeto}
-              onChange={(e) => setEstruturaProjeto(e.target.value)}
+              onChange={(e) =>
+                setEstruturaProjeto(sanitizeNumericInput(e.target.value))
+              }
               required
             >
               <option value="">Selecione...</option>

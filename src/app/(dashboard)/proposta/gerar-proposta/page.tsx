@@ -70,28 +70,32 @@ export default function GerarPropostaPage() {
   function gerarFormaPagamento(dadosPrecificacao: any): string {
     const entrada = parseFloat(dadosPrecificacao?.entrada || "0");
     const parcelas = dadosPrecificacao?.parcelaSelecionada;
-    const valorParcela = dadosPrecificacao?.financiamentoSelecionado?.valorParcela;
+    const valorParcela =
+      dadosPrecificacao?.financiamentoSelecionado?.valorParcela;
     const totalVenda = dadosPrecificacao?.totalVenda;
-  
+
     if (parcelas === "avista") {
       if (entrada > 0) {
-        return `Entrada: R$ ${entrada.toFixed(2)} | Valor à vista: R$ ${totalVenda.toFixed(2)}`;
+        return `Entrada: R$ ${entrada.toFixed(
+          2
+        )} | Valor à vista: R$ ${totalVenda.toFixed(2)}`;
       } else {
         return `R$ ${totalVenda.toFixed(2)}`;
       }
     }
-  
+
     if (typeof parcelas === "number" && valorParcela) {
       if (entrada > 0) {
-        return `Entrada: R$ ${entrada.toFixed(2)} | ${parcelas}x de R$ ${valorParcela.toFixed(2)}`;
+        return `Entrada: R$ ${entrada.toFixed(
+          2
+        )} | ${parcelas}x de R$ ${valorParcela.toFixed(2)}`;
       } else {
         return `${parcelas}x de R$ ${valorParcela.toFixed(2)}`;
       }
     }
-  
+
     return "---";
   }
-  
 
   const handleGerarProposta = async () => {
     const errosValidacao = validarCamposProposta({
@@ -99,7 +103,7 @@ export default function GerarPropostaPage() {
       projeto,
       dadosPrecificacao,
     });
-  
+
     if (errosValidacao.length > 0) {
       setErros(errosValidacao);
       return;
@@ -114,6 +118,8 @@ export default function GerarPropostaPage() {
 
     setGerando(true);
     try {
+      const enderecoPrincipal = cliente.enderecos?.[0] || {};
+
       const nomeClienteCampo =
         cliente.tipoPessoa === "pj" ? cliente.razaoSocial : cliente.nomeCliente;
 
@@ -132,8 +138,8 @@ export default function GerarPropostaPage() {
         nome_cliente: nomeClienteCampo || "---",
         cpf: cpfOuCnpjCampo || "---",
         telefone: cliente.telefone || "---",
-        cidade: cliente.cidade || "---",
-        estado: cliente.estado || "---",
+        cidade: enderecoPrincipal.cidade || "---",
+        estado: enderecoPrincipal.estado || "---",
         criado_em: new Date().toLocaleDateString("pt-BR"),
         validade: "7 dias",
         geracao_media:
@@ -149,11 +155,10 @@ export default function GerarPropostaPage() {
         estrutura: dadosPrecificacao?.estruturaProjeto || "---",
         quantidade_placas: qtdPlacasUsadas,
         qtd_painel_helius: qtdPlacasUsadas,
-        inversor_microinversor:
-          dadosPrecificacao.tipoInversor ?? "---",
+        inversor_microinversor: dadosPrecificacao.tipoInversor ?? "---",
         nome_projeto: projeto?.nomeProjeto || "---",
         qtd_inversor_microinversor:
-          dadosPrecificacao.qtd_inversor_microinversor ?? "---",
+          dadosPrecificacao.quantidadeInversor ?? "---",
         area_necessaria: `${projeto.areaMinimaTotal} m²`,
         potencia_inversor_microinversor:
           dadosPrecificacao?.potenciaInversorDigitada
@@ -216,15 +221,18 @@ export default function GerarPropostaPage() {
 
       const limparNome = (texto: string) =>
         texto
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/\s+/g, "_")
-          .replace(/[^a-zA-Z0-9_-]/g, "");
+          .normalize("NFD") // Remove acentos
+          .replace(/[\u0300-\u036f]/g, "") // Remove caracteres especiais de acento
+          .replace(/\s+/g, "_") // Troca espaços por underline
+          .replace(/[^a-zA-Z0-9_-]/g, ""); // Remove qualquer outro caractere não permitido
 
       const dataHoje = new Date().toISOString().split("T")[0];
+
+      // Adiciona o nome do projeto no nome do arquivo
       const nomeArquivo = `Proposta-Comercial-${limparNome(
         cliente.nomeCliente
-      )}-${dataHoje}.docx`;
+      )}-${limparNome(projeto.nomeProjeto)}-${dataHoje}.docx`;
+
       saveAs(out, nomeArquivo);
     } catch (err) {
       console.error("Erro inesperado:", err);
@@ -235,74 +243,77 @@ export default function GerarPropostaPage() {
   };
 
   // ✅ Função de validação antes de gerar proposta
-function validarCamposProposta({
-  cliente,
-  projeto,
-  dadosPrecificacao,
-}: {
-  cliente: any;
-  projeto: any;
-  dadosPrecificacao: any;
-}): string[] {
-  const erros: string[] = [];
+  function validarCamposProposta({
+    cliente,
+    projeto,
+    dadosPrecificacao,
+  }: {
+    cliente: any;
+    projeto: any;
+    dadosPrecificacao: any;
+  }): string[] {
+    const erros: string[] = [];
 
-  // 📌 Validação de cliente
-  if (!cliente.tipoPessoa) erros.push("Tipo de pessoa não informado.");
-  if (cliente.tipoPessoa === "pj" && !cliente.cnpj)
-    erros.push("CNPJ da empresa não informado.");
-  if (cliente.tipoPessoa === "pf" && !cliente.cpf)
-    erros.push("CPF do cliente não informado.");
-  if (!cliente.telefone) erros.push("Telefone do cliente não informado.");
-  if (!cliente.cidade) erros.push("Cidade do cliente não informada.");
-  if (!cliente.estado) erros.push("Estado do cliente não informado.");
+    // 📌 Validação de cliente
+    if (!cliente.tipoPessoa) erros.push("Tipo de pessoa não informado.");
+    if (cliente.tipoPessoa === "pj" && !cliente.cnpj)
+      erros.push("CNPJ da empresa não informado.");
+    if (cliente.tipoPessoa === "pf" && !cliente.cpf)
+      erros.push("CPF do cliente não informado.");
+    if (!cliente.telefone) erros.push("Telefone do cliente não informado.");
+    if (!cliente.enderecos?.[0]?.cidade)
+      erros.push("Cidade do cliente não informada.");
+    if (!cliente.enderecos?.[0]?.estado)
+      erros.push("Estado do cliente não informado.");
 
-  // 📌 Validação do projeto
-  if (!projeto.nomeProjeto) erros.push("Nome do projeto não informado.");
-  if (!projeto.potenciaPlaca) erros.push("Potência da placa não informada.");
-  if (!projeto.potenciaPico) erros.push("Potência pico não informada.");
-  if (!projeto.areaMinimaTotal)
-    erros.push("Área mínima do projeto não informada.");
-  if (
-    projeto.modo === "manual" &&
-    (!projeto.qtdPlacasManual || !projeto.geracaoMensalManual)
-  ) {
-    erros.push("Informações manuais incompletas (quantidade ou geração).");
+    // 📌 Validação do projeto
+    if (!projeto.nomeProjeto) erros.push("Nome do projeto não informado.");
+    if (!projeto.potenciaPlaca) erros.push("Potência da placa não informada.");
+    if (!projeto.potenciaPico) erros.push("Potência pico não informada.");
+    if (!projeto.areaMinimaTotal)
+      erros.push("Área mínima do projeto não informada.");
+    if (
+      projeto.modo === "manual" &&
+      (!projeto.qtdPlacasManual || !projeto.geracaoMensalManual)
+    ) {
+      erros.push("Informações manuais incompletas (quantidade ou geração).");
+    }
+    if (
+      projeto.modo === "recomendado" &&
+      (!projeto.qtdPlacas || !projeto.geracaoMensal)
+    ) {
+      erros.push(
+        "Informações recomendadas incompletas (quantidade ou geração)."
+      );
+    }
+
+    // 📌 Validação da precificação
+    if (!dadosPrecificacao.kitFotovoltaico)
+      erros.push("Valor do kit fotovoltaico não informado.");
+    if (!dadosPrecificacao.totalVenda)
+      erros.push("Valor de venda não informado.");
+    if (!dadosPrecificacao.tipoInversor)
+      erros.push("Tipo de inversor não informado.");
+    if (!dadosPrecificacao.quantidadeInversor)
+      erros.push("Quantidade de inversores não informada.");
+
+    // 📌 Se for parcelado, verificar financiamento
+    if (
+      dadosPrecificacao.parcelaSelecionada !== "avista" &&
+      !dadosPrecificacao.financiamentoSelecionado
+    ) {
+      erros.push("Dados de financiamento não informados.");
+    }
+
+    return erros;
   }
-  if (
-    projeto.modo === "recomendado" &&
-    (!projeto.qtdPlacas || !projeto.geracaoMensal)
-  ) {
-    erros.push("Informações recomendadas incompletas (quantidade ou geração).");
-  }
 
-  // 📌 Validação da precificação
-  if (!dadosPrecificacao.kitFotovoltaico)
-    erros.push("Valor do kit fotovoltaico não informado.");
-  if (!dadosPrecificacao.totalVenda)
-    erros.push("Valor de venda não informado.");
-  if (!dadosPrecificacao.tipoInversor)
-    erros.push("Tipo de inversor não informado.");
-  if (!dadosPrecificacao.qtd_inversor_microinversor)
-    erros.push("Quantidade de inversores não informada.");
-
-  // 📌 Se for parcelado, verificar financiamento
-  if (
-    dadosPrecificacao.parcelaSelecionada !== "avista" &&
-    !dadosPrecificacao.financiamentoSelecionado
-  ) {
-    erros.push("Dados de financiamento não informados.");
-  }
-
-  return erros;
-}
-
-useEffect(() => {
-  if (erros.length > 0) {
-    const timer = setTimeout(() => setErros([]), 5000);
-    return () => clearTimeout(timer);
-  }
-}, [erros]);
-
+  useEffect(() => {
+    if (erros.length > 0) {
+      const timer = setTimeout(() => setErros([]), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [erros]);
 
   if (!cliente || !projeto) {
     return <div className="text-white p-10">Carregando proposta...</div>;
@@ -311,12 +322,12 @@ useEffect(() => {
   return (
     <section className="text-white px-6 py-6 space-y-8">
       {erros.map((erro, i) => (
-  <div key={i} className="toast toast-top toast-end z-50">
-    <div className="alert alert-error">
-      <span>{erro}</span>
-    </div>
-  </div>
-))}
+        <div key={i} className="toast toast-top toast-end z-50">
+          <div className="alert alert-error">
+            <span>{erro}</span>
+          </div>
+        </div>
+      ))}
       <h1 className="text-3xl font-bold text-center">Proposta Comercial 📄</h1>
 
       {/* ✅ Resumo reutilizável */}
