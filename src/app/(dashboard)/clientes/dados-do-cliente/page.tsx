@@ -522,15 +522,15 @@ export default function DadosDoClientePage() {
                 <span className="label-text font-semibold mb-2">CEP:</span>
               </label>
               <div className="flex">
-                <input
-                  type="text"
-                  className="input input-bordered w-full"
-                  placeholder="CEP"
-                  value={enderecos[0].cep}
-                  onChange={(e) =>
-                    setEnderecos([{ ...enderecos[0], cep: e.target.value }])
-                  }
-                />
+              <IMaskInput
+  mask="00000-000"
+  placeholder="00000-000"
+  className="input input-bordered w-full"
+  value={enderecos[0].cep}
+  onAccept={(value) =>
+    setEnderecos([{ ...enderecos[0], cep: value }])
+  }
+/>
                 <button
                   onClick={buscarCep}
                   className="btn btn-square w-20"

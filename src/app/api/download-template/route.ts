@@ -22,19 +22,28 @@ if (!getApps().length) {
 
 export async function POST(req: Request) {
   try {
-    const { template } = await req.json();
+    const { template, tipo } = await req.json();
 
-    if (!template) {
+    if (!template || !tipo) {
       return NextResponse.json(
-        { error: "Template não informado" },
+        { error: "Template ou tipo não informado" },
+        { status: 400 }
+      );
+    }
+
+    // Validação de tipo
+    if (!["proposta", "contrato"].includes(tipo)) {
+      return NextResponse.json(
+        { error: "Tipo inválido (use 'proposta' ou 'contrato')" },
         { status: 400 }
       );
     }
 
     const bucket = getStorage().bucket();
-    const file = bucket.file(`templates/propostas/${template}`);
-    const [exists] = await file.exists();
+    const caminho = `templates/${tipo}s/${template}`; // usa `propostas` ou `contratos`
+    const file = bucket.file(caminho);
 
+    const [exists] = await file.exists();
     if (!exists) {
       return NextResponse.json(
         { error: "Arquivo não encontrado no storage" },
@@ -55,3 +64,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Erro interno" }, { status: 500 });
   }
 }
+

@@ -140,6 +140,9 @@ export default function GerarPropostaPage() {
         telefone: cliente.telefone || "---",
         cidade: enderecoPrincipal.cidade || "---",
         estado: enderecoPrincipal.estado || "---",
+        logradouro: enderecoPrincipal.endereco || "---", 
+        numero: enderecoPrincipal.numero || "---",      
+        cep: enderecoPrincipal.cep || "---",
         criado_em: new Date().toLocaleDateString("pt-BR"),
         validade: "7 dias",
         geracao_media:
@@ -261,11 +264,8 @@ export default function GerarPropostaPage() {
     if (cliente.tipoPessoa === "pf" && !cliente.cpf)
       erros.push("CPF do cliente não informado.");
     if (!cliente.telefone) erros.push("Telefone do cliente não informado.");
-    if (!cliente.enderecos?.[0]?.cidade)
-      erros.push("Cidade do cliente não informada.");
-    if (!cliente.enderecos?.[0]?.estado)
-      erros.push("Estado do cliente não informado.");
-
+    if (cliente.tipoPessoa === "pf" && !cliente.rg)
+      erros.push("RG do cliente não informado.");    
     // 📌 Validação do projeto
     if (!projeto.nomeProjeto) erros.push("Nome do projeto não informado.");
     if (!projeto.potenciaPlaca) erros.push("Potência da placa não informada.");

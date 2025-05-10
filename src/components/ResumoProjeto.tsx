@@ -143,11 +143,11 @@ export default function ResumoProjeto({
           {projeto.modo === "manual" ? "Manual" : "Recomendado"}
         </p>
         <p>
-  <strong>Qtd. de placas:</strong>{" "}
-  {projeto.modo === "manual"
-    ? projeto.qtdPlacasManual ?? projeto.qtdPlacas ?? "---"
-    : projeto.qtdPlacas ?? projeto.qtdPlacasManual ?? "---"}
-</p>
+          <strong>Qtd. de placas:</strong>{" "}
+          {projeto.modo === "manual"
+            ? projeto.qtdPlacasManual ?? projeto.qtdPlacas ?? "---"
+            : projeto.qtdPlacas ?? projeto.qtdPlacasManual ?? "---"}
+        </p>
         <p>
           <strong>Potência da placa:</strong> {projeto.potenciaPlaca} W
         </p>
@@ -166,27 +166,34 @@ export default function ResumoProjeto({
           kWh
         </p>
         <p>
-  <strong>Potência pico:</strong>{" "}
-  {projeto.modo === "manual"
-    ? projeto.potenciaPicoManual ?? "---"
-    : projeto.potenciaPico ?? "---"}{" "}
-  kW
-</p>
-<p>
-  <strong>Excedente:</strong>{" "}
-  {projeto.modo === "manual"
-    ? projeto.excedenteManual ?? projeto.excedente ?? "---"
-    : projeto.excedente ?? "---"}
-  %
-</p>
+          <strong>Potência pico:</strong>{" "}
+          {projeto.modo === "manual"
+            ? projeto.potenciaPicoManual ?? "---"
+            : projeto.potenciaPico ?? "---"}{" "}
+          kW
+        </p>
         <p>
-  <strong>Potência mínima do inversor:</strong>{" "}
-  {projeto.modo === "manual"
-    ? projeto.potenciaInversorManual ?? "---"
-    : projeto.potenciaInversor ?? "---"}{" "}
-  kW
-</p>
-
+          <strong>Excedente:</strong>{" "}
+          {projeto.modo === "manual"
+            ? projeto.excedenteManual ?? projeto.excedente ?? "---"
+            : projeto.excedente ?? "---"}
+          %
+        </p>
+        <p>
+          <strong>Potência mínima do inversor:</strong>{" "}
+          {projeto.modo === "manual"
+            ? projeto.potenciaInversorManual ?? "---"
+            : projeto.potenciaInversor ?? "---"}{" "}
+          kW
+        </p>
+        <p>
+          <strong>Tipo de inversor:</strong>{" "}
+          {dadosPrecificacao?.tipoInversor || "---"}
+        </p>
+        <p>
+          <strong>Qtd. de inversores:</strong>{" "}
+          {dadosPrecificacao?.quantidadeInversor || "---"}
+        </p>
         <p>
           <strong>Excedente Unidade:</strong>{" "}
           {projeto.modo === "manual"
@@ -207,9 +214,15 @@ export default function ResumoProjeto({
               Resumo Financeiro
             </h2>
             <p>
-              <strong>Valor do Kit Fotovoltaico:</strong> R$
-              {Number(dadosPrecificacao.kitFotovoltaico ?? 0).toFixed(2)}
-            </p>
+  <strong>Valor do Kit Fotovoltaico:</strong> R$
+  {Number(dadosPrecificacao.kitFotovoltaico ?? 0).toFixed(2)}
+</p>
+
+<p>
+  <strong>Valor à vista do projeto:</strong> R$
+  {Number(dadosPrecificacao.totalVenda ?? 0).toFixed(2)}
+</p>
+
 
             <p>
               <strong>Forma de Pagamento:</strong>{" "}

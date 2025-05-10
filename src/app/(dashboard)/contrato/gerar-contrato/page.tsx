@@ -69,48 +69,48 @@ export default function GerarContratoPage() {
 
   const montarCampos = () => {
     const enderecoPrincipal = cliente.enderecos?.[0] || {};
-
+  
     const nomeClienteCampo =
       cliente.tipoPessoa === "pj" ? cliente.razaoSocial : cliente.nomeCliente;
-
+  
     const cpfOuCnpjCampo =
       cliente.tipoPessoa === "pj" ? cliente.cnpj : cliente.cpf;
-
+  
     const nomeClienteAssinaturaCampo =
       cliente.tipoPessoa === "pj" ? cliente.razaoSocial : cliente.nomeCliente;
-
+  
     const qtdPlacasUsadas =
       projeto.modo === "manual"
         ? projeto.qtdPlacasManual || projeto.qtdPlacas || "---"
         : projeto.qtdPlacas || projeto.qtdPlacasManual || "---";
-
+  
     const geracaoMensal =
       projeto.modo === "manual"
         ? projeto.geracaoMensalManual ?? projeto.geracaoMensal ?? "---"
         : projeto.geracaoMensal ?? projeto.geracaoMensalManual ?? "---";
-
+  
     const consumoMedioMensal =
       projeto.modo === "manual"
         ? projeto.consumoMedioMesManual ?? projeto.consumoMedioMes ?? "---"
         : projeto.consumoMedioMes ?? projeto.consumoMedioMesManual ?? "---";
-
+  
     const consumoMedioDiario =
       projeto.modo === "manual"
         ? projeto.consumoMedioDiaManual ?? projeto.consumoMedioDia ?? "---"
         : projeto.consumoMedioDia ?? projeto.consumoMedioDiaManual ?? "---";
-
+  
     const entrada = parseFloat(dadosPrecificacao?.entrada || "0");
     const totalPago =
       dadosPrecificacao?.financiamentoSelecionado?.totalPago || 0;
     const totalFinanciado = entrada + totalPago;
-
+  
     function gerarFormaPagamento(dadosPrecificacao: any): string {
       const entrada = parseFloat(dadosPrecificacao?.entrada || "0");
       const parcelas = dadosPrecificacao?.parcelaSelecionada;
       const valorParcela =
         dadosPrecificacao?.financiamentoSelecionado?.valorParcela;
       const totalVenda = dadosPrecificacao?.totalVenda;
-
+  
       if (parcelas === "avista") {
         if (entrada > 0) {
           return `Entrada: R$ ${entrada.toFixed(
@@ -120,7 +120,7 @@ export default function GerarContratoPage() {
           return `R$ ${totalVenda.toFixed(2)}`;
         }
       }
-
+  
       if (typeof parcelas === "number" && valorParcela) {
         if (entrada > 0) {
           return `Entrada: R$ ${entrada.toFixed(
@@ -130,52 +130,51 @@ export default function GerarContratoPage() {
           return `${parcelas}x de R$ ${valorParcela.toFixed(2)}`;
         }
       }
-
+  
       return "---";
     }
-
-    // Objeto base com todos os campos
+  
+    // ✅ Campos que serão enviados para o Docxtemplater
     const campos: Record<string, string> = {
       nome_cliente: nomeClienteCampo || "---",
       cpf: cpfOuCnpjCampo || "---",
+      rg: cliente.rg || "---",
       telefone: cliente.telefone || "---",
       cidade: enderecoPrincipal.cidade || "---",
       estado: enderecoPrincipal.estado || "---",
+      logradouro: enderecoPrincipal.endereco || "---",
+      numero: enderecoPrincipal.numero || "---",
+      cep: enderecoPrincipal.cep || "---",
       criado_em: new Date().toLocaleDateString("pt-BR"),
       validade: "7 dias",
-      geracao_media: `${geracaoMensal} kWh/mês`,
-      potencia_placas: `${projeto.potenciaPlaca} W`,
-      potencia_instalada: `${projeto.potenciaPico} kWp`,
-      estrutura: dadosPrecificacao?.estruturaProjeto || "---",
-      quantidade_placas: qtdPlacasUsadas,
-      qtd_painel_helius: qtdPlacasUsadas,
-      inversor_microinversor: dadosPrecificacao?.tipoInversor ?? "---",
       nome_projeto: projeto?.nomeProjeto || "---",
+  
+      potencia_instalada: `${projeto.potenciaPico} kWp`,
+      geracao_media: `${geracaoMensal} kWh/mês`,
+      quantidade_placas: qtdPlacasUsadas,
+      potencia_placas: `${projeto.potenciaPlaca} W`,
+  
+      forma_pagamento: gerarFormaPagamento(dadosPrecificacao),
+      total_venda: dadosPrecificacao?.totalVenda?.toFixed(2) || "---",
+  
       qtd_inversor_microinversor:
         dadosPrecificacao?.quantidadeInversor ?? "---",
+      estrutura: dadosPrecificacao?.estruturaProjeto || "---",
       area_necessaria: `${projeto.areaMinimaTotal} m²`,
       potencia_inversor_microinversor:
         dadosPrecificacao?.potenciaInversorDigitada
           ? `${dadosPrecificacao.potenciaInversorDigitada} kWp`
           : "---",
-      valor_a_vista: dadosPrecificacao?.totalVenda
-        ? `R$ ${dadosPrecificacao.totalVenda.toFixed(2)}`
-        : "---",
-      total_financiado: `R$ ${totalFinanciado.toFixed(2)}`,
-      forma_pagamento: gerarFormaPagamento(dadosPrecificacao),
+  
       data_assinatura: new Date().toLocaleDateString("pt-BR"),
       nome_cliente_assinatura: nomeClienteAssinaturaCampo || "---",
       consumo_medio_mensal: consumoMedioMensal,
       consumo_medio_diario: consumoMedioDiario,
     };
-
-    // ✅ Se for pessoa física, adiciona o RG
-    if (cliente.tipoPessoa === "pf") {
-      campos.rg = cliente.rg ?? "";
-    }
-
+  
     return campos;
   };
+  
 
   const handleGerarContrato = async () => {
     const errosValidacao = validarCamposContrato({
@@ -255,6 +254,8 @@ export default function GerarContratoPage() {
     if (!cliente.telefone) erros.push("Telefone do cliente não informado.");
     if (!cliente.enderecos?.[0]?.cidade)
       erros.push("Cidade do cliente não informada.");
+    if (cliente.tipoPessoa === "pf" && !cliente.rg)
+      erros.push("RG do cliente não informado.");   
     if (!cliente.enderecos?.[0]?.estado)
       erros.push("Estado do cliente não informado.");
     if (cliente.tipoPessoa === "pf" && !cliente.rg)

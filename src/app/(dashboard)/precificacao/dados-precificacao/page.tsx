@@ -1621,9 +1621,7 @@ export default function DadosPrecificacao() {
             <select
               className="select select-bordered w-full"
               value={estruturaProjeto}
-              onChange={(e) =>
-                setEstruturaProjeto(sanitizeNumericInput(e.target.value))
-              }
+              onChange={(e) => setEstruturaProjeto(e.target.value)}
               required
             >
               <option value="">Selecione...</option>

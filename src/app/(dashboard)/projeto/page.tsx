@@ -440,7 +440,7 @@ export default function ProjetoPage() {
                             <div className="mt-2 flex flex-wrap gap-x-8 gap-y-1 text-sm text-gray-300">
                               <div>
                                 <span className="font-bold text-white">
-                                  Qtd. Placas:
+                                  Kit Fotovoltaico:
                                 </span>{" "}
                                 {proj.modo === "manual"
                                   ? `${proj.qtdPlacasManual || "-"} placas | ${

@@ -24,6 +24,18 @@ export const variaveisProposta = [
     descricao: "Estado do cliente",
   },
   {
+    nome: "[[logradouro]]",
+    descricao: "Endereço (logradouro) do cliente",
+  },
+  {
+    nome: "[[numero]]",
+    descricao: "Número do endereço do cliente",
+  },
+  {
+    nome: "[[cep]]",
+    descricao: "CEP do cliente",
+  },
+  {
     nome: "[[nome_projeto]]",
     descricao: "Nome do projeto",
   },
