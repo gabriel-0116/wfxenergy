@@ -140,8 +140,8 @@ export default function GerarPropostaPage() {
         telefone: cliente.telefone || "---",
         cidade: enderecoPrincipal.cidade || "---",
         estado: enderecoPrincipal.estado || "---",
-        logradouro: enderecoPrincipal.endereco || "---", 
-        numero: enderecoPrincipal.numero || "---",      
+        logradouro: enderecoPrincipal.endereco || "---",
+        numero: enderecoPrincipal.numero || "---",
         cep: enderecoPrincipal.cep || "---",
         criado_em: new Date().toLocaleDateString("pt-BR"),
         validade: "7 dias",
@@ -195,13 +195,19 @@ export default function GerarPropostaPage() {
             : projeto.consumoMedioDia ?? projeto.consumoMedioDiaManual ?? "---",
       };
 
-      const response = await fetch("/api/download-template", {
+      const response = await fetch("/api/gerar-docx", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ template: templateSelecionado }),
+        body: JSON.stringify({
+          template: `propostas/${templateSelecionado}`,
+          campos, // já montado antes
+        }),
       });
 
-      if (!response.ok) throw new Error("Erro ao baixar template");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData?.error || "Erro ao baixar template");
+      }
 
       const blob = await response.blob();
       const arrayBuffer = await blob.arrayBuffer();
@@ -257,47 +263,55 @@ export default function GerarPropostaPage() {
   }): string[] {
     const erros: string[] = [];
 
-    // 📌 Validação de cliente
+    // 📌 Cliente
     if (!cliente.tipoPessoa) erros.push("Tipo de pessoa não informado.");
-    if (cliente.tipoPessoa === "pj" && !cliente.cnpj)
-      erros.push("CNPJ da empresa não informado.");
     if (cliente.tipoPessoa === "pf" && !cliente.cpf)
       erros.push("CPF do cliente não informado.");
+    if (cliente.tipoPessoa === "pj" && !cliente.cnpj)
+      erros.push("CNPJ do cliente não informado.");
+    if (!cliente.rg) erros.push("RG do cliente não informado.");
     if (!cliente.telefone) erros.push("Telefone do cliente não informado.");
-    if (cliente.tipoPessoa === "pf" && !cliente.rg)
-      erros.push("RG do cliente não informado.");    
-    // 📌 Validação do projeto
+
+    const endereco = cliente.enderecos?.[0];
+    if (!endereco?.cidade) erros.push("Cidade do cliente não informada.");
+    if (!endereco?.estado) erros.push("Estado do cliente não informado.");
+    if (!endereco?.endereco) erros.push("Logradouro do cliente não informado.");
+    if (!endereco?.numero) erros.push("Número do endereço não informado.");
+    if (!endereco?.cep) erros.push("CEP do cliente não informado.");
+
+    // 📌 Projeto
     if (!projeto.nomeProjeto) erros.push("Nome do projeto não informado.");
     if (!projeto.potenciaPlaca) erros.push("Potência da placa não informada.");
     if (!projeto.potenciaPico) erros.push("Potência pico não informada.");
     if (!projeto.areaMinimaTotal)
       erros.push("Área mínima do projeto não informada.");
-    if (
-      projeto.modo === "manual" &&
-      (!projeto.qtdPlacasManual || !projeto.geracaoMensalManual)
-    ) {
-      erros.push("Informações manuais incompletas (quantidade ou geração).");
-    }
-    if (
-      projeto.modo === "recomendado" &&
-      (!projeto.qtdPlacas || !projeto.geracaoMensal)
-    ) {
-      erros.push(
-        "Informações recomendadas incompletas (quantidade ou geração)."
-      );
+
+    if (projeto.modo === "manual") {
+      if (!projeto.qtdPlacasManual)
+        erros.push("Qtd. de placas (manual) não informada.");
+      if (!projeto.geracaoMensalManual)
+        erros.push("Geração mensal (manual) não informada.");
     }
 
-    // 📌 Validação da precificação
+    if (projeto.modo === "recomendado") {
+      if (!projeto.qtdPlacas)
+        erros.push("Qtd. de placas (recomendada) não informada.");
+      if (!projeto.geracaoMensal)
+        erros.push("Geração mensal (recomendada) não informada.");
+    }
+
+    // 📌 Precificação
     if (!dadosPrecificacao.kitFotovoltaico)
       erros.push("Valor do kit fotovoltaico não informado.");
     if (!dadosPrecificacao.totalVenda)
-      erros.push("Valor de venda não informado.");
+      erros.push("Valor total de venda não informado.");
     if (!dadosPrecificacao.tipoInversor)
       erros.push("Tipo de inversor não informado.");
     if (!dadosPrecificacao.quantidadeInversor)
       erros.push("Quantidade de inversores não informada.");
+    if (!dadosPrecificacao.potenciaInversorDigitada)
+      erros.push("Potência do inversor não informada.");
 
-    // 📌 Se for parcelado, verificar financiamento
     if (
       dadosPrecificacao.parcelaSelecionada !== "avista" &&
       !dadosPrecificacao.financiamentoSelecionado
@@ -376,7 +390,7 @@ export default function GerarPropostaPage() {
           onClick={handleGerarProposta}
           type="button"
           className="btn w-40 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold shadow-md"
-          disabled={gerando || !templateSelecionado}
+          disabled={gerando || !templateSelecionado || erros.length > 0}
         >
           {gerando ? "Gerando..." : "Gerar Proposta"}
         </button>

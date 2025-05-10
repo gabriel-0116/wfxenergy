@@ -22,7 +22,10 @@ if (!getApps().length) {
 
 export async function POST(req: Request) {
   try {
-    const { template, tipo } = await req.json();
+    const body = await req.json();
+console.log("🔍 Dados recebidos na API /download-template:", body);
+const { template, tipo } = body;
+
 
     if (!template || !tipo) {
       return NextResponse.json(

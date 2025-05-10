@@ -1,4 +1,4 @@
-// 📁 /app/api/gerar-pdf-docx/route.ts
+// 📁 /app/api/gerar-docx/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { bucket } from "@/firebase/firebaseAdmin";
 import PizZip from "pizzip";
@@ -7,9 +7,10 @@ import { Buffer } from "buffer";
 
 export async function POST(req: NextRequest) {
   try {
-    // 🔽 Recebe o nome do template e os campos (placeholders + valores)
+    // 🔽 Extrai o nome do template (com subpasta) e os dados
     const { template, campos } = await req.json();
 
+    // ⚠️ Verifica se está tudo preenchido corretamente
     if (!template || !template.endsWith(".docx") || !campos) {
       return NextResponse.json(
         { error: "Template .docx ou campos inválidos" },
@@ -17,33 +18,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ☁️ Busca o template do Firebase Storage
+    // ☁️ Acessa o Firebase Storage com o caminho completo do template
     const fileRef = bucket.file(`templates/${template}`);
     const [fileBuffer] = await fileRef.download();
 
     // 📦 Inicializa o ZIP com o conteúdo .docx
     const zip = new PizZip(fileBuffer);
 
-    // 🧩 Inicializa o Docxtemplater com o ZIP
+    // 🧩 Configura o Docxtemplater para preencher com dados
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
       linebreaks: true,
+      delimiters: { start: "[[", end: "]]" },
     });
 
-    // 📥 Injeta os dados nos placeholders do template
+    // 📥 Injeta os dados nos campos do template
     doc.setData(campos);
 
     try {
-      doc.render(); // 🧠 Processa os dados e substitui os placeholders
+      doc.render(); // 🧠 Preenche o template com os dados
     } catch (error: any) {
-      console.error("Erro ao renderizar docx:", error);
+      console.error("Erro ao renderizar o .docx:", error);
       return NextResponse.json(
         { error: "Erro ao preencher o template", detalhe: String(error) },
         { status: 500 }
       );
     }
 
-    // 📤 Gera o novo .docx preenchido
+    // 📤 Gera o buffer do novo .docx preenchido
     const buffer = doc.getZip().generate({
       type: "nodebuffer",
       compression: "DEFLATE",
@@ -54,13 +56,13 @@ export async function POST(req: NextRequest) {
       headers: {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename=proposta_preenchida.docx`,
+        "Content-Disposition": `attachment; filename=documento_preenchido.docx`,
       },
     });
   } catch (error: any) {
-    console.error("❌ Erro ao gerar proposta .docx:", error);
+    console.error("❌ Erro ao gerar .docx:", error);
     return NextResponse.json(
-      { error: "Erro ao gerar proposta", detalhe: String(error) },
+      { error: "Erro ao gerar documento", detalhe: String(error) },
       { status: 500 }
     );
   }
