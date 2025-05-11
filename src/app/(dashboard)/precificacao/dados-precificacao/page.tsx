@@ -445,6 +445,9 @@ export default function DadosPrecificacao() {
       { nome: "valorFinanciado", valor: valorFinanciado },
       { nome: "tipoInversor", valor: tipoInversor },
       { nome: "quantidadeInversor", valor: quantidadeInversor },
+      { nome: "quantidadeInversor", valor: quantidadeInversor },
+{ nome: "potenciaInversorDigitada", valor: String(potenciaInversorDigitada).trim() }, // 💡 Agora seguro
+
     ];
 
     const camposFaltando = camposObrigatorios.filter(

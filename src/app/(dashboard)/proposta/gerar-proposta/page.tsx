@@ -253,74 +253,80 @@ export default function GerarPropostaPage() {
 
   // ✅ Função de validação antes de gerar proposta
   function validarCamposProposta({
-    cliente,
-    projeto,
-    dadosPrecificacao,
-  }: {
-    cliente: any;
-    projeto: any;
-    dadosPrecificacao: any;
-  }): string[] {
-    const erros: string[] = [];
+  cliente,
+  projeto,
+  dadosPrecificacao,
+}: {
+  cliente: any;
+  projeto: any;
+  dadosPrecificacao: any;
+}): string[] {
+  const erros: string[] = [];
 
-    // 📌 Cliente
-    if (!cliente.tipoPessoa) erros.push("Tipo de pessoa não informado.");
-    if (cliente.tipoPessoa === "pf" && !cliente.cpf)
-      erros.push("CPF do cliente não informado.");
-    if (cliente.tipoPessoa === "pj" && !cliente.cnpj)
-      erros.push("CNPJ do cliente não informado.");
-    if (!cliente.rg) erros.push("RG do cliente não informado.");
-    if (!cliente.telefone) erros.push("Telefone do cliente não informado.");
+  const isVazio = (valor: any) =>
+    typeof valor !== "string" || valor.trim() === "";
 
-    const endereco = cliente.enderecos?.[0];
-    if (!endereco?.cidade) erros.push("Cidade do cliente não informada.");
-    if (!endereco?.estado) erros.push("Estado do cliente não informado.");
-    if (!endereco?.endereco) erros.push("Logradouro do cliente não informado.");
-    if (!endereco?.numero) erros.push("Número do endereço não informado.");
-    if (!endereco?.cep) erros.push("CEP do cliente não informado.");
+  // 🧍 Cliente
+  const nomeCliente = cliente.tipoPessoa === "pj" ? cliente.razaoSocial : cliente.nomeCliente;
+  if (isVazio(nomeCliente)) erros.push("Nome do cliente não informado.");
+  if (isVazio(cliente.telefone)) erros.push("Telefone do cliente não informado.");
 
-    // 📌 Projeto
-    if (!projeto.nomeProjeto) erros.push("Nome do projeto não informado.");
-    if (!projeto.potenciaPlaca) erros.push("Potência da placa não informada.");
-    if (!projeto.potenciaPico) erros.push("Potência pico não informada.");
-    if (!projeto.areaMinimaTotal)
-      erros.push("Área mínima do projeto não informada.");
+  const endereco = cliente.enderecos?.[0];
+  if (!endereco || isVazio(endereco.cidade)) erros.push("Cidade não informada.");
+  if (isVazio(endereco.estado)) erros.push("Estado não informado.");
+  if (isVazio(endereco.endereco)) erros.push("Logradouro não informado.");
+  if (isVazio(endereco.numero)) erros.push("Número do endereço não informado.");
+  if (isVazio(endereco.cep)) erros.push("CEP não informado.");
 
-    if (projeto.modo === "manual") {
-      if (!projeto.qtdPlacasManual)
-        erros.push("Qtd. de placas (manual) não informada.");
-      if (!projeto.geracaoMensalManual)
-        erros.push("Geração mensal (manual) não informada.");
-    }
+  // 🔌 Projeto
+  if (isVazio(projeto.nomeProjeto)) erros.push("Nome do projeto não informado.");
+  if (!projeto.potenciaPlaca) erros.push("Potência da placa não informada.");
+  if (!projeto.potenciaPico) erros.push("Potência instalada não informada.");
+  if (!projeto.areaMinimaTotal) erros.push("Área necessária não informada.");
 
-    if (projeto.modo === "recomendado") {
-      if (!projeto.qtdPlacas)
-        erros.push("Qtd. de placas (recomendada) não informada.");
-      if (!projeto.geracaoMensal)
-        erros.push("Geração mensal (recomendada) não informada.");
-    }
+  const qtdPlacas =
+    projeto.modo === "manual"
+      ? projeto.qtdPlacasManual
+      : projeto.qtdPlacas;
 
-    // 📌 Precificação
-    if (!dadosPrecificacao.kitFotovoltaico)
-      erros.push("Valor do kit fotovoltaico não informado.");
-    if (!dadosPrecificacao.totalVenda)
-      erros.push("Valor total de venda não informado.");
-    if (!dadosPrecificacao.tipoInversor)
-      erros.push("Tipo de inversor não informado.");
-    if (!dadosPrecificacao.quantidadeInversor)
-      erros.push("Quantidade de inversores não informada.");
-    if (!dadosPrecificacao.potenciaInversorDigitada)
-      erros.push("Potência do inversor não informada.");
+  const geracaoMensal =
+    projeto.modo === "manual"
+      ? projeto.geracaoMensalManual
+      : projeto.geracaoMensal;
 
-    if (
-      dadosPrecificacao.parcelaSelecionada !== "avista" &&
-      !dadosPrecificacao.financiamentoSelecionado
-    ) {
-      erros.push("Dados de financiamento não informados.");
-    }
+  const consumoMensal =
+    projeto.modo === "manual"
+      ? projeto.consumoMedioMesManual
+      : projeto.consumoMedioMes;
 
-    return erros;
+  const consumoDiario =
+    projeto.modo === "manual"
+      ? projeto.consumoMedioDiaManual
+      : projeto.consumoMedioDia;
+
+  if (!qtdPlacas) erros.push("Quantidade de placas não informada.");
+  if (!geracaoMensal) erros.push("Geração mensal não informada.");
+  if (!consumoMensal) erros.push("Consumo médio mensal não informado.");
+  if (!consumoDiario) erros.push("Consumo médio diário não informado.");
+
+  // 💵 Precificação
+  if (isVazio(dadosPrecificacao?.estruturaProjeto)) erros.push("Estrutura do projeto não informada.");
+  if (!dadosPrecificacao?.quantidadeInversor) erros.push("Quantidade de inversores não informada.");
+  if (isVazio(dadosPrecificacao?.tipoInversor)) erros.push("Tipo de inversor não informado.");
+  if (!dadosPrecificacao?.potenciaInversorDigitada)
+    erros.push("Potência do inversor não informada.");
+  if (!dadosPrecificacao?.totalVenda)
+    erros.push("Valor total de venda não informado.");
+  if (
+    dadosPrecificacao.parcelaSelecionada !== "avista" &&
+    !dadosPrecificacao.financiamentoSelecionado
+  ) {
+    erros.push("Informações de financiamento não informadas.");
   }
+
+  return erros;
+}
+
 
   useEffect(() => {
     if (erros.length > 0) {
