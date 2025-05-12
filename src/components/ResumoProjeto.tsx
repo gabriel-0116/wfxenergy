@@ -214,15 +214,14 @@ export default function ResumoProjeto({
               Resumo Financeiro
             </h2>
             <p>
-  <strong>Valor do Kit Fotovoltaico:</strong> R$
-  {Number(dadosPrecificacao.kitFotovoltaico ?? 0).toFixed(2)}
-</p>
+              <strong>Valor do Kit Fotovoltaico:</strong> R$
+              {Number(dadosPrecificacao.kitFotovoltaico ?? 0).toFixed(2)}
+            </p>
 
-<p>
-  <strong>Valor à vista do projeto:</strong> R$
-  {Number(dadosPrecificacao.totalVenda ?? 0).toFixed(2)}
-</p>
-
+            <p>
+              <strong>Valor à vista do projeto:</strong> R$
+              {Number(dadosPrecificacao.totalVenda ?? 0).toFixed(2)}
+            </p>
 
             <p>
               <strong>Forma de Pagamento:</strong>{" "}

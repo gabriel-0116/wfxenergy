@@ -22,8 +22,8 @@ export default function NovoClienteLayout({ children }: { children: ReactNode })
   const [modo, setModo] = useState<string | null>(null)
   const [qtdPlacas, setQtdPlacas] = useState<number | null>(null)
   const [qtdPlacasManual, setQtdPlacasManual] = useState<number | null>(null)
-  const [potenciaInversor, setPotenciaInversor] = useState<number | null>(null)
-  const [potenciaInversorManual, setPotenciaInversorManual] = useState<number | null>(null)
+  const [potenciaPico, setPotenciaPico] = useState<number | null>(null)
+  const [potenciaPicoManual, setPotenciaPicoManual] = useState<number | null>(null)
   const [areaMinima, setAreaMinima] = useState<number | null>(null)
   const [totalComImposto, setTotalComImposto] = useState<number | null>(null)
 
@@ -43,8 +43,8 @@ export default function NovoClienteLayout({ children }: { children: ReactNode })
           if (data.modo !== undefined) setModo(data.modo)
           if (data.qtdPlacas !== undefined) setQtdPlacas(data.qtdPlacas)
           if (data.qtdPlacasManual !== undefined) setQtdPlacasManual(data.qtdPlacasManual)
-          if (data.potenciaInversor !== undefined) setPotenciaInversor(data.potenciaInversor)
-          if (data.potenciaInversorManual !== undefined) setPotenciaInversorManual(data.potenciaInversorManual)
+          if (data.potenciaPico !== undefined) setPotenciaPico(data.potenciaPico)
+          if (data.potenciaPicoManual !== undefined) setPotenciaPicoManual(data.potenciaPicoManual)
           if (data.areaMinimaTotal !== undefined) setAreaMinima(data.areaMinimaTotal)
           if (data.totalComImposto !== undefined) setTotalComImposto(data.totalComImposto)
 
@@ -69,13 +69,13 @@ export default function NovoClienteLayout({ children }: { children: ReactNode })
     modo === 'manual'
       ? [
           qtdPlacasManual !== null ? `${qtdPlacasManual} placas` : '',
-          potenciaInversorManual !== null ? `${potenciaInversorManual} kWp` : '',
+          potenciaPicoManual !== null ? `${potenciaPicoManual} kWp` : '',
         ]
           .filter(Boolean)
           .join(' | ')
       : [
           qtdPlacas !== null ? `${qtdPlacas} placas` : '',
-          potenciaInversor !== null ? `${potenciaInversor} kWp` : '',
+          potenciaPico !== null ? `${potenciaPico} kWp` : '',
         ]
           .filter(Boolean)
           .join(' | ')

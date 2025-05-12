@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { variaveisProposta } from "@/utils/variaveisProposta";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCopy } from "@fortawesome/free-solid-svg-icons";
+import { faClipboard, faCopy, faFile, faFileContract, faFileInvoice, faGear, faList, faMapMarkerAlt, faSolarPanel, faUser } from "@fortawesome/free-solid-svg-icons";
 
 const bucketURL = "wfxenergy-5cb37.firebasestorage.app";
 
@@ -17,6 +17,7 @@ export default function Configuracoes() {
     texto: string;
     tipo: "sucesso" | "erro";
   } | null>(null);
+  const [abaAtiva, setAbaAtiva] = useState<"variaveis" | "proposta" | "contrato">("variaveis");
   const [enviandoProposta, setEnviandoProposta] = useState(false);
   const [enviandoContrato, setEnviandoContrato] = useState(false);
 
@@ -108,7 +109,7 @@ export default function Configuracoes() {
           nomeArquivo
         )}`,
         {
-          method: "DELETE", // <--- aqui é DELETE
+          method: "DELETE",
         }
       );
 
@@ -151,7 +152,6 @@ export default function Configuracoes() {
 
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
-
     const a = document.createElement("a");
     a.href = url;
     a.download = template;
@@ -168,9 +168,34 @@ export default function Configuracoes() {
     }
   };
 
+  const gruposVariaveis = [
+    {
+      titulo: "📋 Dados do Cliente",
+      icone: faUser,
+      variaveis: variaveisProposta.filter((v) =>
+        ["[[nome_cliente]]", "[[cpf]]", "[[telefone]]", "[[rg]]", "[[nome_cliente_assinatura]]"].includes(v.nome)
+      ),
+    },
+    {
+      titulo: "🏠 Endereço",
+      icone: faMapMarkerAlt,
+      variaveis: variaveisProposta.filter((v) =>
+        ["[[cidade]]", "[[estado]]", "[[logradouro]]", "[[numero]]", "[[cep]]"].includes(v.nome)
+      ),
+    },
+    {
+      titulo: "☀️ Dados do Projeto",
+      icone: faSolarPanel,
+      variaveis: variaveisProposta.filter(
+        (v) =>
+          !["[[nome_cliente]]", "[[cpf]]", "[[telefone]]", "[[rg]]", "[[nome_cliente_assinatura]]", "[[cidade]]", "[[estado]]", "[[logradouro]]", "[[numero]]", "[[cep]]"].includes(v.nome)
+      ),
+    },
+  ];
+
   return (
     <div className="p-6 max-w-screen-xl mx-auto">
-      <h1 className="text-3xl font-bold mb-10 text-center">⚙️ Configurações</h1>
+      <h1 className="text-3xl font-bold mb-10 text-center"><FontAwesomeIcon icon={faGear} /> Configurações</h1>
 
       {mensagem && (
         <div
@@ -182,121 +207,206 @@ export default function Configuracoes() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <section className="">
-        <h2 className="text-3xl font-bold mb-6 flex items-center gap-2">
-          📄 Variáveis da Proposta e Contrato
-        </h2>
+      {/* Abas */}
+      <div className="tabs justify-center mb-8">
+        <button
+          className={`tab tab-lg tab-bordered text-white ${
+            abaAtiva === "variaveis" ? "tab-active" : ""
+          }`}
+          onClick={() => setAbaAtiva("variaveis")}
+        >
+          <FontAwesomeIcon icon={faList} className="mr-2" /> Variáveis
+        </button>
+        <button
+          className={`tab tab-lg tab-bordered text-white ${
+            abaAtiva === "proposta" ? "tab-active" : ""
+          }`}
+          onClick={() => setAbaAtiva("proposta")}
+        >
+          <FontAwesomeIcon icon={faFileInvoice} className="mr-2" /> Templates de Proposta
+        </button>
+        <button
+          className={`tab tab-lg tab-bordered text-white ${
+            abaAtiva === "contrato" ? "tab-active" : ""
+          }`}
+          onClick={() => setAbaAtiva("contrato")}
+        >
+          <FontAwesomeIcon icon={faFileContract} className="mr-2" /> Templates de Contrato
+        </button>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {variaveisProposta.map((variavel, index) => (
+      {abaAtiva === "variaveis" && (
+         <section className="space-y-6 mb-10">
+  <h2 className="text-3xl font-bold mb-6 gap-2 text-center">
+    <FontAwesomeIcon icon={faClipboard} /> Variáveis da Proposta e Contrato
+  </h2>
+
+  {/* Linha 1: Cliente + Endereço */}
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    {/* Card: Cliente */}
+    <div className="bg-base-100 shadow-2xl border border-base-300 transition-transform hover:scale-[1.02] p-5 rounded-xl">
+      <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+        <FontAwesomeIcon icon={faUser} className="text-zinc-400" /> Dados do Cliente
+      </h3>
+      <div className="space-y-4">
+        {variaveisProposta
+          .filter((v) => v.categoria === "cliente")
+          .map((variavel, index) => (
             <div
               key={index}
-              className="relative border border-gray-700 rounded-xl p-5 bg-gray-800 shadow-md hover:shadow-lg transition"
+              className="relative bg-gray-900 p-3 rounded-lg hover:shadow-md"
             >
-              {/* Botão copiar */}
               <button
                 onClick={() => copiarTexto(variavel.nome)}
-                className="absolute top-3 right-3 text-gray-400 hover:text-white transition"
+                className="absolute top-2 right-2 text-gray-400 hover:text-white"
               >
                 <FontAwesomeIcon icon={faCopy} size="sm" />
               </button>
-
-              {/* Nome da variável */}
-              <p className="font-mono text-md text-blue-400 break-words">
-                {variavel.nome}
-              </p>
-
-              {/* Descrição da variável */}
-              <p className="mt-2 text-sm text-gray-300">{variavel.descricao}</p>
+              <p className="font-mono text-blue-400">{variavel.nome}</p>
+              <p className="text-gray-300 text-sm">{variavel.descricao}</p>
             </div>
           ))}
-        </div>
-      </section>
-
-        <div className="space-y-6">
-          {["proposta", "contrato"].map((tipo) => {
-            const typedTipo = tipo as "proposta" | "contrato";
-            const isProposta = tipo === "proposta";
-            const templates = isProposta
-              ? templatesProposta
-              : templatesContrato;
-            const arquivo = isProposta ? arquivoProposta : arquivoContrato;
-            const setArquivo = isProposta
-              ? setArquivoProposta
-              : setArquivoContrato;
-            const enviando = isProposta ? enviandoProposta : enviandoContrato;
-
-            return (
-              <div
-                key={tipo}
-                className="card bg-base-100 shadow-2xl border border-base-300"
-              >
-                <div className="card-body space-y-4">
-                  <h2 className="card-title text-xl">
-                    {isProposta
-                      ? "📁 Templates de Proposta"
-                      : "📄 Templates de Contrato"}
-                  </h2>
-
-                  <div className="flex flex-col gap-3">
-                    <input
-                      type="file"
-                      accept=".docx,.html,.htm,.pdf"
-                      onChange={(e) => setArquivo(e.target.files?.[0] || null)}
-                      className="file-input file-input-bordered w-full"
-                    />
-                    <button
-                      className="btn btn-primary w-full"
-                      onClick={() => enviarTemplate(typedTipo, arquivo)}
-                      disabled={!arquivo || enviando}
-                    >
-                      {enviando ? "Enviando..." : `Enviar Template de ${tipo}`}
-                    </button>
-                  </div>
-
-                  <div>
-                    <h3 className="text-sm font-semibold mt-2">
-                      Templates enviados:
-                    </h3>
-                    {templates.length === 0 ? (
-                      <p className="text-gray-400 mt-2 text-sm">
-                        Nenhum template enviado ainda.
-                      </p>
-                    ) : (
-                      <ul className="space-y-2 mt-3 max-h-72 overflow-y-auto pr-1">
-                        {templates.map((nome) => (
-                          <li
-                            key={nome}
-                            className="flex justify-between items-start bg-base-200 p-2 rounded-md text-sm"
-                          >
-                            <span className="break-all">{nome}</span>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => baixarTemplate(nome, typedTipo)}
-                                className="btn btn-xs btn-outline btn-info"
-                              >
-                                Baixar
-                              </button>
-
-                              <button
-                                onClick={() => excluirTemplate(typedTipo, nome)}
-                                className="btn btn-xs btn-outline btn-error"
-                              >
-                                Excluir
-                              </button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       </div>
+    </div>
+
+    {/* Card: Endereço */}
+    <div className="bg-base-100 shadow-2xl border border-base-300 transition-transform hover:scale-[1.02] p-5 rounded-xl">
+      <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+        <FontAwesomeIcon icon={faMapMarkerAlt} className="text-red-600" /> Endereço
+      </h3>
+      <div className="space-y-4">
+        {variaveisProposta
+          .filter((v) => v.categoria === "endereco")
+          .map((variavel, index) => (
+            <div
+              key={index}
+              className="relative bg-gray-900 p-3 rounded-lg hover:shadow-md"
+            >
+              <button
+                onClick={() => copiarTexto(variavel.nome)}
+                className="absolute top-2 right-2 text-gray-400 hover:text-white"
+              >
+                <FontAwesomeIcon icon={faCopy} size="sm" />
+              </button>
+              <p className="font-mono text-blue-400">{variavel.nome}</p>
+              <p className="text-gray-300 text-sm">{variavel.descricao}</p>
+            </div>
+          ))}
+      </div>
+    </div>
+  </div>
+
+  {/* Linha 2: Projeto */}
+  <div className="bg-base-100 shadow-2xl border border-base-300 transition-transform hover:scale-[1.02] p-5 rounded-xl">
+    <h3 className="text-xl font-semibold text-white mb-4 items-center text-center gap-2">
+      <FontAwesomeIcon icon={faSolarPanel} className="text-orange-400" /> Dados do Projeto
+    </h3>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {variaveisProposta
+        .filter((v) => v.categoria === "projeto")
+        .map((variavel, index) => (
+          <div
+            key={index}
+            className="relative bg-gray-900 p-3 rounded-lg hover:shadow-md"
+          >
+            <button
+              onClick={() => copiarTexto(variavel.nome)}
+              className="absolute top-2 right-2 text-gray-400 hover:text-white"
+            >
+              <FontAwesomeIcon icon={faCopy} size="sm" />
+            </button>
+            <p className="font-mono text-blue-400">{variavel.nome}</p>
+            <p className="text-gray-300 text-sm">{variavel.descricao}</p>
+          </div>
+        ))}
+    </div>
+  </div>
+</section>
+      )}
+
+      {abaAtiva !== "variaveis" && (
+        <div className="space-y-6">
+          {abaAtiva === "proposta" || abaAtiva === "contrato"
+            ? (() => {
+                const tipo = abaAtiva;
+                const isProposta = tipo === "proposta";
+                const templates = isProposta
+                  ? templatesProposta
+                  : templatesContrato;
+                const arquivo = isProposta ? arquivoProposta : arquivoContrato;
+                const setArquivo = isProposta
+                  ? setArquivoProposta
+                  : setArquivoContrato;
+                const enviando = isProposta
+                  ? enviandoProposta
+                  : enviandoContrato;
+
+                return (
+                  <div className="card bg-base-100 shadow-2xl border border-base-300">
+                    <div className="card-body space-y-4">
+                      <h2 className="card-title text-xl">
+                        {isProposta
+                          ? "📁 Templates de Proposta"
+                          : "📄 Templates de Contrato"}
+                      </h2>
+                      <input
+                        type="file"
+                        accept=".docx,.html,.htm,.pdf"
+                        onChange={(e) =>
+                          setArquivo(e.target.files?.[0] || null)
+                        }
+                        className="file-input file-input-bordered w-full"
+                      />
+                      <button
+                        className="btn btn-primary w-full"
+                        onClick={() => enviarTemplate(tipo, arquivo)}
+                        disabled={!arquivo || enviando}
+                      >
+                        {enviando
+                          ? "Enviando..."
+                          : `Enviar Template de ${tipo}`}
+                      </button>
+
+                      <h3 className="text-sm font-semibold mt-2">
+                        Templates enviados:
+                      </h3>
+                      {templates.length === 0 ? (
+                        <p className="text-gray-400 mt-2 text-sm">
+                          Nenhum template enviado ainda.
+                        </p>
+                      ) : (
+                        <ul className="space-y-2 mt-3 max-h-72 overflow-y-auto pr-1">
+                          {templates.map((nome) => (
+                            <li
+                              key={nome}
+                              className="flex justify-between items-start bg-base-200 p-2 rounded-md text-sm"
+                            >
+                              <span className="break-all">{nome}</span>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => baixarTemplate(nome, tipo)}
+                                  className="btn btn-xs btn-outline btn-info"
+                                >
+                                  Baixar
+                                </button>
+                                <button
+                                  onClick={() => excluirTemplate(tipo, nome)}
+                                  className="btn btn-xs btn-outline btn-error"
+                                >
+                                  Excluir
+                                </button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()
+            : null}
+        </div>
+      )}
     </div>
   );
 }

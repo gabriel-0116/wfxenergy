@@ -1,0 +1,32 @@
+// 📁 utils/versoes.ts
+
+export const versoes = [
+  {
+    numero: "1.3",
+    data: "2025-05-11",
+    alteracoes: [
+      "Correção do bug de gerar a proposta sem o endereço",
+      "converter texto para caixa alta",
+    ],
+  },
+  {
+    numero: "1.2",
+    data: "2025-05-11",
+    alteracoes: [
+      "Melhoria no layout da tela de configurações",
+      "Criação do menu de histórico de versões",
+      "Exibição automática da versão atual no sidebar",
+      "Trocar Valor de Potência Mínima do inversor para Potência de Pico"
+    ],
+  },
+  {
+    numero: "1.1",
+    data: "2025-05-09",
+    alteracoes: ["Correção do bug ao gerar proposta com campos vazios"],
+  },
+  {
+    numero: "1.0",
+    data: "2025-05-01",
+    alteracoes: ["Versão inicial do sistema com login, clientes e projetos"],
+  },
+];

@@ -15,9 +15,11 @@ import {
   faGear,
   faUsersGear,
   faUser,
+  faClockRotateLeft,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { usePathname } from "next/navigation";
+import { versoes } from "@/utils/versoes";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -45,6 +47,7 @@ export default function Sidebar() {
   const tools = [
     { label: "Painel Admin", href: "/admin", icon: faUsersGear },
     { label: "Configurações", href: "/configuracao", icon: faGear },
+    { label: "Versões", href: "/versoes", icon: faClockRotateLeft },
   ];
 
   return (
@@ -110,9 +113,10 @@ export default function Sidebar() {
             </ul>
           </nav>
           <div className="my-6 border-t border-white mx-4" />
-          <div className="flex-1 items-center justify-center p-6">
-            <h1 className="text-center font-bold text-lg">Versão 1.1</h1>
-            <p className="text-center font-normal text-sm">Correção do bug Gerar Proposta</p>
+          <div className="flex-1 items-center justify-center p-4">
+            <h1 className="text-center font-bold text-lg">
+              Versão {versoes[0].numero}
+            </h1>
           </div>
         </div>
       </aside>

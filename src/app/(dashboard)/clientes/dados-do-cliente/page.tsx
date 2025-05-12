@@ -80,10 +80,10 @@ export default function DadosDoClientePage() {
       setEnderecos([
         {
           ...enderecos[0],
-          endereco: data.logradouro || "",
-          bairro: data.bairro || "",
-          cidade: data.localidade || "",
-          estado: data.uf || "",
+          endereco: (data.logradouro || "").toUpperCase(),
+          bairro: (data.bairro || "").toUpperCase(),
+          cidade: (data.localidade || "").toUpperCase(),
+          estado: (data.uf || "").toUpperCase(),
         },
       ]);
     } catch (error) {
@@ -98,29 +98,29 @@ export default function DadosDoClientePage() {
       setErroNome("O nome é obrigatório.");
       return;
     }
-  
+
     if (!telefone.trim()) {
       setErroTelefone("O telefone é obrigatório.");
       return;
     }
-  
+
     // Valida CPF apenas se foi preenchido
     if (tipoPessoa === "PF" && cpf.trim() !== "" && !validCPF(cpf)) {
       setErroCpf("CPF inválido. Verifique e tente novamente.");
       return;
     }
-  
+
     // Valida CNPJ apenas se foi preenchido
     if (tipoPessoa === "PJ" && cnpj.trim() !== "" && !validCNPJ(cnpj)) {
       setErroCnpj("CNPJ inválido. Verifique e tente novamente.");
       return;
     }
-  
+
     setErroNome(null);
     setErroCpf(null);
     setErroTelefone(null);
     setErroCnpj(null);
-  
+
     // 🛠️ Cria o objeto de dados que será salvo
     const dados: any = {
       tipoPessoa,
@@ -134,13 +134,13 @@ export default function DadosDoClientePage() {
       enderecos, // 🏠 salvando o array de endereço
       ...(clienteId ? {} : { dataCadastro: new Date() }), // adiciona data de cadastro apenas se for novo cliente
     };
-  
+
     if (tipoPessoa === "PF") {
       dados.nomeCliente = nome;
       dados.cpf = cpf;
       dados.dataNascimento = dataNascimento;
       dados.genero = genero;
-    
+
       // Zera os campos de PJ
       dados.razaoSocial = "";
       dados.nomeFantasia = "";
@@ -153,15 +153,14 @@ export default function DadosDoClientePage() {
       dados.cnpj = cnpj;
       dados.inscricaoEstadual = inscricaoEstadual;
       dados.inscricaoMunicipal = inscricaoMunicipal;
-    
+
       // Zera os campos de PF
       dados.nomeCliente = "";
       dados.cpf = "";
       dados.dataNascimento = "";
       dados.genero = "";
     }
-    
-  
+
     try {
       if (clienteId) {
         const ref = doc(db, "clientes", clienteId);
@@ -172,26 +171,25 @@ export default function DadosDoClientePage() {
         setShowAlerta(true);
         router.push(`/clientes`);
       }
-  
+
       setTimeout(() => setShowAlerta(false), 3000);
     } catch (err) {
       console.error("Erro ao salvar:", err);
       alert("Erro ao salvar dados.");
     }
   };
-  
 
   // Carrega os dados do cliente ao abrir a página
   useEffect(() => {
     const buscarCliente = async () => {
       if (!clienteId) return;
-  
+
       const ref = doc(db, "clientes", clienteId);
       const snap = await getDoc(ref);
-  
+
       if (snap.exists()) {
         const data = snap.data();
-  
+
         setTipoPessoa(data.tipoPessoa || "PF");
         setSituacao(data.situacao || "Ativo");
         setIsento(data.isento || false);
@@ -201,7 +199,7 @@ export default function DadosDoClientePage() {
         setObservacao(data.observacao || "");
         setRg(data.rg || "");
         setEnderecos(data.enderecos || enderecos);
-  
+
         if (data.tipoPessoa === "PF") {
           setNome(data.nomeCliente || "");
           setCpf(data.cpf || "");
@@ -220,10 +218,9 @@ export default function DadosDoClientePage() {
         }
       }
     };
-  
+
     buscarCliente();
   }, [clienteId]);
-  
 
   return (
     <div className="p-6">
@@ -312,7 +309,7 @@ export default function DadosDoClientePage() {
               <select
                 className="select select-bordered w-full"
                 value={genero}
-                onChange={(e) => setGenero(e.target.value)}
+                onChange={(e) => setGenero(e.target.value?.toUpperCase() || "")}
               >
                 <option value="">Selecione</option>
                 <option value="Masculino">Masculino</option>
@@ -336,7 +333,7 @@ export default function DadosDoClientePage() {
                 placeholder="Nome completo"
                 value={nome}
                 onChange={(e) => {
-                  setNome(e.target.value);
+                  setNome(e.target.value?.toUpperCase() || "");
                   setErroNome(null); // Limpa o erro quando o usuário digita
                 }}
               />
@@ -372,7 +369,9 @@ export default function DadosDoClientePage() {
                 type="date"
                 className="input input-bordered w-full"
                 value={dataNascimento}
-                onChange={(e) => setDataNascimento(e.target.value)}
+                onChange={(e) =>
+                  setDataNascimento(e.target.value?.toUpperCase() || "")
+                }
               />
             </div>
           </div>
@@ -387,7 +386,9 @@ export default function DadosDoClientePage() {
                 type="text"
                 className="input input-bordered w-full"
                 value={razaoSocial}
-                onChange={(e) => setRazaoSocial(e.target.value)}
+                onChange={(e) =>
+                  setRazaoSocial(e.target.value?.toUpperCase() || "")
+                }
               />
             </div>
             <div>
@@ -396,7 +397,9 @@ export default function DadosDoClientePage() {
                 type="text"
                 className="input input-bordered w-full"
                 value={nomeFantasia}
-                onChange={(e) => setNomeFantasia(e.target.value)}
+                onChange={(e) =>
+                  setNomeFantasia(e.target.value?.toUpperCase() || "")
+                }
               />
             </div>
             <div>
@@ -425,7 +428,9 @@ export default function DadosDoClientePage() {
                 type="text"
                 className="input input-bordered w-full"
                 value={inscricaoEstadual}
-                onChange={(e) => setInscricaoEstadual(e.target.value)}
+                onChange={(e) =>
+                  setInscricaoEstadual(e.target.value?.toUpperCase() || "")
+                }
               />
             </div>
             <div>
@@ -436,7 +441,9 @@ export default function DadosDoClientePage() {
                 type="text"
                 className="input input-bordered w-full"
                 value={inscricaoMunicipal}
-                onChange={(e) => setInscricaoMunicipal(e.target.value)}
+                onChange={(e) =>
+                  setInscricaoMunicipal(e.target.value?.toUpperCase() || "")
+                }
               />
             </div>
             <div className="flex items-center gap-2 mt-8">
@@ -455,11 +462,11 @@ export default function DadosDoClientePage() {
         <div className="grid md:grid-cols-3 gap-6">
           <div>
             <label className="label font-semibold mb-2">RG:</label>
-            <input
-              type="text"
+            <IMaskInput
+              mask="00.000.000-0"
               className="input input-bordered w-full"
               value={rg}
-              onChange={(e) => setRg(e.target.value)}
+              onAccept={(value) => setRg(value)}
             />
           </div>
           <div>
@@ -486,7 +493,7 @@ export default function DadosDoClientePage() {
               type="email"
               className="input input-bordered w-full"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value?.toUpperCase() || "")}
             />
           </div>
           <div>
@@ -497,7 +504,7 @@ export default function DadosDoClientePage() {
               type="url"
               className="input input-bordered w-full"
               value={link}
-              onChange={(e) => setLink(e.target.value)}
+              onChange={(e) => setLink(e.target.value?.toUpperCase() || "")}
             />
           </div>
           <div className="md:col-span-3">
@@ -505,7 +512,9 @@ export default function DadosDoClientePage() {
             <textarea
               className="textarea textarea-bordered w-full"
               value={observacao}
-              onChange={(e) => setObservacao(e.target.value)}
+              onChange={(e) =>
+                setObservacao(e.target.value?.toUpperCase() || "")
+              }
             />
           </div>
         </div>
@@ -522,15 +531,15 @@ export default function DadosDoClientePage() {
                 <span className="label-text font-semibold mb-2">CEP:</span>
               </label>
               <div className="flex">
-              <IMaskInput
-  mask="00000-000"
-  placeholder="00000-000"
-  className="input input-bordered w-full"
-  value={enderecos[0].cep}
-  onAccept={(value) =>
-    setEnderecos([{ ...enderecos[0], cep: value }])
-  }
-/>
+                <IMaskInput
+                  mask="00000-000"
+                  placeholder="00000-000"
+                  className="input input-bordered w-full"
+                  value={enderecos[0].cep}
+                  onAccept={(value) =>
+                    setEnderecos([{ ...enderecos[0], cep: value }])
+                  }
+                />
                 <button
                   onClick={buscarCep}
                   className="btn btn-square w-20"
@@ -552,7 +561,9 @@ export default function DadosDoClientePage() {
                 placeholder="Endereço"
                 value={enderecos[0].endereco}
                 onChange={(e) =>
-                  setEnderecos([{ ...enderecos[0], endereco: e.target.value }])
+                  setEnderecos([
+                    { ...enderecos[0], endereco: e.target.value.toUpperCase() },
+                  ])
                 }
               />
             </div>
@@ -568,7 +579,9 @@ export default function DadosDoClientePage() {
                 placeholder="Número"
                 value={enderecos[0].numero}
                 onChange={(e) =>
-                  setEnderecos([{ ...enderecos[0], numero: e.target.value }])
+                  setEnderecos([
+                    { ...enderecos[0], numero: e.target.value.toUpperCase() },
+                  ])
                 }
               />
             </div>
@@ -584,7 +597,9 @@ export default function DadosDoClientePage() {
                 placeholder="Bairro"
                 value={enderecos[0].bairro}
                 onChange={(e) =>
-                  setEnderecos([{ ...enderecos[0], bairro: e.target.value }])
+                  setEnderecos([
+                    { ...enderecos[0], bairro: e.target.value.toUpperCase() },
+                  ])
                 }
               />
             </div>
@@ -600,7 +615,9 @@ export default function DadosDoClientePage() {
                 placeholder="Cidade"
                 value={enderecos[0].cidade}
                 onChange={(e) =>
-                  setEnderecos([{ ...enderecos[0], cidade: e.target.value }])
+                  setEnderecos([
+                    { ...enderecos[0], cidade: e.target.value.toUpperCase() },
+                  ])
                 }
               />
             </div>
@@ -620,7 +637,7 @@ export default function DadosDoClientePage() {
                 <option value="">Selecione o estado</option>
                 {estadosBrasil.map((estado) => (
                   <option key={estado.sigla} value={estado.sigla}>
-                    {estado.nome}
+                    {estado.nome.toUpperCase()}
                   </option>
                 ))}
               </select>
@@ -637,7 +654,9 @@ export default function DadosDoClientePage() {
                 placeholder="País"
                 value={enderecos[0].pais}
                 onChange={(e) =>
-                  setEnderecos([{ ...enderecos[0], pais: e.target.value }])
+                  setEnderecos([
+                    { ...enderecos[0], pais: e.target.value.toUpperCase() },
+                  ])
                 }
               />
             </div>
@@ -656,7 +675,10 @@ export default function DadosDoClientePage() {
                 value={enderecos[0].complemento}
                 onChange={(e) =>
                   setEnderecos([
-                    { ...enderecos[0], complemento: e.target.value },
+                    {
+                      ...enderecos[0],
+                      complemento: e.target.value.toUpperCase(),
+                    },
                   ])
                 }
               />
@@ -676,7 +698,10 @@ export default function DadosDoClientePage() {
                 value={enderecos[0].referencia}
                 onChange={(e) =>
                   setEnderecos([
-                    { ...enderecos[0], referencia: e.target.value },
+                    {
+                      ...enderecos[0],
+                      referencia: e.target.value.toUpperCase(),
+                    },
                   ])
                 }
               />

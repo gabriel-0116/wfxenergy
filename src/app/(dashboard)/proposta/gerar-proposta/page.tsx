@@ -271,13 +271,6 @@ export default function GerarPropostaPage() {
   if (isVazio(nomeCliente)) erros.push("Nome do cliente não informado.");
   if (isVazio(cliente.telefone)) erros.push("Telefone do cliente não informado.");
 
-  const endereco = cliente.enderecos?.[0];
-  if (!endereco || isVazio(endereco.cidade)) erros.push("Cidade não informada.");
-  if (isVazio(endereco.estado)) erros.push("Estado não informado.");
-  if (isVazio(endereco.endereco)) erros.push("Logradouro não informado.");
-  if (isVazio(endereco.numero)) erros.push("Número do endereço não informado.");
-  if (isVazio(endereco.cep)) erros.push("CEP não informado.");
-
   // 🔌 Projeto
   if (isVazio(projeto.nomeProjeto)) erros.push("Nome do projeto não informado.");
   if (!projeto.potenciaPlaca) erros.push("Potência da placa não informada.");
