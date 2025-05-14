@@ -76,7 +76,6 @@ export default function ResumoProjetoPage() {
       "consumoMedioMes",
       "consumoMedioDia",
       "potenciaPlaca",
-      "potenciaPico",
       "excedente",
       "areaMinimaTotal",
       "totalComImposto",
@@ -88,6 +87,7 @@ export default function ResumoProjetoPage() {
         ? "excedenteUnidadeManual"
         : "excedenteUnidade",
       projeto?.modo === "manual" ? "qtdPlacasManual" : "qtdPlacas",
+      projeto?.modo === "manual" ? "potenciaPicoManual" : "potenciaPico",
       projeto?.modo === "manual" ? "geracaoMensalManual" : "geracaoMensal",
       projeto?.modo === "manual" ? "geracaoDiariaManual" : "geracaoDiaria",
     ];
@@ -244,7 +244,7 @@ export default function ResumoProjetoPage() {
               <strong>Potência da placa:</strong> {projeto.potenciaPlaca} W
             </div>
             <div>
-              <strong>Potência pico:</strong> {projeto.potenciaPico} kW
+              <strong>Potência pico:</strong> {projeto.potenciaPico || projeto.potenciaPicoManual} kW
             </div>
             <div>
               <strong>Potência mínima do inversor:</strong>{" "}

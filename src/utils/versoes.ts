@@ -2,6 +2,14 @@
 
 export const versoes = [
   {
+    numero: "1.4",
+    data: "2025-05-11",
+    alteracoes: [
+      "Correção do bug de gerar a proposta",
+      "Trocar o valor de Potência Mínima do inversor para Potência de Pico na tela de projeto",
+    ],
+  },
+  {
     numero: "1.3",
     data: "2025-05-11",
     alteracoes: [

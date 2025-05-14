@@ -66,19 +66,16 @@ export default function NovoClienteLayout({ children }: { children: ReactNode })
   }, [clienteId, projetoId])
 
   const resumoQtdPlacas =
-    modo === 'manual'
-      ? [
-          qtdPlacasManual !== null ? `${qtdPlacasManual} placas` : '',
-          potenciaPicoManual !== null ? `${potenciaPicoManual} kWp` : '',
-        ]
-          .filter(Boolean)
-          .join(' | ')
-      : [
-          qtdPlacas !== null ? `${qtdPlacas} placas` : '',
-          potenciaPico !== null ? `${potenciaPico} kWp` : '',
-        ]
-          .filter(Boolean)
-          .join(' | ')
+  modo?.toLowerCase() === 'manual'
+    ? [
+        qtdPlacasManual != null ? `${qtdPlacasManual} placas` : '',
+        potenciaPicoManual != null ? `${potenciaPicoManual} kWp` : '',
+      ].filter(Boolean).join(' | ')
+    : [
+        qtdPlacas != null ? `${qtdPlacas} placas` : '',
+        potenciaPico != null ? `${potenciaPico} kWp` : '',
+      ].filter(Boolean).join(' | ')
+
 
   const steps = [
     { label: 'Consumo', path: 'consumo', resumo: mediaConsumoMes !== null && consumoMedioDia !== null ? `${mediaConsumoMes} kWh/mês | ${consumoMedioDia} kWh/dia` : '' },

@@ -35,8 +35,8 @@ type Projeto = {
   consumoMedioDia?: number;
   qtdPlacas?: number;
   qtdPlacasManual?: number;
-  potenciaInversor?: number;
-  potenciaInversorManual?: number;
+  potenciaPico?: number;
+  potenciaPicoManual?: number;
   modo?: string;
   areaMinimaTotal?: number;
   totalComImposto?: number;
@@ -130,8 +130,8 @@ export default function ProjetoPage() {
             consumoMedioDia: p.consumoMedioDia,
             qtdPlacas: p.qtdPlacas,
             qtdPlacasManual: p.qtdPlacasManual,
-            potenciaInversor: p.potenciaInversor,
-            potenciaInversorManual: p.potenciaInversorManual,
+            potenciaPico: p.potenciaPico,
+            potenciaPicoManual: p.potenciaPicoManual,
             modo: p.modo,
             areaMinimaTotal: p.areaMinimaTotal,
             totalComImposto: p.totalComImposto,
@@ -444,10 +444,10 @@ export default function ProjetoPage() {
                                 </span>{" "}
                                 {proj.modo === "manual"
                                   ? `${proj.qtdPlacasManual || "-"} placas | ${
-                                      proj.potenciaInversorManual || "-"
+                                      proj.potenciaPicoManual || "-"
                                     } kWp | ${proj.potenciaPlaca || "-"} W`
                                   : `${proj.qtdPlacas || "-"} placas | ${
-                                      proj.potenciaInversor || "-"
+                                      proj.potenciaPico || "-"
                                     } kWp | ${proj.potenciaPlaca || "-"} W`}
                               </div>
                               {proj.geracaoMensal && (
