@@ -12,8 +12,10 @@ export default function PropostaPage() {
   // 🧠 Estados principais
   const [clientes, setClientes] = useState<any[]>([]); // Lista de clientes
   const [projetos, setProjetos] = useState<any[]>([]); // Lista de projetos do cliente selecionado
-  const [clienteSelecionado, setClienteSelecionado] = useState<string>(""); // ID do cliente selecionado
+  const [clienteSelecionado, setClienteSelecionado] = useState<any>(null);
   const [projetoSelecionado, setProjetoSelecionado] = useState<string>(""); // ID do projeto selecionado
+  const [filtroCliente, setFiltroCliente] = useState("");
+  const [mostrarSugestoes, setMostrarSugestoes] = useState(false);
 
   // 🚀 Carrega todos os clientes ao montar o componente
   useEffect(() => {
@@ -30,48 +32,48 @@ export default function PropostaPage() {
 
   // 🔄 Quando um cliente é selecionado, carrega os projetos dele
   useEffect(() => {
-    if (!clienteSelecionado) return;
+    if (!clienteSelecionado?.id) return;
 
     const fetchProjetos = async () => {
       const snapshot = await getDocs(
-        collection(db, `clientes/${clienteSelecionado}/projetos`)
+        collection(db, `clientes/${clienteSelecionado.id}/projetos`)
       );
       const lista = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
       setProjetos(lista);
-      setProjetoSelecionado(""); // 🔄 Reseta o projeto se trocar de cliente
+      setProjetoSelecionado("");
     };
     fetchProjetos();
   }, [clienteSelecionado]);
 
   const handleContinuar = async () => {
     if (!clienteSelecionado || !projetoSelecionado) return;
-  
+
     // 🔍 Busca a subcoleção de precificações
     const precRef = collection(
       db,
       "clientes",
-      clienteSelecionado,
+      clienteSelecionado.id,
       "projetos",
       projetoSelecionado,
       "precificacao"
     );
-  
+
     const precSnap = await getDocs(precRef);
-  
+
     if (precSnap.empty) {
       alert("Este projeto ainda não tem dados de precificação.");
       return;
     }
-  
+
     // 🔁 Pega a mais recente ou a única
     const ultimaPrecificacao = precSnap.docs[precSnap.docs.length - 1];
     const precificacaoId = ultimaPrecificacao.id;
-  
+
     router.push(
-      `/proposta/gerar-proposta?clienteId=${clienteSelecionado}&projetoId=${projetoSelecionado}&precificacaoId=${precificacaoId}`
+      `/proposta/gerar-proposta?clienteId=${clienteSelecionado.id}&projetoId=${projetoSelecionado}&precificacaoId=${precificacaoId}`
     );
   };
   return (
@@ -85,24 +87,57 @@ export default function PropostaPage() {
           </p>
         </div>
 
-        {/* 📌 Dropdown de cliente */}
-        <div>
+        {/* 📌 Input de cliente com autocomplete */}
+        <div className="relative">
           <label className="font-medium">Cliente</label>
-          <select
-            className="select select-bordered w-full mt-1"
-            value={clienteSelecionado}
-            onChange={(e) => setClienteSelecionado(e.target.value)}
-          >
-            <option value="">Selecione um cliente</option>
-            {clientes.map((cliente) => (
-              <option key={cliente.id} value={cliente.id}>
-                {cliente.nomeCliente || "(sem nome)"} -{" "}
-                {cliente.telefone || "sem telefone"}
-              </option>
-            ))}
-          </select>
-        </div>
+         <input
+  type="text"
+  placeholder="Digite o nome do cliente"
+  className="input input-bordered w-full mt-1"
+  value={filtroCliente}
+  onChange={(e) => {
+    setFiltroCliente(e.target.value);
+    setClienteSelecionado(null);
+    setProjetoSelecionado("");
+    setProjetos([]);
+    setMostrarSugestoes(true); // mostra a lista ao digitar
+  }}
+  onBlur={() => {
+    // pequena espera para permitir o clique no item antes de esconder
+    setTimeout(() => setMostrarSugestoes(false), 150);
+  }}
+  onFocus={() => {
+    if (filtroCliente) setMostrarSugestoes(true);
+  }}
+/>
 
+
+          {/* 🔽 Lista de sugestões de cliente */}
+          {mostrarSugestoes && filtroCliente.length > 0 && (
+  <ul className="absolute z-10 w-full bg-base-100 shadow-lg rounded-md mt-1 max-h-40 overflow-y-auto">
+    {clientes
+      .filter((cliente) =>
+        cliente.nomeCliente
+          ?.toLowerCase()
+          .includes(filtroCliente.toLowerCase())
+      )
+      .map((cliente) => (
+        <li
+          key={cliente.id}
+          className="p-2 hover:bg-base-200 cursor-pointer"
+          onClick={() => {
+            setClienteSelecionado(cliente);
+            setFiltroCliente(cliente.nomeCliente);
+            setMostrarSugestoes(false); // oculta a lista após selecionar
+          }}
+        >
+          {cliente.nomeCliente} - {cliente.telefone || "sem telefone"}
+        </li>
+      ))}
+  </ul>
+)}
+
+        </div>
         {/* 📌 Dropdown de projeto */}
         {projetos.length > 0 && (
           <div>

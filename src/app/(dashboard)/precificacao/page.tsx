@@ -513,16 +513,21 @@ export default function PrecificacaoPage() {
           />
           {sugestoes.length > 0 && (
             <ul className="absolute z-10 w-full bg-base-100 shadow-lg rounded-md mt-1 max-h-40 overflow-y-auto">
-              {sugestoes.map((nome, index) => (
-                <li
-                  key={index}
-                  className="p-2 hover:bg-base-200 cursor-pointer"
-                  onClick={() => handleSelecionarSugestao(nome)}
-                >
-                  {nome}
-                </li>
-              ))}
-            </ul>
+  {sugestoes.map((nome, index) => {
+    const cliente = clientes.find(c => c.nomeCliente === nome);
+    const telefone = cliente?.telefone ?? "";
+    return (
+      <li
+        key={index}
+        className="p-2 hover:bg-base-200 cursor-pointer"
+        onClick={() => handleSelecionarSugestao(nome)}
+      >
+        {nome} {telefone ? `( ${telefone} )` : ""}
+      </li>
+    );
+  })}
+</ul>
+
           )}
         </div>
 

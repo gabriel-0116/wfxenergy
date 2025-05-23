@@ -2,6 +2,15 @@
 
 export const versoes = [
   {
+    numero: "1.5",
+    data: "2025-05-22",
+    alteracoes: [
+      "Alterar a fórmula para cáculo do financiamento do projeto",
+      "Pesquisar por cliente na tela de gerar proposta",
+      "Adicionar o número de telefone na frente do nome do cliente na lista",
+    ],
+  },
+  {
     numero: "1.4",
     data: "2025-05-11",
     alteracoes: [

@@ -9,7 +9,7 @@ import {
   getDocs,
   addDoc,
   Timestamp,
-  doc, 
+  doc,
   getDoc,
 } from "firebase/firestore";
 import { auth, db } from "@/firebase/firebaseConfig";
@@ -25,22 +25,19 @@ export default function NovoProjetoPage() {
   const searchParams = useSearchParams();
 
   const clienteIdFromUrl = searchParams.get("clienteId");
-const projetoIdFromUrl = searchParams.get("projetoId");
-  
+  const projetoIdFromUrl = searchParams.get("projetoId");
+
   // Estados para autocomplete
-  const [sugestoes, setSugestoes] = useState<string[]>([]); // nomes sugeridos
   const [clientes, setClientes] = useState<
     { nomeCliente: string; telefone: string; id: string }[]
   >([]); // clientes completos
-  
-  const [dadosEditados, setDadosEditados] = useState(false);
 
+  const [dadosEditados, setDadosEditados] = useState(false);
 
   // 🔍 Efeito que roda toda vez que o nome do cliente muda
   useEffect(() => {
     const buscarClientes = async () => {
       if (nomeCliente.length < 1) {
-        setSugestoes([]); // se campo vazio, limpa as sugestões
         return;
       }
 
@@ -76,21 +73,18 @@ const projetoIdFromUrl = searchParams.get("projetoId");
 
       // Atualiza os estados com as sugestões encontradas
       setClientes(resultados); // guarda os clientes para uso posterior
-      setSugestoes(resultados.map((c) => c.nomeCliente)); // só os nomes para exibir no dropdown
     };
 
     buscarClientes(); // executa a busca
   }, [nomeCliente]); // sempre que o nome mudar
 
   // Quando o usuário clica em uma sugestão
-  const handleSelecionarSugestao = (nome: string) => {
-    const clienteSelecionado = clientes.find((c) => c.nomeCliente === nome);
-
-    if (clienteSelecionado) {
-      setNomeCliente(clienteSelecionado.nomeCliente); // preenche nome
-      setTelefone(clienteSelecionado.telefone); // preenche telefone automaticamente
-      setSugestoes([]); // limpa sugestões
-    }
+  const handleSelecionarSugestao = (cliente: {
+    nomeCliente: string;
+    telefone: string;
+  }) => {
+    setNomeCliente(cliente.nomeCliente);
+    setTelefone(cliente.telefone);
   };
 
   // Quando clica no botão "Continuar"
@@ -99,7 +93,9 @@ const projetoIdFromUrl = searchParams.get("projetoId");
 
     // Validação: impede continuar se nome ou telefone estiverem vazios
     if (!nomeCliente || !telefone || !nomeProjeto.trim()) {
-      alert("Por favor, preencha o nome do cliente, telefone e nome do projeto.");
+      alert(
+        "Por favor, preencha o nome do cliente, telefone e nome do projeto."
+      );
       return;
     }
 
@@ -110,12 +106,12 @@ const projetoIdFromUrl = searchParams.get("projetoId");
 
     try {
       // Se clienteId e projetoId já vieram pela URL, só redireciona direto
-if (clienteIdFromUrl && projetoIdFromUrl && !dadosEditados) {
-  router.push(
-    `/projeto/novoprojeto/consumo?clienteId=${clienteIdFromUrl}&projetoId=${projetoIdFromUrl}`
-  );
-  return;
-}
+      if (clienteIdFromUrl && projetoIdFromUrl && !dadosEditados) {
+        router.push(
+          `/projeto/novoprojeto/consumo?clienteId=${clienteIdFromUrl}&projetoId=${projetoIdFromUrl}`
+        );
+        return;
+      }
       // 1️⃣ Verifica se o cliente já existe no banco
 
       // Cria uma referência à coleção "clientes"
@@ -173,18 +169,18 @@ if (clienteIdFromUrl && projetoIdFromUrl && !dadosEditados) {
     const carregarDados = async () => {
       // Só tenta buscar se os parâmetros vieram na URL
       if (!clienteIdFromUrl || !projetoIdFromUrl) return;
-  
+
       try {
         // 🔹 Busca os dados do cliente
         const clienteDocRef = doc(db, "clientes", clienteIdFromUrl);
         const clienteSnap = await getDoc(clienteDocRef);
-  
+
         if (clienteSnap.exists()) {
           const clienteData = clienteSnap.data();
           setNomeCliente(clienteData.nomeCliente || "");
           setTelefone(clienteData.telefone || "");
         }
-  
+
         // 🔹 Busca os dados do projeto (opcional, só se quiser preencher o nome)
         const projetoDocRef = doc(
           db,
@@ -194,7 +190,7 @@ if (clienteIdFromUrl && projetoIdFromUrl && !dadosEditados) {
           projetoIdFromUrl
         );
         const projetoSnap = await getDoc(projetoDocRef);
-  
+
         if (projetoSnap.exists()) {
           const projetoData = projetoSnap.data();
           setNomeProjeto(projetoData.nomeProjeto || "");
@@ -203,10 +199,20 @@ if (clienteIdFromUrl && projetoIdFromUrl && !dadosEditados) {
         console.error("Erro ao carregar dados do cliente/projeto:", error);
       }
     };
-  
+
     carregarDados();
   }, [clienteIdFromUrl, projetoIdFromUrl]);
-  
+
+  const clientesFormatados = clientes.map((cliente: any) => {
+    const nome = cliente.nomeCliente?.toUpperCase() || "---";
+    const telefone = cliente.telefone ? ` ( ${cliente.telefone} )` : "";
+
+    return {
+      id: cliente.id, // para identificação no clique
+      label: `${nome}${telefone}`, // exibição
+      raw: cliente, // mantém o objeto original se precisar
+    };
+  });
 
   return (
     <div className="text-white flex justify-center items-center h-[675px] shadow-2xl">
@@ -227,15 +233,15 @@ if (clienteIdFromUrl && projetoIdFromUrl && !dadosEditados) {
             required
           />
           {/* Lista de sugestões (dropdown) */}
-          {sugestoes.length > 0 && (
+          {clientesFormatados.length > 0 && (
             <ul className="absolute z-10 w-full bg-base-100 shadow-lg rounded-md mt-1 max-h-40 overflow-y-auto">
-              {sugestoes.map((nome, index) => (
+              {clientesFormatados.map((cliente) => (
                 <li
-                  key={index}
+                  key={cliente.id}
                   className="p-2 hover:bg-base-200 cursor-pointer"
-                  onClick={() => handleSelecionarSugestao(nome)}
+                  onClick={() => handleSelecionarSugestao(cliente.raw)}
                 >
-                  {nome}
+                  {cliente.label}
                 </li>
               ))}
             </ul>
@@ -257,13 +263,13 @@ if (clienteIdFromUrl && projetoIdFromUrl && !dadosEditados) {
 
         {/* Campo opcional de nome do projeto */}
         <input
-  type="text"
-  placeholder="Nome do projeto"
-  className="input input-bordered w-full"
-  value={nomeProjeto}
-  onChange={(e) => setNomeProjeto(e.target.value)}
-  required
-/>
+          type="text"
+          placeholder="Nome do projeto"
+          className="input input-bordered w-full"
+          value={nomeProjeto}
+          onChange={(e) => setNomeProjeto(e.target.value)}
+          required
+        />
 
         {/* Botão para continuar */}
         <button onClick={handleCriarProjeto} className="btn btn-primary w-full">

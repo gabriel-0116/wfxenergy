@@ -144,38 +144,55 @@ export default function DadosPrecificacao() {
   };
 
   const dadosParcelas = opcoesFinanciamento.map((opcao) => {
-    const entradaNumber = parseDecimal(entrada || "0");
-    const totalCustoNumber = parseDecimal(totalCusto?.toString() || "0");
-    const valorComissaoInternaNumber = parseDecimal(
-      valorComissaoInterna?.toString() || "0"
-    );
-    const valorFinanciadoNumber = totalVenda - entradaNumber;
+  // ✅ Conversão dos valores de entrada e custos
+  const entradaNumber = parseDecimal(entrada || "0");
+  const totalCustoNumber = parseDecimal(totalCusto?.toString() || "0");
+  const valorComissaoInternaNumber = parseDecimal(
+    valorComissaoInterna?.toString() || "0"
+  );
 
-    const valorParcela =
-      (valorFinanciadoNumber * (opcao.taxa / 100)) /
-      (1 - Math.pow(1 + 0.02, -opcao.parcelas));
+  // 💰 Valor a ser financiado (total da venda - entrada do cliente)
+  const valorFinanciadoNumber = totalVenda - entradaNumber;
 
-    const totalPago = Math.ceil(opcao.parcelas * valorParcela * 100) / 100;
-    const jurosReais = totalPago - valorFinanciadoNumber;
-    const jurosPercentual =
-      valorFinanciadoNumber > 0
-        ? (jurosReais / valorFinanciadoNumber) * 100
-        : 0;
+  // ✅ Conversão da taxa de juros de porcentagem para decimal
+  const taxaDecimal = opcao.taxa / 100;
 
-    const valorFinalProjeto = totalPago + entradaNumber;
-    const lucroFinal =
-      valorFinalProjeto - totalCustoNumber - valorComissaoInternaNumber;
+  // 📌 Cálculo exato da parcela com fórmula PMT
+  // PMT = PV * [ i * (1 + i)^n ] / [ (1 + i)^n - 1 ]
+  const fatorPotencia = Math.pow(1 + taxaDecimal, opcao.parcelas);
+  const valorParcela = valorFinanciadoNumber * (taxaDecimal * fatorPotencia) / (fatorPotencia - 1);
 
-    return {
-      ...opcao,
-      valorParcela,
-      totalPago,
-      jurosReais,
-      jurosPercentual,
-      valorFinalProjeto,
-      lucroFinal,
-    };
-  });
+  // 💵 Total pago ao final do financiamento
+  const totalPago = Math.ceil(opcao.parcelas * valorParcela * 100) / 100;
+
+  // 📊 Juros em valor monetário
+  const jurosReais = totalPago - valorFinanciadoNumber;
+
+  // 📈 Juros em percentual sobre o valor financiado
+  const jurosPercentual =
+    valorFinanciadoNumber > 0
+      ? (jurosReais / valorFinanciadoNumber) * 100
+      : 0;
+
+  // 💰 Valor final do projeto: totalPago + entrada
+  const valorFinalProjeto = totalPago + entradaNumber;
+
+  // 🧾 Lucro líquido do projeto
+  const lucroFinal =
+    valorFinalProjeto - totalCustoNumber - valorComissaoInternaNumber;
+
+  // 📦 Retorno dos dados calculados
+  return {
+    ...opcao,
+    valorParcela,
+    totalPago,
+    jurosReais,
+    jurosPercentual,
+    valorFinalProjeto,
+    lucroFinal,
+  };
+});
+
 
   const potenciaPicoFinal =
     modo === "manual"
