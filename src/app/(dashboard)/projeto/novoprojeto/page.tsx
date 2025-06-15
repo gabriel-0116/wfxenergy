@@ -22,6 +22,7 @@ export default function NovoProjetoPage() {
   const [nomeCliente, setNomeCliente] = useState("");
   const [telefone, setTelefone] = useState("");
   const [nomeProjeto, setNomeProjeto] = useState("");
+  const [mostrarSugestoes, setMostrarSugestoes] = useState(false);
   const searchParams = useSearchParams();
 
   const clienteIdFromUrl = searchParams.get("clienteId");
@@ -78,14 +79,16 @@ export default function NovoProjetoPage() {
     buscarClientes(); // executa a busca
   }, [nomeCliente]); // sempre que o nome mudar
 
-  // Quando o usuário clica em uma sugestão
-  const handleSelecionarSugestao = (cliente: {
-    nomeCliente: string;
-    telefone: string;
-  }) => {
-    setNomeCliente(cliente.nomeCliente);
-    setTelefone(cliente.telefone);
-  };
+const handleSelecionarSugestao = (cliente: {
+  nomeCliente: string;
+  telefone: string;
+}) => {
+  setNomeCliente(cliente.nomeCliente);
+  setTelefone(cliente.telefone);
+  setClientes([]); // limpa array
+  setMostrarSugestoes(false); // esconde o dropdown
+  setDadosEditados(true);
+};
 
   // Quando clica no botão "Continuar"
   const handleCriarProjeto = async () => {
@@ -227,13 +230,14 @@ export default function NovoProjetoPage() {
             className="input input-bordered w-full"
             value={nomeCliente}
             onChange={(e) => {
-              setNomeCliente(e.target.value);
-              setDadosEditados(true);
-            }}
+  setNomeCliente(e.target.value);
+  setDadosEditados(true);
+  setMostrarSugestoes(true); // ativa as sugestões
+}}
             required
           />
           {/* Lista de sugestões (dropdown) */}
-          {clientesFormatados.length > 0 && (
+         {mostrarSugestoes && clientesFormatados.length > 0 && (
             <ul className="absolute z-10 w-full bg-base-100 shadow-lg rounded-md mt-1 max-h-40 overflow-y-auto">
               {clientesFormatados.map((cliente) => (
                 <li

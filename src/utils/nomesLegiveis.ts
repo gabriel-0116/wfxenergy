@@ -24,6 +24,9 @@ export const nomesLegiveis: Record<string, string> = {
     faturamentoBrutoPorModulo: "Faturamento Bruto por Módulo",
     faturamentoLiquidoPorModulo: "Faturamento Líquido por Módulo",
     valorFinanciado: "Valor Financiado",
+     quantidadeInversor: "Quantidade de Inversores",
+  potenciaInversorDigitada: "Potência do Inversor (kWp)",
+  estruturaProjeto: "Tipo de Telhado (Estrutura do Projeto)",
   };
 
 export const nomesLegiveisProjeto: Record<string, string> = {

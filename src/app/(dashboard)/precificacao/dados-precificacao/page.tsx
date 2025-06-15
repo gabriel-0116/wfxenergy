@@ -121,9 +121,9 @@ export default function DadosPrecificacao() {
   const valorLucroKit = valorVendaKit - parseDecimal(kitFotovoltaico || "0");
   const valorComissaoInterna =
     (parseDecimal(porcentagemComissao || "0") / 100) * totalVenda;
-  const totalLucro = totalVenda - totalCusto - parseDecimal(desconto || "0");
+  const totalLucro = totalVenda - totalCusto;
   const lucroFinalComDescontoEComissaoEImposto =
-    totalVenda - totalCusto - parseDecimal(desconto || "0");
+    totalVenda - totalCusto - custoComissao;
   const placasUsadas = numPlacas;
   const faturamentoBrutoPorModulo =
     placasUsadas > 0 ? totalVenda / placasUsadas : 0;
@@ -436,6 +436,10 @@ export default function DadosPrecificacao() {
       { nome: "valorEletricistaUnit", valor: valorEletricistaUnit },
       { nome: "valorInfraUnit", valor: valorInfraUnit },
       { nome: "valorComissaoUnit", valor: valorComissaoUnit },
+
+      { nome: "quantidadeInversor", valor: quantidadeInversor.trim() },
+      { nome: "potenciaInversorDigitada", valor: String(potenciaInversorDigitada).trim() }, 
+      { nome: "estruturaProjeto", valor: estruturaProjeto.trim() },
 
       // Financiamento
       { nome: "entrada", valor: entrada },

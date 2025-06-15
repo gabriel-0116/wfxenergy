@@ -1,6 +1,14 @@
 // 📁 utils/versoes.ts
-
 export const versoes = [
+  {
+    numero: "1.6",
+    data: "2025-05-22",
+    alteracoes: [
+      "Não ficam mais um nome sobre o outro na lista",
+      "Correção dos bug de calculo na tela de dados da precificação",
+      "Torna mais campos obrigatorios na tela de precificação",
+    ],
+  },
   {
     numero: "1.5",
     data: "2025-05-22",

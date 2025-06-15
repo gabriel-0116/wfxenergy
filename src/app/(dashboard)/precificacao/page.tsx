@@ -39,6 +39,7 @@ export default function PrecificacaoPage() {
   const [clientesComPrecificacao, setClientesComPrecificacao] = useState<any[]>(
     []
   );
+  const [mostrarSugestoes, setMostrarSugestoes] = useState(false);
   const [clienteAberto, setClienteAberto] = useState<string | null>(null);
   const [filtro, setFiltro] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<
@@ -398,15 +399,17 @@ export default function PrecificacaoPage() {
   }, [nomeCliente]);
 
   // Ao selecionar uma sugestão do nome, preenche os campos e limpa sugestões
-  const handleSelecionarSugestao = (nome: string) => {
-    const cliente = clientes.find((c) => c.nomeCliente === nome);
+const handleSelecionarSugestao = (nome: string) => {
+  const cliente = clientes.find((c) => c.nomeCliente === nome);
 
-    if (cliente) {
-      setNomeCliente(cliente.nomeCliente);
-      setTelefone(cliente.telefone);
-      setSugestoes([]);
-    }
-  };
+  if (cliente) {
+    setNomeCliente(cliente.nomeCliente);
+    setTelefone(cliente.telefone);
+    setSugestoes([]);               // Limpa as sugestões
+    setMostrarSugestoes(false);     // Esconde o dropdown
+  }
+};
+
 
   // Verifica se o cliente existe e busca seus projetos
   useEffect(() => {
@@ -503,32 +506,35 @@ export default function PrecificacaoPage() {
         {/* Campo de nome com autocomplete */}
         <div className="relative">
           <p className="mb-1">Nome do Cliente:</p>
-          <input
-            type="text"
-            placeholder="Nome do cliente"
-            className="input input-bordered w-full"
-            value={nomeCliente}
-            onChange={(e) => setNomeCliente(e.target.value)}
-            required
-          />
-          {sugestoes.length > 0 && (
-            <ul className="absolute z-10 w-full bg-base-100 shadow-lg rounded-md mt-1 max-h-40 overflow-y-auto">
-  {sugestoes.map((nome, index) => {
-    const cliente = clientes.find(c => c.nomeCliente === nome);
-    const telefone = cliente?.telefone ?? "";
-    return (
-      <li
-        key={index}
-        className="p-2 hover:bg-base-200 cursor-pointer"
-        onClick={() => handleSelecionarSugestao(nome)}
-      >
-        {nome} {telefone ? `( ${telefone} )` : ""}
-      </li>
-    );
-  })}
-</ul>
+<input
+  type="text"
+  placeholder="Nome do cliente"
+  className="input input-bordered w-full"
+  value={nomeCliente}
+onChange={(e) => {
+  setNomeCliente(e.target.value);
+  setMostrarSugestoes(true);  // ✅ Habilita o dropdown sempre que o usuário digitar
+}}
+  required
+/>
+{mostrarSugestoes && sugestoes.length > 0 && (
+  <ul className="absolute z-10 w-full bg-base-100 shadow-lg rounded-md mt-1 max-h-40 overflow-y-auto">
+    {sugestoes.map((nome, index) => {
+      const cliente = clientes.find(c => c.nomeCliente === nome);
+      const telefone = cliente?.telefone ?? "";
+      return (
+        <li
+          key={index}
+          className="p-2 hover:bg-base-200 cursor-pointer"
+          onClick={() => handleSelecionarSugestao(nome)}
+        >
+          {nome} {telefone ? `( ${telefone} )` : ""}
+        </li>
+      );
+    })}
+  </ul>
+)}
 
-          )}
         </div>
 
         {/* Campo de telefone com máscara */}
