@@ -77,6 +77,8 @@ export default function DadosPrecificacao() {
     { parcelas: 48, taxa: 3.1 },
     { parcelas: 60, taxa: 3.3 },
     { parcelas: 72, taxa: 3.5 },
+    { parcelas: 84, taxa: 3.7 },
+    { parcelas: 96, taxa: 3.9 },
   ]);
   const [quantidadePlacas, setQuantidadePlacas] = useState<string>("0");
   const [dadosAntigos, setDadosAntigos] = useState<any>({});

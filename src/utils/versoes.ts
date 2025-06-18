@@ -1,8 +1,15 @@
 // 📁 utils/versoes.ts
 export const versoes = [
   {
+    numero: "1.7",
+    data: "2025-06-18",
+    alteracoes: [
+      "Adicionado parcelamento 84x e 96x",
+    ],
+  },
+  {
     numero: "1.6",
-    data: "2025-05-22",
+    data: "2025-06-15",
     alteracoes: [
       "Não ficam mais um nome sobre o outro na lista",
       "Correção dos bug de calculo na tela de dados da precificação",
