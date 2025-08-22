@@ -1,6 +1,14 @@
 // 📁 utils/versoes.ts
 export const versoes = [
   {
+    numero: "1.8",
+    data: "2025-06-18",
+    alteracoes: [
+      "Correções de bug",
+      "Novas funcionalidade na precificação",
+    ],
+  },
+  {
     numero: "1.7",
     data: "2025-06-18",
     alteracoes: [

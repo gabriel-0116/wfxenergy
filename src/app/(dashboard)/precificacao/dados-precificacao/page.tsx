@@ -55,6 +55,8 @@ export default function DadosPrecificacao() {
   const [valorComissaoUnit, setValorComissaoUnit] = useState("50"); // ✅ valor padrão
   const [porcentagemImposto, setPorcentagemImposto] = useState("7"); // valor padrão 7%
   const [desconto, setDesconto] = useState("0"); // ✅ valor padrão
+  const [valorVendaEletricistaManual, setValorVendaEletricistaManual] =
+    useState<string | null>(null);
   const [entrada, setEntrada] = useState("0");
   const [potenciaInversorDigitada, setPotenciaInversorDigitada] =
     useState<string>("");
@@ -100,8 +102,11 @@ export default function DadosPrecificacao() {
     parseDecimal(kitFotovoltaico) +
     (parseDecimal(margemLucroBruta) / 100) * parseDecimal(kitFotovoltaico) -
     parseDecimal(desconto);
-  const valorVendaEletricista = custoEletricista * 2;
-  const lucroEletricista = valorVendaEletricista - custoEletricista;
+  const valorVendaEletricista =
+    valorVendaEletricistaManual !== null
+      ? parseDecimal(valorVendaEletricistaManual)
+      : custoEletricista +
+        (parseDecimal(margemLucroBruta || "0") / 100) * custoEletricista;
   const totalVenda =
     valorVendaKit +
     parseDecimal(valorProjeto || "0") +
@@ -144,57 +149,58 @@ export default function DadosPrecificacao() {
     novaLista[index].taxa = novaTaxa;
     setOpcoesFinanciamento(novaLista);
   };
-
+  const lucroEletricista = valorVendaEletricista - custoEletricista;
   const dadosParcelas = opcoesFinanciamento.map((opcao) => {
-  // ✅ Conversão dos valores de entrada e custos
-  const entradaNumber = parseDecimal(entrada || "0");
-  const totalCustoNumber = parseDecimal(totalCusto?.toString() || "0");
-  const valorComissaoInternaNumber = parseDecimal(
-    valorComissaoInterna?.toString() || "0"
-  );
+    // ✅ Conversão dos valores de entrada e custos
+    const entradaNumber = parseDecimal(entrada || "0");
+    const totalCustoNumber = parseDecimal(totalCusto?.toString() || "0");
+    const valorComissaoInternaNumber = parseDecimal(
+      valorComissaoInterna?.toString() || "0"
+    );
 
-  // 💰 Valor a ser financiado (total da venda - entrada do cliente)
-  const valorFinanciadoNumber = totalVenda - entradaNumber;
+    // 💰 Valor a ser financiado (total da venda - entrada do cliente)
+    const valorFinanciadoNumber = totalVenda - entradaNumber;
 
-  // ✅ Conversão da taxa de juros de porcentagem para decimal
-  const taxaDecimal = opcao.taxa / 100;
+    // ✅ Conversão da taxa de juros de porcentagem para decimal
+    const taxaDecimal = opcao.taxa / 100;
 
-  // 📌 Cálculo exato da parcela com fórmula PMT
-  // PMT = PV * [ i * (1 + i)^n ] / [ (1 + i)^n - 1 ]
-  const fatorPotencia = Math.pow(1 + taxaDecimal, opcao.parcelas);
-  const valorParcela = valorFinanciadoNumber * (taxaDecimal * fatorPotencia) / (fatorPotencia - 1);
+    // 📌 Cálculo exato da parcela com fórmula PMT
+    // PMT = PV * [ i * (1 + i)^n ] / [ (1 + i)^n - 1 ]
+    const fatorPotencia = Math.pow(1 + taxaDecimal, opcao.parcelas);
+    const valorParcela =
+      (valorFinanciadoNumber * (taxaDecimal * fatorPotencia)) /
+      (fatorPotencia - 1);
 
-  // 💵 Total pago ao final do financiamento
-  const totalPago = Math.ceil(opcao.parcelas * valorParcela * 100) / 100;
+    // 💵 Total pago ao final do financiamento
+    const totalPago = Math.ceil(opcao.parcelas * valorParcela * 100) / 100;
 
-  // 📊 Juros em valor monetário
-  const jurosReais = totalPago - valorFinanciadoNumber;
+    // 📊 Juros em valor monetário
+    const jurosReais = totalPago - valorFinanciadoNumber;
 
-  // 📈 Juros em percentual sobre o valor financiado
-  const jurosPercentual =
-    valorFinanciadoNumber > 0
-      ? (jurosReais / valorFinanciadoNumber) * 100
-      : 0;
+    // 📈 Juros em percentual sobre o valor financiado
+    const jurosPercentual =
+      valorFinanciadoNumber > 0
+        ? (jurosReais / valorFinanciadoNumber) * 100
+        : 0;
 
-  // 💰 Valor final do projeto: totalPago + entrada
-  const valorFinalProjeto = totalPago + entradaNumber;
+    // 💰 Valor final do projeto: totalPago + entrada
+    const valorFinalProjeto = totalPago + entradaNumber;
 
-  // 🧾 Lucro líquido do projeto
-  const lucroFinal =
-    valorFinalProjeto - totalCustoNumber - valorComissaoInternaNumber;
+    // 🧾 Lucro líquido do projeto
+    const lucroFinal =
+      valorFinalProjeto - totalCustoNumber - valorComissaoInternaNumber;
 
-  // 📦 Retorno dos dados calculados
-  return {
-    ...opcao,
-    valorParcela,
-    totalPago,
-    jurosReais,
-    jurosPercentual,
-    valorFinalProjeto,
-    lucroFinal,
-  };
-});
-
+    // 📦 Retorno dos dados calculados
+    return {
+      ...opcao,
+      valorParcela,
+      totalPago,
+      jurosReais,
+      jurosPercentual,
+      valorFinalProjeto,
+      lucroFinal,
+    };
+  });
 
   const potenciaPicoFinal =
     modo === "manual"
@@ -440,7 +446,10 @@ export default function DadosPrecificacao() {
       { nome: "valorComissaoUnit", valor: valorComissaoUnit },
 
       { nome: "quantidadeInversor", valor: quantidadeInversor.trim() },
-      { nome: "potenciaInversorDigitada", valor: String(potenciaInversorDigitada).trim() }, 
+      {
+        nome: "potenciaInversorDigitada",
+        valor: String(potenciaInversorDigitada).trim(),
+      },
       { nome: "estruturaProjeto", valor: estruturaProjeto.trim() },
 
       // Financiamento
@@ -469,8 +478,10 @@ export default function DadosPrecificacao() {
       { nome: "tipoInversor", valor: tipoInversor },
       { nome: "quantidadeInversor", valor: quantidadeInversor },
       { nome: "quantidadeInversor", valor: quantidadeInversor },
-{ nome: "potenciaInversorDigitada", valor: String(potenciaInversorDigitada).trim() }, // 💡 Agora seguro
-
+      {
+        nome: "potenciaInversorDigitada",
+        valor: String(potenciaInversorDigitada).trim(),
+      }, // 💡 Agora seguro
     ];
 
     const camposFaltando = camposObrigatorios.filter(
@@ -975,7 +986,7 @@ export default function DadosPrecificacao() {
               </tr>
               <tr>
                 <td className="font-semibold px-4 py-2">
-                  Margem de Lucro Bruta Kit Fotovoltaico %
+                  Margem de Lucro Eletricista/Instalador %
                 </td>
                 <td className="px-4 py-2 text-right">
                   <input
@@ -988,6 +999,7 @@ export default function DadosPrecificacao() {
                   />
                 </td>
               </tr>
+
               <tr>
                 <td className="font-semibold px-4 py-2">
                   Faturamento bruto por módulo
@@ -1238,7 +1250,19 @@ export default function DadosPrecificacao() {
             </tr>
             <tr>
               <td className="text-center">
-                <p>R$ {valorVendaEletricista.toFixed(2)}</p>
+                <input
+                  type="text"
+                  className="input input-sm input-bordered w-32 text-center"
+                  value={
+                    valorVendaEletricistaManual ??
+                    valorVendaEletricista.toFixed(2)
+                  }
+                  onChange={(e) =>
+                    setValorVendaEletricistaManual(
+                      sanitizeNumericInput(e.target.value)
+                    )
+                  }
+                />
               </td>
             </tr>
             <tr>
