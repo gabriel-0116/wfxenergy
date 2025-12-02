@@ -39,6 +39,8 @@ export default function Sidebar() {
     { label: "Clientes", href: "/clientes", icon: faUser },
     { label: "Projetos", href: "/projeto", icon: faFolderOpen },
     { label: "Precificação", href: "/precificacao", icon: faCalculator },
+    { label: "Produtos", href: "/produtos", icon: faCalculator },
+    { label: "Orçamentos", href: "/orcamento", icon: faCalculator },
     { label: "Proposta Comercial", href: "/proposta", icon: faFileSignature },
     { label: "Contrato", href: "/contrato", icon: faFileContract },
     { label: "Relatórios", href: "/relatorios", icon: faClipboardList },

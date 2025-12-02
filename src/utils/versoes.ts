@@ -1,6 +1,13 @@
 // 📁 utils/versoes.ts
 export const versoes = [
   {
+    numero: "2.0",
+    data: "2025-12-01",
+    alteracoes: [
+      "Novas funcionalidade de Cadastro de Produto e Orçamento",
+    ],
+  },
+  {
     numero: "1.8",
     data: "2025-06-18",
     alteracoes: [
