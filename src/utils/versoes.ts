@@ -1,6 +1,13 @@
 // 📁 utils/versoes.ts
 export const versoes = [
   {
+    numero: "2.1",
+    data: "2025-12-07",
+    alteracoes: [
+      "Novo método funcionando 100%",
+    ],
+  },
+  {
     numero: "2.0",
     data: "2025-12-01",
     alteracoes: [
