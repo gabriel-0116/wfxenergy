@@ -59,87 +59,88 @@ export default function ResumoProjetoPage() {
   }
 
   const handleSalvar = async () => {
-    if (!projeto) return;
+  if (!projeto) return;
 
-    // ✅ Verifica se usuário está logado
-    const user = auth.currentUser;
-    if (!user) {
-      alert("Usuário não autenticado!");
-      return;
-    }
+  // ✅ Verifica se usuário está logado
+  const user = auth.currentUser;
+  if (!user) {
+    alert("Usuário não autenticado!");
+    return;
+  }
 
-    // 👉 Salva o alerta no localStorage (para exibir na home)
-    localStorage.setItem("alertaHome", "Projeto salvo com sucesso");
+  // 👉 Salva o alerta no localStorage (para exibir na home)
+  localStorage.setItem("alertaHome", "Projeto salvo com sucesso");
 
-    // 📌 Lista de campos obrigatórios para validação
-    const camposObrigatorios = [
-      "consumoMedioMes",
-      "consumoMedioDia",
-      "potenciaPlaca",
-      "excedente",
-      "areaMinimaTotal",
-      "totalComImposto",
-      "totalSemImposto",
-      projeto?.modo === "manual"
-        ? "potenciaInversorManual"
-        : "potenciaInversor",
-      projeto?.modo === "manual"
-        ? "excedenteUnidadeManual"
-        : "excedenteUnidade",
-      projeto?.modo === "manual" ? "qtdPlacasManual" : "qtdPlacas",
-      projeto?.modo === "manual" ? "potenciaPicoManual" : "potenciaPico",
-      projeto?.modo === "manual" ? "geracaoMensalManual" : "geracaoMensal",
-      projeto?.modo === "manual" ? "geracaoDiariaManual" : "geracaoDiaria",
-    ];
+  // 📌 Lista de campos obrigatórios para validação
+  const camposObrigatorios = [
+    "consumoMedioMes",
+    "consumoMedioDia",
+    "potenciaPlaca",
+    "excedente",
+    "areaMinimaTotal",
+    "totalComImposto",
+    "totalSemImposto",
+    projeto?.modo === "manual"
+      ? "potenciaInversorManual"
+      : "potenciaInversor",
+    projeto?.modo === "manual"
+      ? "excedenteUnidadeManual"
+      : "excedenteUnidade",
+    projeto?.modo === "manual" ? "qtdPlacasManual" : "qtdPlacas",
+    projeto?.modo === "manual" ? "potenciaPicoManual" : "potenciaPico",
+    projeto?.modo === "manual" ? "geracaoMensalManual" : "geracaoMensal",
+    projeto?.modo === "manual" ? "geracaoDiariaManual" : "geracaoDiaria",
+  ];
 
-    // 🚨 Filtra os campos faltando
-    const camposFaltando = camposObrigatorios.filter(
-      (campo) => projeto[campo] === undefined || projeto[campo] === null
+  // 🚨 Filtra os campos faltando
+  const camposFaltando = camposObrigatorios.filter(
+    (campo) => projeto[campo] === undefined || projeto[campo] === null
+  );
+
+  if (camposFaltando.length > 0) {
+    const nomesFaltando = camposFaltando.map(
+      (campo) => nomesLegiveisProjeto[campo] || campo
+    );
+    alert(
+      `Existem campos não preenchidos no projeto:\n- ${nomesFaltando.join(
+        "\n- "
+      )}`
+    );
+    return;
+  }
+
+  try {
+    // ✅ Cria novo ORÇAMENTO na subcoleção do projeto
+    const orcamentoRef = await addDoc(
+      collection(
+        db,
+        `clientes/${clienteId}/projetos/${projetoId}/orcamentos`
+      ),
+      {
+        clienteId,
+        projetoId,
+        clienteNome: projeto.nomeCliente || "Sem nome",
+        criadoEm: Timestamp.now(),
+        criadoPor: user.uid,
+        status: "emAndamento",
+        ultimaModificacao: Timestamp.now(),
+      }
     );
 
-    if (camposFaltando.length > 0) {
-      const nomesFaltando = camposFaltando.map(
-        (campo) => nomesLegiveisProjeto[campo] || campo
-      );
-      alert(
-        `Existem campos não preenchidos no projeto:\n- ${nomesFaltando.join(
-          "\n- "
-        )}`
-      );
-      return;
-    }
+    const orcamentoId = orcamentoRef.id;
 
-    try {
-      // ✅ Cria nova precificação em subcoleção do projeto
-      const precificacaoRef = await addDoc(
-        collection(
-          db,
-          `clientes/${clienteId}/projetos/${projetoId}/precificacao`
-        ),
-        {
-          clienteId,
-          projetoId,
-          clienteNome: projeto.nomeCliente || "Sem nome",
-          criadoEm: Timestamp.now(),
-          criadoPor: user.uid,
-          status: "emAndamento",
-          ultimaModificacao: Timestamp.now(),
-        }
-      );
+    setShowAlerta(true); // mostra alerta de sucesso
 
-      const precificacaoId = precificacaoRef.id;
+    // ✅ Redireciona para a tela de dados do orçamento com IDs
+    router.push(
+      `/orcamento/dados-orcamento?clienteId=${clienteId}&projetoId=${projetoId}&orcamentoId=${orcamentoId}`
+    );
+  } catch (error) {
+    console.error("Erro ao criar orçamento:", error);
+    alert("Erro ao criar orçamento. Tente novamente.");
+  }
+};
 
-      setShowAlerta(true); // mostra alerta de sucesso
-
-      // ✅ Redireciona para a tela de dados da precificação com IDs
-      router.push(
-        `/precificacao/dados-precificacao?clienteId=${clienteId}&projetoId=${projetoId}&precificacaoId=${precificacaoId}`
-      );
-    } catch (error) {
-      console.error("Erro ao criar precificação:", error);
-      alert("Erro ao criar precificação. Tente novamente.");
-    }
-  };
 
   return (
     <section className="text-white h-[700px] px-6 py-6 space-y-8">

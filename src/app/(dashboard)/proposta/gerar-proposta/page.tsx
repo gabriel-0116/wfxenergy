@@ -1,4 +1,4 @@
-// ✅ Página: /gerar-proposta/page.tsx
+// ✅ Página: /proposta/gerar-proposta/page.tsx
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -16,46 +16,73 @@ const storage = getStorage();
 export default function GerarPropostaPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const clienteId = searchParams.get("clienteId");
   const projetoId = searchParams.get("projetoId");
+
+  // 🔹 compat: precificacaoId na URL hoje é o orcamentoId
   const precificacaoId = searchParams.get("precificacaoId");
+  const orcamentoIdFromQuery = searchParams.get("orcamentoId");
+  const orcamentoId = orcamentoIdFromQuery ?? precificacaoId;
 
   const [projeto, setProjeto] = useState<any>(null);
   const [cliente, setCliente] = useState<any>(null);
   const [templateSelecionado, setTemplateSelecionado] = useState<string>("");
   const [templatesStorage, setTemplatesStorage] = useState<string[]>([]);
   const [gerando, setGerando] = useState(false);
-  const [dadosPrecificacao, setDadosPrecificacao] = useState<any>(null);
+
+  // 🔹 agora é ORÇAMENTO, não mais "dadosPrecificacao"
+  const [dadosOrcamento, setDadosOrcamento] = useState<any>(null);
+
   const printRef = useRef<HTMLDivElement>(null);
   const [erros, setErros] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!clienteId || !projetoId || !precificacaoId) return;
+      if (!clienteId || !projetoId || !orcamentoId) return;
 
       try {
+        // projeto (já contém estrutura/inversor agora)
         const projetoSnap = await getDoc(
           doc(db, "clientes", clienteId, "projetos", projetoId)
         );
         if (projetoSnap.exists()) setProjeto(projetoSnap.data());
 
+        // cliente
         const clienteSnap = await getDoc(doc(db, "clientes", clienteId));
         if (clienteSnap.exists()) setCliente(clienteSnap.data());
 
-        const precSnap = await getDoc(
+        // orçamento salvo na tela de dados-orcamento
+        const orcSnap = await getDoc(
           doc(
             db,
-            `clientes/${clienteId}/projetos/${projetoId}/precificacao/${precificacaoId}/dadosPrecificacao/${precificacaoId}`
+            "clientes",
+            clienteId,
+            "projetos",
+            projetoId,
+            "orcamentos",
+            orcamentoId
           )
         );
-        if (precSnap.exists()) setDadosPrecificacao(precSnap.data());
+        if (orcSnap.exists()) {
+          setDadosOrcamento(orcSnap.data());
+        } else {
+          setErros((prev) => [
+            ...prev,
+            "Nenhum orçamento encontrado para este projeto.",
+          ]);
+        }
       } catch (error) {
         console.error("Erro no carregamento dos dados:", error);
+        setErros((prev) => [
+          ...prev,
+          "Erro ao carregar dados do cliente/projeto/orçamento.",
+        ]);
       }
     };
 
     fetchData();
-  }, [clienteId, projetoId, precificacaoId]);
+  }, [clienteId, projetoId, orcamentoId]);
 
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -67,41 +94,50 @@ export default function GerarPropostaPage() {
     fetchTemplates();
   }, []);
 
-  function gerarFormaPagamento(dadosPrecificacao: any): string {
-    const entrada = parseFloat(dadosPrecificacao?.entrada || "0");
-    const parcelas = dadosPrecificacao?.parcelaSelecionada;
-    const valorParcela =
-      dadosPrecificacao?.financiamentoSelecionado?.valorParcela;
-    const totalVenda = dadosPrecificacao?.totalVenda;
+  function gerarFormaPagamento(dados: any): string {
+  if (!dados) return "---";
 
-    if (parcelas === "avista") {
-      if (entrada > 0) {
-        return `Entrada: R$ ${entrada.toFixed(
-          2
-        )} | Valor à vista: R$ ${totalVenda.toFixed(2)}`;
-      } else {
-        return `R$ ${totalVenda.toFixed(2)}`;
-      }
+  const entrada = Number(dados.entrada || 0);
+  const parcelas = dados.parcelaSelecionada;
+  const fin = dados.financiamentoSelecionado;
+
+  const format = (v: number) =>
+    v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  // Se não tem financiamento salvo, tenta cair pra totalVenda
+  if (!fin) {
+    if (parcelas === "avista" && typeof dados.totalVenda === "number") {
+      return `À vista: ${format(dados.totalVenda)}`;
     }
-
-    if (typeof parcelas === "number" && valorParcela) {
-      if (entrada > 0) {
-        return `Entrada: R$ ${entrada.toFixed(
-          2
-        )} | ${parcelas}x de R$ ${valorParcela.toFixed(2)}`;
-      } else {
-        return `${parcelas}x de R$ ${valorParcela.toFixed(2)}`;
-      }
-    }
-
     return "---";
   }
+
+  const valorParcela = Number(fin.valorParcela || 0);
+  const totalPago = Number(fin.totalPago || fin.valorFinalProjeto || 0);
+  const valorFinalProjeto = Number(fin.valorFinalProjeto || totalPago || 0);
+
+  if (parcelas === "avista") {
+    // À vista: usa valor final do projeto
+    return `À vista: ${format(valorFinalProjeto)}`;
+  }
+
+  if (entrada > 0) {
+    return `Entrada de ${format(entrada)} + ${parcelas}x de ${format(
+      valorParcela
+    )} (Total: ${format(valorFinalProjeto)})`;
+  }
+
+  return `${parcelas}x de ${format(valorParcela)} (Total: ${format(
+    valorFinalProjeto
+  )})`;
+}
+
 
   const handleGerarProposta = async () => {
     const errosValidacao = validarCamposProposta({
       cliente,
       projeto,
-      dadosPrecificacao,
+      dadosOrcamento,
     });
 
     if (errosValidacao.length > 0) {
@@ -109,9 +145,9 @@ export default function GerarPropostaPage() {
       return;
     }
 
-    if (!cliente || !projeto || !templateSelecionado || !dadosPrecificacao) {
+    if (!cliente || !projeto || !templateSelecionado || !dadosOrcamento) {
       alert(
-        "Ainda carregando dados da precificação. Tente novamente em alguns segundos."
+        "Ainda carregando dados do orçamento. Tente novamente em alguns segundos."
       );
       return;
     }
@@ -134,78 +170,93 @@ export default function GerarPropostaPage() {
           ? projeto.qtdPlacasManual || projeto.qtdPlacas || "---"
           : projeto.qtdPlacas || projeto.qtdPlacasManual || "---";
 
-          const potenciaInstalada =
-  projeto.modo === "manual"
-    ? projeto.potenciaPicoManual ?? projeto.potenciaPico
-    : projeto.potenciaPico ?? projeto.potenciaPicoManual;
+      const potenciaInstalada =
+        projeto.modo === "manual"
+          ? projeto.potenciaPicoManual ?? projeto.potenciaPico
+          : projeto.potenciaPico ?? projeto.potenciaPicoManual;
 
-      const campos = {
-        nome_cliente: nomeClienteCampo || "---",
-        cpf: cpfOuCnpjCampo || "---",
-        telefone: cliente.telefone || "---",
-        cidade: enderecoPrincipal.cidade || "---",
-        estado: enderecoPrincipal.estado || "---",
-        logradouro: enderecoPrincipal.endereco || "---",
-        numero: enderecoPrincipal.numero || "---",
-        cep: enderecoPrincipal.cep || "---",
-        criado_em: new Date().toLocaleDateString("pt-BR"),
-        validade: "7 dias",
-        geracao_media:
-          projeto.modo === "manual"
-            ? `${
-                projeto.geracaoMensalManual ?? projeto.geracaoMensal ?? "---"
-              } kWh/mês`
-            : `${
-                projeto.geracaoMensal ?? projeto.geracaoMensalManual ?? "---"
-              } kWh/mês`,
-        potencia_placas: `${projeto.potenciaPlaca} W`,
-        potencia_instalada: `${potenciaInstalada} kWp`,
-        estrutura: dadosPrecificacao?.estruturaProjeto || "---",
-        quantidade_placas: qtdPlacasUsadas,
-        qtd_painel_helius: qtdPlacasUsadas,
-        inversor_microinversor: dadosPrecificacao.tipoInversor ?? "---",
-        nome_projeto: projeto?.nomeProjeto || "---",
-        qtd_inversor_microinversor:
-          dadosPrecificacao.quantidadeInversor ?? "---",
-        area_necessaria: `${projeto.areaMinimaTotal} m²`,
-        potencia_inversor_microinversor:
-          dadosPrecificacao?.potenciaInversorDigitada
-            ? `${dadosPrecificacao.potenciaInversorDigitada} kWp`
-            : "---",
-        valor_a_vista: dadosPrecificacao?.totalVenda
-          ? `R$ ${dadosPrecificacao.totalVenda.toFixed(2)}`
-          : "---",
+      const financiamento = dadosOrcamento?.financiamentoSelecionado;
+const valorFinalProjeto = Number(
+  financiamento?.valorFinalProjeto ?? financiamento?.totalPago ?? 0
+);
 
-        total_financiado: (() => {
-          if (!dadosPrecificacao?.financiamentoSelecionado) return "---";
+const campos = {
+  // 🧍 Cliente
+  nome_cliente: nomeClienteCampo || "---",
+  cpf: cpfOuCnpjCampo || "---", // não é usado no template atual, mas não atrapalha
+  telefone: cliente.telefone || "---",
 
-          const entrada = parseFloat(dadosPrecificacao.entrada || "0");
-          const totalPago =
-            dadosPrecificacao.financiamentoSelecionado.totalPago || 0;
+  // 📍 Endereço
+  cidade: enderecoPrincipal.cidade || "---",
+  estado: enderecoPrincipal.estado || "---",
+  logradouro: enderecoPrincipal.endereco || "---",
+  numero: enderecoPrincipal.numero || "---",
+  cep: enderecoPrincipal.cep || "---",
 
-          const total = entrada + totalPago;
+  // 📅 Datas
+  criado_em: new Date().toLocaleDateString("pt-BR"),
+  validade: "7 dias",
+  data_assinatura: new Date().toLocaleDateString("pt-BR"),
+  nome_cliente_assinatura: nomeClienteAssinaturaCampo || "---",
 
-          return `R$ ${total.toFixed(2)}`;
-        })(),
-        forma_pagamento: gerarFormaPagamento(dadosPrecificacao),
-        data_assinatura: `${new Date().toLocaleDateString("pt-BR")}`,
-        nome_cliente_assinatura: nomeClienteAssinaturaCampo || "---",
-        consumo_medio_mensal:
-          projeto.modo === "manual"
-            ? projeto.consumoMedioMesManual ?? projeto.consumoMedioMes ?? "---"
-            : projeto.consumoMedioMes ?? projeto.consumoMedioMesManual ?? "---",
-        consumo_medio_diario:
-          projeto.modo === "manual"
-            ? projeto.consumoMedioDiaManual ?? projeto.consumoMedioDia ?? "---"
-            : projeto.consumoMedioDia ?? projeto.consumoMedioDiaManual ?? "---",
-      };
+  // 📊 Consumo / geração
+  consumo_medio_mensal:
+    projeto.modo === "manual"
+      ? projeto.consumoMedioMesManual ?? projeto.consumoMedioMes ?? "---"
+      : projeto.consumoMedioMes ?? projeto.consumoMedioMesManual ?? "---",
+
+  consumo_medio_diario:
+    projeto.modo === "manual"
+      ? projeto.consumoMedioDiaManual ?? projeto.consumoMedioDia ?? "---"
+      : projeto.consumoMedioDia ?? projeto.consumoMedioDiaManual ?? "---",
+
+  geracao_media:
+    projeto.modo === "manual"
+      ? `${projeto.geracaoMensalManual ?? projeto.geracaoMensal ?? "---"} kWh/mês`
+      : `${projeto.geracaoMensal ?? projeto.geracaoMensalManual ?? "---"} kWh/mês`,
+
+  // 🔧 Projeto
+  nome_projeto: projeto?.nomeProjeto || "---",
+  quantidade_placas:
+    projeto.modo === "manual"
+      ? projeto.qtdPlacasManual || projeto.qtdPlacas || "---"
+      : projeto.qtdPlacas || projeto.qtdPlacasManual || "---",
+
+  qtd_painel_helius:
+    projeto.modo === "manual"
+      ? projeto.qtdPlacasManual || projeto.qtdPlacas || "---"
+      : projeto.qtdPlacas || projeto.qtdPlacasManual || "---",
+
+  potencia_placas: `${projeto.potenciaPlaca} W`,
+  potencia_instalada: `${
+    projeto.modo === "manual"
+      ? projeto.potenciaPicoManual ?? projeto.potenciaPico
+      : projeto.potenciaPico ?? projeto.potenciaPicoManual
+  } kWp`,
+
+  area_necessaria: `${projeto.areaMinimaTotal} m²`,
+
+  // 🧱 Estrutura + inversor → AGORA VINDO DO PROJETO
+  estrutura: projeto.estruturaProjeto || "---",
+  inversor_microinversor: projeto.tipoInversor ?? "---",
+  qtd_inversor_microinversor: projeto.quantidadeInversor ?? "---",
+  potencia_inversor_microinversor: projeto.potenciaInversorDigitada
+    ? `${projeto.potenciaInversorDigitada} kWp`
+    : "---",
+
+  // 💰 Financeiro — usa valor FINAL do orçamento
+  valor_a_vista: valorFinalProjeto
+    ? `R$ ${valorFinalProjeto.toFixed(2)}`
+    : "---",
+  forma_pagamento: gerarFormaPagamento(dadosOrcamento),
+};
 
       const response = await fetch("/api/gerar-docx", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           template: `propostas/${templateSelecionado}`,
-          campos, // já montado antes
+          campos,
         }),
       });
 
@@ -235,14 +286,13 @@ export default function GerarPropostaPage() {
 
       const limparNome = (texto: string) =>
         texto
-          .normalize("NFD") // Remove acentos
-          .replace(/[\u0300-\u036f]/g, "") // Remove caracteres especiais de acento
-          .replace(/\s+/g, "_") // Troca espaços por underline
-          .replace(/[^a-zA-Z0-9_-]/g, ""); // Remove qualquer outro caractere não permitido
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/\s+/g, "_")
+          .replace(/[^a-zA-Z0-9_-]/g, "");
 
       const dataHoje = new Date().toISOString().split("T")[0];
 
-      // Adiciona o nome do projeto no nome do arquivo
       const nomeArquivo = `Proposta-Comercial-${limparNome(
         cliente.nomeCliente
       )}-${limparNome(projeto.nomeProjeto)}-${dataHoje}.docx`;
@@ -256,109 +306,109 @@ export default function GerarPropostaPage() {
     }
   };
 
-  // ✅ Função de validação antes de gerar proposta
-  // ✅ Função de validação antes de gerar proposta
-function validarCamposProposta({
-  cliente,
-  projeto,
-  dadosPrecificacao,
-}: {
-  cliente: any;
-  projeto: any;
-  dadosPrecificacao: any;
-}): string[] {
-  const erros: string[] = [];
+  function validarCamposProposta({
+    cliente,
+    projeto,
+    dadosOrcamento,
+  }: {
+    cliente: any;
+    projeto: any;
+    dadosOrcamento: any;
+  }): string[] {
+    const erros: string[] = [];
 
-  // 🧪 Função auxiliar para verificar se um valor é vazio
-  const isVazio = (valor: any) =>
-    valor === undefined || valor === null || valor === "";
+    const isVazio = (valor: any) =>
+      valor === undefined || valor === null || valor === "";
 
-  // ✅ CLIENTE
-  const nomeCliente =
-    cliente.tipoPessoa === "pj" ? cliente.razaoSocial : cliente.nomeCliente;
+    // CLIENTE
+    const nomeCliente =
+      cliente?.tipoPessoa === "pj"
+        ? cliente?.razaoSocial
+        : cliente?.nomeCliente;
 
-  if (isVazio(nomeCliente)) erros.push("Nome do cliente não informado.");
-  if (isVazio(cliente.telefone))
-    erros.push("Telefone do cliente não informado.");
+    if (isVazio(nomeCliente)) erros.push("Nome do cliente não informado.");
+    if (isVazio(cliente?.telefone))
+      erros.push("Telefone do cliente não informado.");
 
-  // ✅ PROJETO
-  if (isVazio(projeto.nomeProjeto))
-    erros.push("Nome do projeto não informado.");
+    // PROJETO
+    if (isVazio(projeto?.nomeProjeto))
+      erros.push("Nome do projeto não informado.");
 
-  if (isVazio(projeto.potenciaPlaca))
-    erros.push("Potência da placa não informada.");
+    if (isVazio(projeto?.potenciaPlaca))
+      erros.push("Potência da placa não informada.");
 
-  if (isVazio(projeto.areaMinimaTotal))
-    erros.push("Área necessária não informada.");
+    if (isVazio(projeto?.areaMinimaTotal))
+      erros.push("Área necessária não informada.");
 
-  // 🧠 Usa valores manuais se estiver em modo manual, senão usa os normais
-  const qtdPlacas =
-    projeto.modo === "manual"
-      ? projeto.qtdPlacasManual
-      : projeto.qtdPlacas;
+    const qtdPlacas =
+      projeto?.modo === "manual"
+        ? projeto?.qtdPlacasManual
+        : projeto?.qtdPlacas;
 
-  const geracaoMensal =
-    projeto.modo === "manual"
-      ? projeto.geracaoMensalManual
-      : projeto.geracaoMensal;
+    const geracaoMensal =
+      projeto?.modo === "manual"
+        ? projeto?.geracaoMensalManual
+        : projeto?.geracaoMensal;
 
-  const consumoMensal =
-    projeto.modo === "manual"
-      ? projeto.consumoMedioMesManual ?? projeto.consumoMedioMes
-      : projeto.consumoMedioMes ?? projeto.consumoMedioMesManual;
+    const consumoMensal =
+      projeto?.modo === "manual"
+        ? projeto?.consumoMedioMesManual ?? projeto?.consumoMedioMes
+        : projeto?.consumoMedioMes ?? projeto?.consumoMedioMesManual;
 
-  const consumoDiario =
-    projeto.modo === "manual"
-      ? projeto.consumoMedioDiaManual ?? projeto.consumoMedioDia
-      : projeto.consumoMedioDia ?? projeto.consumoMedioDiaManual;
+    const consumoDiario =
+      projeto?.modo === "manual"
+        ? projeto?.consumoMedioDiaManual ?? projeto?.consumoMedioDia
+        : projeto?.consumoMedioDia ?? projeto?.consumoMedioDiaManual;
 
-  const potenciaInstalada =
-    projeto.modo === "manual"
-      ? projeto.potenciaPicoManual ?? projeto.potenciaPico
-      : projeto.potenciaPico ?? projeto.potenciaPicoManual;
+    const potenciaInstalada =
+      projeto?.modo === "manual"
+        ? projeto?.potenciaPicoManual ?? projeto?.potenciaPico
+        : projeto?.potenciaPico ?? projeto?.potenciaPicoManual;
 
-  if (isVazio(potenciaInstalada))
-    erros.push("Potência instalada não informada.");
+    if (isVazio(potenciaInstalada))
+      erros.push("Potência instalada não informada.");
 
-  if (isVazio(qtdPlacas))
-    erros.push("Quantidade de placas não informada.");
+    if (isVazio(qtdPlacas))
+      erros.push("Quantidade de placas não informada.");
 
-  if (isVazio(geracaoMensal))
-    erros.push("Geração mensal não informada.");
+    if (isVazio(geracaoMensal))
+      erros.push("Geração mensal não informada.");
 
-  if (isVazio(consumoMensal))
-    erros.push("Consumo médio mensal não informado.");
+    if (isVazio(consumoMensal))
+      erros.push("Consumo médio mensal não informado.");
 
-  if (isVazio(consumoDiario))
-    erros.push("Consumo médio diário não informado.");
+    if (isVazio(consumoDiario))
+      erros.push("Consumo médio diário não informado.");
 
-  // ✅ PRECIFICAÇÃO
-  if (isVazio(dadosPrecificacao?.estruturaProjeto))
-    erros.push("Estrutura do projeto não informada.");
+    // PROJETO – inversor/estrutura (agora vêm do projeto)
+    if (isVazio(projeto?.estruturaProjeto))
+      erros.push("Estrutura do projeto não informada.");
 
-  if (!dadosPrecificacao?.quantidadeInversor)
-    erros.push("Quantidade de inversores não informada.");
+    if (!projeto?.quantidadeInversor)
+      erros.push("Quantidade de inversores não informada.");
 
-  if (isVazio(dadosPrecificacao?.tipoInversor))
-    erros.push("Tipo de inversor não informado.");
+    if (isVazio(projeto?.tipoInversor))
+      erros.push("Tipo de inversor não informado.");
 
-  if (!dadosPrecificacao?.potenciaInversorDigitada)
-    erros.push("Potência do inversor não informada.");
+    if (!projeto?.potenciaInversorDigitada)
+      erros.push("Potência do inversor não informada.");
 
-  if (!dadosPrecificacao?.totalVenda)
-    erros.push("Valor total de venda não informado.");
+    const valorFinalProjeto =
+  dadosOrcamento?.financiamentoSelecionado?.valorFinalProjeto;
 
-  // 🔁 Se for parcelado, validar financiamento
-  if (
-    dadosPrecificacao.parcelaSelecionada !== "avista" &&
-    !dadosPrecificacao.financiamentoSelecionado
-  ) {
-    erros.push("Informações de financiamento não informadas.");
-  }
-
-  return erros;
+if (!valorFinalProjeto || valorFinalProjeto <= 0) {
+  erros.push("Valor final do projeto não informado.");
 }
 
+    if (
+      dadosOrcamento?.parcelaSelecionada !== "avista" &&
+      !dadosOrcamento?.financiamentoSelecionado
+    ) {
+      erros.push("Informações de financiamento não informadas.");
+    }
+
+    return erros;
+  }
 
   useEffect(() => {
     if (erros.length > 0) {
@@ -373,24 +423,28 @@ function validarCamposProposta({
 
   return (
     <section className="text-white px-6 py-6 space-y-8">
-      {erros.map((erro, i) => (
-        <div key={i} className="toast toast-top toast-end z-50">
-          <div className="alert alert-error">
-            <span>{erro}</span>
-          </div>
-        </div>
-      ))}
+     {erros.length > 0 && (
+  <div className="toast toast-top toast-end z-50">
+    {erros.map((erro, i) => (
+      <div key={i} className="alert alert-error">
+        <span>{erro}</span>
+      </div>
+    ))}
+  </div>
+)}
+
+
       <h1 className="text-3xl font-bold text-center">Proposta Comercial 📄</h1>
 
-      {/* ✅ Resumo reutilizável */}
+      {/* compat: ainda chamando dadosPrecificacao, mas o conteúdo é o ORÇAMENTO */}
       <ResumoProjeto
         cliente={cliente}
         projeto={projeto}
-        dadosPrecificacao={dadosPrecificacao}
+        dadosOrcamento={dadosOrcamento}
         variante="proposta"
       />
 
-      {/* 📄 Seletor de template do Storage */}
+      {/* Seletor de template */}
       <div className="max-w-md mx-auto text-center">
         <label
           htmlFor="template"
@@ -415,7 +469,6 @@ function validarCamposProposta({
         </select>
       </div>
 
-      {/* 🎯 Botões */}
       <div className="flex justify-end items-center gap-6 mt-12">
         <button
           type="button"

@@ -16,6 +16,7 @@ import {
   faUsersGear,
   faUser,
   faClockRotateLeft,
+  faBox,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { usePathname } from "next/navigation";
@@ -38,8 +39,7 @@ export default function Sidebar() {
     { label: "Início", href: "/home", icon: faHouse },
     { label: "Clientes", href: "/clientes", icon: faUser },
     { label: "Projetos", href: "/projeto", icon: faFolderOpen },
-    { label: "Precificação", href: "/precificacao", icon: faCalculator },
-    { label: "Produtos", href: "/produtos", icon: faCalculator },
+    { label: "Produtos", href: "/produtos", icon: faBox },
     { label: "Orçamentos", href: "/orcamento", icon: faCalculator },
     { label: "Proposta Comercial", href: "/proposta", icon: faFileSignature },
     { label: "Contrato", href: "/contrato", icon: faFileContract },

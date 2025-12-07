@@ -1,82 +1,137 @@
-"use client";
+"use client"; 
+// 🔹 Componente client-side (usa hooks do React/Next).
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/firebase/firebaseConfig";
+import { useEffect, useState } from "react"; 
+// 🔹 Hooks básicos do React: estado e efeitos.
+
+import { useRouter } from "next/navigation"; 
+// 🔹 Hook do Next para navegação programática.
+
+import { collection, getDocs } from "firebase/firestore"; 
+// 🔹 Funções do Firestore para ler coleções/documentos.
+
+import { db } from "@/firebase/firebaseConfig"; 
+// 🔹 Instância configurada do Firestore.
 
 export default function ContratoPage() {
-  const router = useRouter();
+  const router = useRouter(); 
+  // 🔹 Controle de navegação (router.push).
 
-  // 🧠 Estados principais
-  const [clientes, setClientes] = useState<any[]>([]);
-  const [projetos, setProjetos] = useState<any[]>([]);
-  const [clienteSelecionado, setClienteSelecionado] = useState<string>("");
-  const [projetoSelecionado, setProjetoSelecionado] = useState<string>("");
+  // 🧠 Estados principais da tela
+  const [clientes, setClientes] = useState<any[]>([]); 
+  // 🔹 Lista de clientes carregados do Firestore.
 
-  // 🔄 Carrega os clientes ao montar o componente
+  const [projetos, setProjetos] = useState<any[]>([]); 
+  // 🔹 Lista de projetos do cliente selecionado.
+
+  const [clienteSelecionado, setClienteSelecionado] = useState<string>(""); 
+  // 🔹 ID do cliente atualmente selecionado no <select>.
+
+  const [projetoSelecionado, setProjetoSelecionado] = useState<string>(""); 
+  // 🔹 ID do projeto selecionado no <select>.
+
+  // ----------------------------------------------------
+  // 1) Carregar lista de clientes ao montar a tela
+  // ----------------------------------------------------
   useEffect(() => {
     const fetchClientes = async () => {
+      // 🔹 Busca todos os documentos da coleção "clientes".
       const snapshot = await getDocs(collection(db, "clientes"));
+
+      // 🔹 Mapeia os docs para um array tipado com id + dados.
       const lista = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
+
+      // 🔹 Salva no estado para renderizar no select.
       setClientes(lista);
     };
-    fetchClientes();
-  }, []);
 
-  // 🔁 Quando o cliente muda, busca os projetos dele
+    // 🔹 Executa a função assíncrona.
+    fetchClientes();
+  }, []); 
+  // 🔹 Array vazio => roda apenas uma vez (montagem do componente).
+
+  // ----------------------------------------------------
+  // 2) Quando o cliente mudar, carregar projetos dele
+  // ----------------------------------------------------
   useEffect(() => {
+    // 🔹 Se nenhum cliente foi selecionado ainda, não faz nada.
     if (!clienteSelecionado) return;
 
     const fetchProjetos = async () => {
+      // 🔹 Referência da subcoleção "projetos" desse cliente.
       const snapshot = await getDocs(
         collection(db, `clientes/${clienteSelecionado}/projetos`)
       );
+
+      // 🔹 Monta array com id + dados de cada projeto.
       const lista = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
+
+      // 🔹 Atualiza estado dos projetos.
       setProjetos(lista);
+
+      // 🔹 Reseta projeto selecionado ao trocar de cliente.
       setProjetoSelecionado("");
     };
-    fetchProjetos();
-  }, [clienteSelecionado]);
 
+    // 🔹 Executa a busca.
+    fetchProjetos();
+  }, [clienteSelecionado]); 
+  // 🔹 Roda toda vez que o ID do cliente mudar.
+
+  // ----------------------------------------------------
+  // 3) Continuar: pegar o ORÇAMENTO e ir para gerar-contrato
+  // ----------------------------------------------------
   const handleContinuar = async () => {
+    // 🔹 Validação básica: precisa ter cliente e projeto escolhidos.
     if (!clienteSelecionado || !projetoSelecionado) return;
 
-    // 🔍 Busca a precificação mais recente
-    const precRef = collection(
+    // 🔍 Em vez de "precificacao", agora usamos a subcoleção "orcamentos"
+    const orcamentosRef = collection(
       db,
       "clientes",
       clienteSelecionado,
       "projetos",
       projetoSelecionado,
-      "precificacao"
+      "orcamentos"
     );
 
-    const precSnap = await getDocs(precRef);
+    // 🔹 Busca todos os orçamentos desse projeto.
+    const orcSnap = await getDocs(orcamentosRef);
 
-    if (precSnap.empty) {
-      alert("Este projeto ainda não possui dados de precificação.");
+    // 🔹 Se não houver nenhum orçamento, não dá pra gerar contrato.
+    if (orcSnap.empty) {
+      alert("Este projeto ainda não possui nenhum orçamento salvo.");
       return;
     }
 
-    const ultimaPrecificacao = precSnap.docs[precSnap.docs.length - 1];
-    const precificacaoId = ultimaPrecificacao.id;
+    // 🔹 Por simplicidade, usamos o ÚLTIMO documento retornado
+    //    (mesmo padrão que você usava para precificação).
+    const ultimoOrcamentoDoc = orcSnap.docs[orcSnap.docs.length - 1];
+
+    // 🔹 Esse é o ID do orçamento que vamos usar no contrato.
+    const orcamentoId = ultimoOrcamentoDoc.id;
 
     // 🔁 Redireciona para a tela de geração do contrato
+    //    passando clienteId, projetoId e orcamentoId via query string.
     router.push(
-      `/contrato/gerar-contrato?clienteId=${clienteSelecionado}&projetoId=${projetoSelecionado}&precificacaoId=${precificacaoId}`
+      `/contrato/gerar-contrato?clienteId=${clienteSelecionado}&projetoId=${projetoSelecionado}&orcamentoId=${orcamentoId}`
     );
   };
 
+  // ----------------------------------------------------
+  // 4) Renderização da tela
+  // ----------------------------------------------------
   return (
     <div className="text-white flex justify-center items-center h-[780px] shadow-2xl">
+      {/* 🔹 Card principal centralizado */}
       <div className="p-8 rounded-xl shadow-2xl max-w-xl space-y-6 w-full">
+        {/* Cabeçalho */}
         <div className="text-center">
           <h1 className="text-2xl font-bold">Gerar Contrato</h1>
           <p className="text-gray-500 text-sm">
@@ -84,7 +139,7 @@ export default function ContratoPage() {
           </p>
         </div>
 
-        {/* Cliente */}
+        {/* Select de Cliente */}
         <div>
           <label className="font-medium">Cliente</label>
           <select
@@ -95,13 +150,14 @@ export default function ContratoPage() {
             <option value="">Selecione um cliente</option>
             {clientes.map((cliente) => (
               <option key={cliente.id} value={cliente.id}>
-                {cliente.nomeCliente || "(sem nome)"} - {cliente.telefone || "sem telefone"}
+                {cliente.nomeCliente || "(sem nome)"} -{" "}
+                {cliente.telefone || "sem telefone"}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Projeto */}
+        {/* Select de Projeto (só aparece se tiver projetos carregados) */}
         {projetos.length > 0 && (
           <div>
             <label className="font-medium">Projeto</label>
@@ -120,7 +176,7 @@ export default function ContratoPage() {
           </div>
         )}
 
-        {/* Botão continuar */}
+        {/* Botão Continuar */}
         <button
           onClick={handleContinuar}
           disabled={!clienteSelecionado || !projetoSelecionado}

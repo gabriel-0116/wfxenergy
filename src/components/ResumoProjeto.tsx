@@ -1,10 +1,12 @@
 // ✅ Componente: ResumoProjeto.tsx
+// 🔹 Agora usa dadosOrcamento (orcamento da tela de dados-orcamento)
+//    e pega inversor/estrutura direto do PROJETO.
+
 import {
   faBolt,
   faMoneyBill,
   faPerson,
   faRulerCombined,
-  faSackDollar,
   faSolarPanel,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -13,50 +15,97 @@ import React from "react";
 interface Props {
   cliente: any;
   projeto: any;
-  dadosPrecificacao: any;
+  dadosOrcamento?: any; // 🔹 antes era dadosPrecificacao
   variante?: "proposta" | "contrato";
 }
 
 export default function ResumoProjeto({
   cliente,
   projeto,
-  dadosPrecificacao,
+  dadosOrcamento,
   variante = "proposta",
 }: Props) {
-  const gerarFormaPagamento = (
-    parcelaSelecionada: string,
-    entrada?: number,
-    financiamentoSelecionado?: {
-      parcelas: number;
-      valorParcela: number;
-      totalPago: number;
-      valorFinalProjeto: number;
-    }
-  ): string => {
-    if (parcelaSelecionada === "avista") return "Pagamento à vista";
-    if (!financiamentoSelecionado) return "---";
+  // 🔹 Helper para montar texto da forma de pagamento com base no ORÇAMENTO
+  const gerarFormaPagamento = (): string => {
+    if (!dadosOrcamento) return "---";
 
-    const { parcelas, valorParcela, totalPago, valorFinalProjeto } =
-      financiamentoSelecionado;
+    const parcelaSelecionada = dadosOrcamento.parcelaSelecionada;
+    const financiamento = dadosOrcamento.financiamentoSelecionado;
+
+    if (parcelaSelecionada === "avista") {
+      return "Pagamento à vista";
+    }
+
+    if (!financiamento) return "---";
+
+    const { parcelas, valorParcela, valorFinalProjeto } = financiamento;
 
     const format = (valor: number) =>
-      valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+      valor.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      });
 
-    let texto = "";
-    if (entrada && entrada > 0) texto += `Entrada de ${format(entrada)} + `;
-    texto += `${parcelas}x de ${format(valorParcela)} = ${format(totalPago)}\n`;
-    texto += `Total do Projeto: ${format(valorFinalProjeto)}`;
-
-    return texto;
+    return `${parcelas}x de ${format(valorParcela)} (Total: ${format(
+      valorFinalProjeto
+    )})`;
   };
 
-  // 🎨 Cores por contexto
+  // 🔹 Cores por contexto (proposta x contrato)
   const tituloCor =
     variante === "proposta" ? "text-purple-400" : "text-orange-400";
 
+  // 🔹 Consumos usando modo manual/recomendado
+  const consumoMensal =
+    projeto.modo === "manual"
+      ? projeto.consumoMedioMesManual ?? projeto.consumoMedioMes
+      : projeto.consumoMedioMes ?? projeto.consumoMedioMesManual;
+
+  const consumoDiario =
+    projeto.modo === "manual"
+      ? projeto.consumoMedioDiaManual ?? projeto.consumoMedioDia
+      : projeto.consumoMedioDia ?? projeto.consumoMedioDiaManual;
+
+  const geracaoMensal =
+    projeto.modo === "manual"
+      ? projeto.geracaoMensalManual ?? projeto.geracaoMensal
+      : projeto.geracaoMensal ?? projeto.geracaoMensalManual;
+
+  const geracaoDiaria =
+    projeto.modo === "manual"
+      ? projeto.geracaoDiariaManual ?? projeto.geracaoDiaria
+      : projeto.geracaoDiaria ?? projeto.geracaoDiariaManual;
+
+  const potenciaPico =
+    projeto.modo === "manual"
+      ? projeto.potenciaPicoManual ?? projeto.potenciaPico
+      : projeto.potenciaPico ?? projeto.potenciaPicoManual;
+
+  const excedente =
+    projeto.modo === "manual"
+      ? projeto.excedenteManual ?? projeto.excedente
+      : projeto.excedente ?? projeto.excedenteManual;
+
+  const excedenteUnidade =
+    projeto.modo === "manual"
+      ? projeto.excedenteUnidadeManual ?? projeto.excedenteUnidade
+      : projeto.excedenteUnidade ?? projeto.excedenteUnidadeManual;
+
+  const potenciaMinInversor =
+    projeto.modo === "manual"
+      ? projeto.potenciaInversorManual ?? projeto.potenciaInversor
+      : projeto.potenciaInversor ?? projeto.potenciaInversorManual;
+
+  // 🔹 Valores financeiros principais vindos do ORÇAMENTO
+  const financiamento = dadosOrcamento?.financiamentoSelecionado;
+  const valorFinalProjeto: number | null =
+    financiamento?.valorFinalProjeto ?? null;
+
   return (
-    <div className="grid grid-cols-2 gap-6">
-      <div className="bg-[#1a1a1a] rounded-xl shadow-2xl p-6 space-y-2">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* 🔹 LADO ESQUERDO: Cliente, Consumo, Área */}
+      <div className="bg-[#1a1a1a] rounded-xl shadow-2xl p-6 space-y-4">
+        {/* 🧍 Dados do Cliente */}
         <h2
           className={`text-lg font-semibold ${tituloCor} mb-3 border-b border-gray-600 pb-2`}
         >
@@ -67,17 +116,18 @@ export default function ResumoProjeto({
           Dados do Cliente
         </h2>
         <p>
-          <strong>Nome:</strong> {cliente.nomeCliente}
+          <strong>Nome:</strong> {cliente?.nomeCliente ?? "---"}
         </p>
         <p>
-          <strong>Telefone:</strong> {cliente.telefone}
+          <strong>Telefone:</strong> {cliente?.telefone ?? "---"}
         </p>
         <p>
-          <strong>Projeto:</strong> {projeto.nomeProjeto || "Não informado"}
+          <strong>Projeto:</strong> {projeto?.nomeProjeto || "Não informado"}
         </p>
 
+        {/* ⚡ Consumo */}
         <h2
-          className={`text-lg font-semibold ${tituloCor} mb-3 border-b border-gray-600 pb-2`}
+          className={`text-lg font-semibold ${tituloCor} mb-3 mt-4 border-b border-gray-600 pb-2`}
         >
           <FontAwesomeIcon
             icon={faBolt}
@@ -86,14 +136,17 @@ export default function ResumoProjeto({
           Consumo
         </h2>
         <p>
-          <strong>Consumo médio mensal:</strong> {projeto.consumoMedioMes} kWh
+          <strong>Consumo médio mensal:</strong>{" "}
+          {consumoMensal ? `${consumoMensal} kWh` : "---"}
         </p>
         <p>
-          <strong>Consumo médio diário:</strong> {projeto.consumoMedioDia} kWh
+          <strong>Consumo médio diário:</strong>{" "}
+          {consumoDiario ? `${consumoDiario} kWh` : "---"}
         </p>
 
+        {/* 📐 Área mínima */}
         <h2
-          className={`text-lg font-semibold ${tituloCor} mb-3 border-b border-gray-600 pb-2`}
+          className={`text-lg font-semibold ${tituloCor} mb-3 mt-4 border-b border-gray-600 pb-2`}
         >
           <FontAwesomeIcon
             icon={faRulerCombined}
@@ -102,33 +155,22 @@ export default function ResumoProjeto({
           Área Mínima Requerida
         </h2>
         <p>
-          <strong>Área mínima total:</strong> {projeto.areaMinimaTotal} m²
+          <strong>Área mínima total:</strong>{" "}
+          {projeto?.areaMinimaTotal
+            ? `${projeto.areaMinimaTotal} m²`
+            : "Não calculada"}
         </p>
         <p>
-          <strong>Dimensão da placa:</strong> {projeto.comprimento}m x{" "}
-          {projeto.largura}m
-        </p>
-
-        <h2
-          className={`text-lg font-semibold ${tituloCor} my-3 border-b border-gray-600 pb-2`}
-        >
-          <FontAwesomeIcon
-            icon={faSackDollar}
-            className="text-zinc-200 text-xl mr-2"
-          />
-          Quanto vou pagar?
-        </h2>
-        <p>
-          <strong>Total com imposto:</strong> R${" "}
-          {projeto.totalComImposto.toFixed(2)}
-        </p>
-        <p>
-          <strong>Total sem imposto:</strong> R${" "}
-          {projeto.totalSemImposto.toFixed(2)}
+          <strong>Dimensão da placa:</strong>{" "}
+          {projeto?.comprimento && projeto?.largura
+            ? `${projeto.comprimento}m x ${projeto.largura}m`
+            : "---"}
         </p>
       </div>
 
-      <div className="bg-[#1a1a1a] rounded-xl shadow-xl p-6 space-y-2">
+      {/* 🔹 LADO DIREITO: Sistema + Resumo Financeiro */}
+      <div className="bg-[#1a1a1a] rounded-xl shadow-xl p-6 space-y-4">
+        {/* ☀ Sistema Solar */}
         <h2
           className={`text-lg font-semibold ${tituloCor} mb-3 border-b border-gray-600 pb-2`}
         >
@@ -140,70 +182,68 @@ export default function ResumoProjeto({
         </h2>
         <p>
           <strong>Modo:</strong>{" "}
-          {projeto.modo === "manual" ? "Manual" : "Recomendado"}
+          {projeto?.modo === "manual" ? "Manual" : "Recomendado"}
         </p>
         <p>
           <strong>Qtd. de placas:</strong>{" "}
-          {projeto.modo === "manual"
-            ? projeto.qtdPlacasManual ?? projeto.qtdPlacas ?? "---"
-            : projeto.qtdPlacas ?? projeto.qtdPlacasManual ?? "---"}
+          {projeto?.modo === "manual"
+            ? projeto?.qtdPlacasManual ?? projeto?.qtdPlacas ?? "---"
+            : projeto?.qtdPlacas ?? projeto?.qtdPlacasManual ?? "---"}
         </p>
         <p>
-          <strong>Potência da placa:</strong> {projeto.potenciaPlaca} W
+          <strong>Potência da placa:</strong>{" "}
+          {projeto?.potenciaPlaca ? `${projeto.potenciaPlaca} W` : "---"}
         </p>
         <p>
           <strong>Geração mensal:</strong>{" "}
-          {projeto.modo === "manual"
-            ? projeto.geracaoMensalManual ?? "---"
-            : projeto.geracaoMensal ?? "---"}{" "}
-          kWh
+          {geracaoMensal ? `${geracaoMensal} kWh` : "---"}
         </p>
         <p>
           <strong>Geração diária:</strong>{" "}
-          {projeto.modo === "manual"
-            ? projeto.geracaoDiariaManual ?? "---"
-            : projeto.geracaoDiaria ?? "---"}{" "}
-          kWh
+          {geracaoDiaria ? `${geracaoDiaria} kWh` : "---"}
         </p>
         <p>
           <strong>Potência pico:</strong>{" "}
-          {projeto.modo === "manual"
-            ? projeto.potenciaPicoManual ?? "---"
-            : projeto.potenciaPico ?? "---"}{" "}
-          kW
+          {potenciaPico ? `${potenciaPico} kW` : "---"}
         </p>
         <p>
           <strong>Excedente:</strong>{" "}
-          {projeto.modo === "manual"
-            ? projeto.excedenteManual ?? projeto.excedente ?? "---"
-            : projeto.excedente ?? "---"}
-          %
+          {typeof excedente === "number" ? `${excedente}%` : "---"}
+        </p>
+        <p>
+          <strong>Excedente unidade:</strong>{" "}
+          {typeof excedenteUnidade === "number"
+            ? `${excedenteUnidade.toFixed(1)} kWh`
+            : "---"}
         </p>
         <p>
           <strong>Potência mínima do inversor:</strong>{" "}
-          {projeto.modo === "manual"
-            ? projeto.potenciaInversorManual ?? "---"
-            : projeto.potenciaInversor ?? "---"}{" "}
-          kW
+          {potenciaMinInversor ? `${potenciaMinInversor} kW` : "---"}
         </p>
+
+        {/* 🔌 Inversor e Estrutura vindos do PROJETO */}
         <p>
           <strong>Tipo de inversor:</strong>{" "}
-          {dadosPrecificacao?.tipoInversor || "---"}
+          {projeto?.tipoInversor ?? "---"}
         </p>
         <p>
           <strong>Qtd. de inversores:</strong>{" "}
-          {dadosPrecificacao?.quantidadeInversor || "---"}
+          {projeto?.quantidadeInversor ?? "---"}
         </p>
         <p>
-          <strong>Excedente Unidade:</strong>{" "}
-          {projeto.modo === "manual"
-            ? projeto.excedenteUnidadeManual?.toFixed(1)
-            : projeto.excedenteUnidade?.toFixed(1)}{" "}
-          kWh
+          <strong>Potência do inversor (kWp):</strong>{" "}
+          {projeto?.potenciaInversorDigitada
+            ? `${projeto.potenciaInversorDigitada} kWp`
+            : "---"}
+        </p>
+        <p>
+          <strong>Estrutura do projeto:</strong>{" "}
+          {projeto?.estruturaProjeto ?? "---"}
         </p>
 
-        {dadosPrecificacao && (
-          <div>
+        {/* 💰 Resumo Financeiro - APENAS valor final do orçamento */}
+        {dadosOrcamento && financiamento && (
+          <div className="mt-4">
             <h2
               className={`text-lg font-semibold ${tituloCor} mb-3 border-b border-gray-600 pb-2`}
             >
@@ -213,39 +253,20 @@ export default function ResumoProjeto({
               />
               Resumo Financeiro
             </h2>
+
             <p>
-              <strong>Valor do Kit Fotovoltaico:</strong> R$
-              {Number(dadosPrecificacao.kitFotovoltaico ?? 0).toFixed(2)}
+              <strong>Valor final do projeto:</strong>{" "}
+              {typeof valorFinalProjeto === "number"
+                ? valorFinalProjeto.toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  })
+                : "---"}
             </p>
 
             <p>
-              <strong>Valor à vista do projeto:</strong> R$
-              {Number(dadosPrecificacao.totalVenda ?? 0).toFixed(2)}
+              <strong>Forma de pagamento:</strong> {gerarFormaPagamento()}
             </p>
-
-            <p>
-              <strong>Forma de Pagamento:</strong>{" "}
-              {gerarFormaPagamento(
-                dadosPrecificacao.parcelaSelecionada,
-                dadosPrecificacao.entrada,
-                dadosPrecificacao.financiamentoSelecionado
-              )}
-            </p>
-            {dadosPrecificacao.financiamentoSelecionado && (
-              <>
-                <p>
-                  <strong>Entrada:</strong> R${" "}
-                  {dadosPrecificacao.entrada?.toFixed(2) ?? "0,00"}
-                </p>
-                <p>
-                  <strong>Parcelas:</strong>{" "}
-                  {dadosPrecificacao.financiamentoSelecionado.parcelas}x de R${" "}
-                  {dadosPrecificacao.financiamentoSelecionado.valorParcela.toFixed(
-                    2
-                  )}
-                </p>
-              </>
-            )}
           </div>
         )}
       </div>
