@@ -1,6 +1,13 @@
 // 📁 utils/versoes.ts
 export const versoes = [
   {
+    numero: "2.2",
+    data: "2025-12-09",
+    alteracoes: [
+      "Adicionado o 'ROLE' de Vendas ",
+    ],
+  },
+  {
     numero: "2.1",
     data: "2025-12-07",
     alteracoes: [

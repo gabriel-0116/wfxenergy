@@ -411,98 +411,107 @@ export default function DadosOrcamentoPage() {
    *  4) Salvar financiamento + kit + comissão e ir pra proposta
    *  ------------------------------------------------------*/
   const salvarFinanciamentoEIr = async () => {
-    // 🔹 Valida se os IDs necessários estão presentes.
-    if (!clienteId || !projetoId || !orcamentoId) {
-      alert("IDs ausentes na URL (clienteId / projetoId / orcamentoId).");
-      return;
-    }
-    if (!kitResumo) {
-      alert("Selecione um kit primeiro.");
-      return;
-    }
-    if (!qtdPlacas) {
-      // 🔹 Mesmo que não use mais qtdPlacas no cálculo de valor,
-      //    ainda exige que o projeto tenha placas configuradas (regra de negócio).
-      alert("O projeto não possui quantidade de placas válida.");
-      return;
-    }
-    if (!linhaSelecionada) {
-      alert("Selecione uma opção de pagamento na tabela.");
-      return;
-    }
+  if (!clienteId || !projetoId || !orcamentoId) {
+    alert("IDs ausentes na URL (clienteId / projetoId / orcamentoId).");
+    return;
+  }
+  if (!kitResumo) {
+    alert("Selecione um kit primeiro.");
+    return;
+  }
+  if (!qtdPlacas) {
+    alert("O projeto não possui quantidade de placas válida.");
+    return;
+  }
+  if (!linhaSelecionada) {
+    alert("Selecione uma opção de pagamento na tabela.");
+    return;
+  }
 
-    try {
-      setSalvandoPlano(true);
+  try {
+    setSalvandoPlano(true);
 
-      const ref = doc(
-        db,
-        `clientes/${clienteId}/projetos/${projetoId}/orcamentos/${orcamentoId}`
-      );
+    const ref = doc(
+      db,
+      `clientes/${clienteId}/projetos/${projetoId}/orcamentos/${orcamentoId}`
+    );
 
-      const comissaoPercent = comissaoInternaPercent ?? 0;
+    const comissaoPercent = comissaoInternaPercent ?? 0;
 
-      await updateDoc(ref, {
-        // 🔹 Salva o kit selecionado com dados relevantes.
-        kitSelecionado: {
-          id: kitResumo.id,
-          nomeProduto: kitResumo.nomeProduto,
-          valorVendaUnitario: kitResumo.valorVendaUnitario,
-          comissaoInternaMaxPercent:
-            kitResumo.comissaoInternaMaxPercent ?? 0,
-        },
+    // 🔥🔥🔥 AQUI — ATUALIZA O ORÇAMENTO 🔥🔥🔥
+    await updateDoc(ref, {
+      kitSelecionado: {
+        id: kitResumo.id,
+        nomeProduto: kitResumo.nomeProduto,
+        valorVendaUnitario: kitResumo.valorVendaUnitario,
+        comissaoInternaMaxPercent: kitResumo.comissaoInternaMaxPercent ?? 0,
+      },
 
-        // 🔹 Salva o financiamento selecionado (linha da tabela).
-        financiamentoSelecionado: {
-          parcelas: linhaSelecionada.parcelas,
-          taxaMesPercent: linhaSelecionada.taxaMesPercent,
-          valorParcela: linhaSelecionada.valorParcela,
-          totalPago: linhaSelecionada.totalPago,
-          jurosReais: linhaSelecionada.jurosReais,
-          jurosPercentual: linhaSelecionada.jurosPercentual,
-          valorFinalProjeto: linhaSelecionada.valorFinalProjeto,
-          lucroFinal: linhaSelecionada.lucroFinal,
-          margemLucroPercent: linhaSelecionada.margemLucroPercent,
-        },
+      financiamentoSelecionado: {
+        parcelas: linhaSelecionada.parcelas,
+        taxaMesPercent: linhaSelecionada.taxaMesPercent,
+        valorParcela: linhaSelecionada.valorParcela,
+        totalPago: linhaSelecionada.totalPago,
+        jurosReais: linhaSelecionada.jurosReais,
+        jurosPercentual: linhaSelecionada.jurosPercentual,
+        valorFinalProjeto: linhaSelecionada.valorFinalProjeto,
+        lucroFinal: linhaSelecionada.lucroFinal,
+        margemLucroPercent: linhaSelecionada.margemLucroPercent,
+      },
 
-        parcelaSelecionada: linhaSelecionada.parcelas,
-        opcoesFinanciamento: opcoesFinanciamento.map((p) => ({
-          parcelas: p.parcelas,
-          taxa: p.taxa,
-        })),
+      parcelaSelecionada: linhaSelecionada.parcelas,
 
-        // 🔹 Dados da comissão interna e do desconto aplicado.
-        comissaoInterna: {
-          valorPercent: comissaoPercent,
-          valorMaxPercent: kitResumo.comissaoInternaMaxPercent ?? 0,
-          descontoReais: descontoComissaoValor,
-        },
+      opcoesFinanciamento: opcoesFinanciamento.map((p) => ({
+        parcelas: p.parcelas,
+        taxa: p.taxa,
+      })),
 
-        // 🔹 Contexto do cálculo (para auditoria).
-        contextoCalculo: {
-          modoProjeto: modoProjeto ?? "recomendado",
-          qtdPlacas: qtdPlacas ?? 0,
-          valorUnitarioKit: kitResumo.valorVendaUnitario,
-          totalBaseSemComissao,
-          totalBaseComDesconto,
-          descontoComissaoValor,
-          totalBaseUsado: totalBaseComDesconto,
-        },
+      comissaoInterna: {
+        valorPercent: comissaoPercent,
+        valorMaxPercent: kitResumo.comissaoInternaMaxPercent ?? 0,
+        descontoReais: descontoComissaoValor,
+      },
 
+      contextoCalculo: {
+        modoProjeto: modoProjeto ?? "recomendado",
+        qtdPlacas: qtdPlacas ?? 0,
+        valorUnitarioKit: kitResumo.valorVendaUnitario,
+        totalBaseSemComissao,
+        totalBaseComDesconto,
+        descontoComissaoValor,
+        totalBaseUsado: totalBaseComDesconto,
+      },
+
+      // 🔥🔥🔥 IMPORTANTE: STATUS DO ORÇAMENTO 🔥🔥🔥
+      // Isso permite que a tela de projetos saiba se o projeto está finalizado ou não.
+      status: "em_andamento", // mude para "finalizado" quando o fluxo terminar
+
+      ultimaModificacao: Timestamp.now(),
+      atualizadoPor: auth.currentUser?.uid || "sistema",
+    });
+
+    // 🔥🔥🔥 AQUI — ATUALIZA O DOCUMENTO DO PROJETO 🔥🔥🔥
+    await updateDoc(
+      doc(db, "clientes", clienteId, "projetos", projetoId),
+      {
         ultimaModificacao: Timestamp.now(),
         atualizadoPor: auth.currentUser?.uid || "sistema",
-      });
+      }
+    );
 
-      // 🔹 Navega para a tela de proposta comercial com os IDs necessários.
-      router.push(
-        `/proposta/gerar-proposta?clienteId=${clienteId}&projetoId=${projetoId}&precificacaoId=${orcamentoId}`
-      );
-    } catch (err) {
-      console.error("Erro ao salvar financiamento:", err);
-      alert("Erro ao salvar opção selecionada.");
-    } finally {
-      setSalvandoPlano(false);
-    }
-  };
+    // 🔥 NAVEGA PARA A PROPOSTA
+    router.push(
+      `/proposta/gerar-proposta?clienteId=${clienteId}&projetoId=${projetoId}&orcamentoId=${orcamentoId}`
+    );
+
+  } catch (err) {
+    console.error("Erro ao salvar financiamento:", err);
+    alert("Erro ao salvar opção selecionada.");
+  } finally {
+    setSalvandoPlano(false);
+  }
+};
+
 
   /** -------------------------------------------------------
    *  5) Render

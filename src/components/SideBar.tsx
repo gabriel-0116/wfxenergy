@@ -1,9 +1,12 @@
 "use client";
+// 👆 Sidebar precisa rodar no client pois usa hooks.
+
 import { useContext, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { AuthContext } from "@/context/AuthContext";
 import Image from "next/image";
 import Link from "next/link";
+
 import {
   faHouse,
   faFolderOpen,
@@ -18,13 +21,20 @@ import {
   faClockRotateLeft,
   faBox,
 } from "@fortawesome/free-solid-svg-icons";
+
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { usePathname } from "next/navigation";
 import { versoes } from "@/utils/versoes";
+
+import { blockedRoutesByRole } from "../utils/permission";
+
+/**
+ * 🔥 Sidebar que esconde automaticamente links bloqueados
+ * baseado na role do usuário.
+ */
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { signOut } = useContext(AuthContext) || {};
+  const { signOut, role } = useContext(AuthContext) || {};
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
 
@@ -33,6 +43,18 @@ export default function Sidebar() {
       await signOut();
       router.push("/login");
     }
+  };
+
+  // Pega rotas bloqueadas para esta role
+  const rotasBloqueadas = blockedRoutesByRole[role || ""] || [];
+
+  // 🚀 Função simples para decidir se mostramos ou não um item
+  const deveMostrar = (href: string) => {
+    // Admin sempre vê tudo
+    if (role === "admin") return true;
+
+    // Vendas / auxiliar só não vê se estiver na lista
+    return !rotasBloqueadas.some((b) => href.startsWith(b));
   };
 
   const menuItems = [
@@ -64,22 +86,24 @@ export default function Sidebar() {
 
           <nav className="px-4">
             <ul className="space-y-2 text-md">
-              {menuItems.map((item) => (
-                <li key={item.label}>
-                  <Link
-                    href={item.href}
-                    className={`flex items-center gap-2 px-3 py-2 rounded transition
-                      ${
-                        pathname === item.href
-                          ? "bg-gradient-to-r from-[#0a56ad]/40 to-[#425779]/20 border border-[#334155] font-bold"
-                          : "hover:bg-[#425779]"
-                      }`}
-                  >
-                    <FontAwesomeIcon icon={item.icon} />
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
+              {menuItems
+                .filter((item) => deveMostrar(item.href))
+                .map((item) => (
+                  <li key={item.label}>
+                    <Link
+                      href={item.href}
+                      className={`flex items-center gap-2 px-3 py-2 rounded transition
+                        ${
+                          pathname === item.href
+                            ? "bg-gradient-to-r from-[#0a56ad]/40 to-[#425779]/20 border border-[#334155] font-bold"
+                            : "hover:bg-[#425779]"
+                        }`}
+                    >
+                      <FontAwesomeIcon icon={item.icon} />
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
             </ul>
           </nav>
 
@@ -87,22 +111,25 @@ export default function Sidebar() {
 
           <nav className="px-4">
             <ul className="space-y-2 text-md">
-              {tools.map((item) => (
-                <li key={item.label}>
-                  <Link
-                    href={item.href}
-                    className={`flex items-center gap-2 px-3 py-2 rounded transition
-                      ${
-                        pathname === item.href
-                          ? "bg-[#334155] font-semibold"
-                          : "hover:bg-gray-700"
-                      }`}
-                  >
-                    <FontAwesomeIcon icon={item.icon} />
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
+              {tools
+                .filter((item) => deveMostrar(item.href))
+                .map((item) => (
+                  <li key={item.label}>
+                    <Link
+                      href={item.href}
+                      className={`flex items-center gap-2 px-3 py-2 rounded transition
+                        ${
+                          pathname === item.href
+                            ? "bg-[#334155] font-semibold"
+                            : "hover:bg-gray-700"
+                        }`}
+                    >
+                      <FontAwesomeIcon icon={item.icon} />
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+
               <li>
                 <button
                   onClick={() => setShowModal(true)}
@@ -114,7 +141,9 @@ export default function Sidebar() {
               </li>
             </ul>
           </nav>
+
           <div className="my-6 border-t border-white mx-4" />
+
           <div className="flex-1 items-center justify-center p-4">
             <h1 className="text-center font-bold text-lg">
               Versão {versoes[0].numero}
@@ -123,7 +152,6 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      {/* Modal de Confirmação */}
       {showModal && (
         <dialog className="modal modal-open">
           <div className="modal-box bg-[#1e293b] text-white">
