@@ -484,7 +484,7 @@ export default function DadosOrcamentoPage() {
 
       // 🔥🔥🔥 IMPORTANTE: STATUS DO ORÇAMENTO 🔥🔥🔥
       // Isso permite que a tela de projetos saiba se o projeto está finalizado ou não.
-      status: "em_andamento", // mude para "finalizado" quando o fluxo terminar
+      status: "emAndamento", // mude para "finalizado" quando o fluxo terminar
 
       ultimaModificacao: Timestamp.now(),
       atualizadoPor: auth.currentUser?.uid || "sistema",

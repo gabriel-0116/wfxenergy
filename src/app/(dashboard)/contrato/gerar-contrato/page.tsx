@@ -1,54 +1,103 @@
 // ✅ Página: /contrato/gerar-contrato/page.tsx
-"use client";
+"use client"; 
+// 🔹 Indica que este componente será renderizado no lado do cliente (necessário para hooks, etc).
 
 import { useEffect, useState } from "react";
+// 🔹 Hooks do React:
+//    - useState: para estados locais (cliente, projeto, template, etc).
+//    - useEffect: para carregar dados assíncronos quando a página monta.
+
 import { useRouter, useSearchParams } from "next/navigation";
+// 🔹 Hooks do Next.js (App Router):
+//    - useRouter: navegação programática (router.push).
+//    - useSearchParams: leitura de parâmetros de query string (clienteId, projetoId, etc).
+
 import { db } from "@/firebase/firebaseConfig";
-import { doc, getDoc } from "firebase/firestore";
+// 🔹 Instância configurada do Firestore (banco de dados do Firebase).
+
+import { 
+  doc, 
+  getDoc, 
+  updateDoc, // 🔹 Função para atualizar documentos existentes no Firestore.
+  Timestamp, // 🔹 Tipo especial do Firestore para representar datas.
+} from "firebase/firestore";
+// 🔹 Funções do Firestore usadas nesta página:
+//    - doc: cria uma referência a um documento específico.
+//    - getDoc: obtém os dados de um único documento.
+//    - updateDoc: atualiza campos de um documento já existente.
+//    - Timestamp: usado para campos de data/hora (ultimaModificacao).
+
 import { getStorage, ref, listAll } from "firebase/storage";
+// 🔹 Funções do Storage (arquivos):
+//    - getStorage: obtém a instância do Storage.
+//    - ref: cria referência a uma pasta/arquivo no Storage.
+//    - listAll: lista todos os arquivos dentro de uma pasta.
+
 import { saveAs } from "file-saver";
+// 🔹 Biblioteca para forçar download de um arquivo blob no navegador.
+
 import ResumoProjeto from "@/components/ResumoProjeto";
+// 🔹 Componente que mostra um resumo do cliente, projeto e orçamento.
 
 const storage = getStorage();
+// 🔹 Instância global do Storage para fazer listagem de templates.
 
 export default function GerarContratoPage() {
-  const router = useRouter();
+  const router = useRouter(); 
+  // 🔹 Hook de navegação para mudar de rota (voltar, etc.).
+
   const searchParams = useSearchParams();
+  // 🔹 Hook para ler parâmetros da URL (query string).
 
   const clienteId = searchParams.get("clienteId");
   const projetoId = searchParams.get("projetoId");
 
   // 🔹 compat: precificacaoId na URL hoje é o orcamentoId
+  //    Isso é só para manter compatibilidade com URLs antigas.
   const precificacaoId = searchParams.get("precificacaoId");
   const orcamentoIdFromQuery = searchParams.get("orcamentoId");
   const orcamentoId = orcamentoIdFromQuery ?? precificacaoId;
+  // 🔹 orcamentoId será usado tanto para ler quanto para atualizar o documento de orçamento.
 
   const [cliente, setCliente] = useState<any>(null);
+  // 🔹 Dados do cliente carregados do Firestore.
+
   const [projeto, setProjeto] = useState<any>(null);
+  // 🔹 Dados do projeto (consumo, geração, quantidade de placas, etc.).
+
   const [dadosOrcamento, setDadosOrcamento] = useState<any>(null);
+  // 🔹 Dados do orçamento selecionado (financiamento, valores, etc.).
 
   const [templateSelecionado, setTemplateSelecionado] = useState("");
-  const [templatesStorage, setTemplatesStorage] = useState<string[]>([]);
-  const [gerando, setGerando] = useState(false);
-  const [erros, setErros] = useState<string[]>([]);
+  // 🔹 Nome do template de contrato escolhido pelo usuário (arquivo .docx no Storage).
 
-  // 🔹 Carrega cliente, projeto e orçamento (igual proposta)
+  const [templatesStorage, setTemplatesStorage] = useState<string[]>([]);
+  // 🔹 Lista de nomes de templates de contrato disponíveis no Storage.
+
+  const [gerando, setGerando] = useState(false);
+  // 🔹 Flag para indicar se estamos gerando o contrato (evita clique duplo, mostra loading).
+
+  const [erros, setErros] = useState<string[]>([]);
+  // 🔹 Lista de mensagens de erro de validação ou carregamento de dados.
+
+  // 🔹 Carrega cliente, projeto e orçamento (fluxo semelhante ao usado na proposta).
   useEffect(() => {
     const fetchData = async () => {
+      // 👉 Se faltar algum ID essencial, não há como carregar os dados.
       if (!clienteId || !projetoId || !orcamentoId) return;
 
       try {
-        // Cliente
+        // 🔹 Busca o documento do cliente na coleção "clientes".
         const clienteSnap = await getDoc(doc(db, "clientes", clienteId));
         if (clienteSnap.exists()) setCliente(clienteSnap.data());
 
-        // Projeto
+        // 🔹 Busca o documento do projeto dentro da subcoleção "projetos" do cliente.
         const projetoSnap = await getDoc(
           doc(db, "clientes", clienteId, "projetos", projetoId)
         );
         if (projetoSnap.exists()) setProjeto(projetoSnap.data());
 
-        // Orçamento
+        // 🔹 Busca o documento do orçamento dentro de "orcamentos" do projeto.
         const orcSnap = await getDoc(
           doc(
             db,
@@ -62,8 +111,10 @@ export default function GerarContratoPage() {
         );
 
         if (orcSnap.exists()) {
+          // 👉 Salva os dados do orçamento no estado local.
           setDadosOrcamento(orcSnap.data());
         } else {
+          // 👉 Caso não exista orçamento com esse ID, registra erro.
           setErros((prev) => [
             ...prev,
             "Nenhum orçamento encontrado para este projeto.",
@@ -79,20 +130,29 @@ export default function GerarContratoPage() {
     };
 
     fetchData();
+    // 🔎 Dependências: quando clienteId, projetoId ou orcamentoId mudarem, recarrega os dados.
   }, [clienteId, projetoId, orcamentoId]);
 
-  // 🔹 Carrega templates de contrato do Storage
+  // 🔹 Carrega templates de contrato do Storage (pasta "templates/contratos").
   useEffect(() => {
     const fetchTemplates = async () => {
+      // 👉 Cria uma referência à pasta "templates/contratos" no Storage.
       const storageRef = ref(storage, "templates/contratos");
+
+      // 👉 Lista todos os arquivos dentro dessa pasta.
       const result = await listAll(storageRef);
+
+      // 👉 Mapeia apenas os nomes dos arquivos .docx.
       const nomes = result.items.map((item) => item.name);
+
+      // 👉 Salva no estado para renderizar no <select>.
       setTemplatesStorage(nomes);
     };
+
     fetchTemplates();
   }, []);
 
-  // 🔹 Mesma lógica de forma de pagamento da proposta
+  // 🔹 Lógica copiada/adaptada da proposta para descrição da forma de pagamento.
   function gerarFormaPagamento(dados: any): string {
     if (!dados) return "---";
 
@@ -103,7 +163,7 @@ export default function GerarContratoPage() {
     const format = (v: number) =>
       v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-    // Se não tem financiamento salvo, tenta cair pra totalVenda
+    // 🔹 Caso não exista financiamento estruturado, tenta cair para um total à vista.
     if (!fin) {
       if (parcelas === "avista" && typeof dados.totalVenda === "number") {
         return `À vista: ${format(dados.totalVenda)}`;
@@ -130,43 +190,52 @@ export default function GerarContratoPage() {
     )})`;
   }
 
-  // 🔹 Monta os campos usados no template de CONTRATO
+  // 🔹 Monta os campos dinâmicos usados no template de CONTRATO.
   const montarCampos = () => {
     const enderecoPrincipal = cliente.enderecos?.[0] || {};
+    // 🔹 Considera o primeiro endereço do array como endereço principal.
 
     const nomeClienteCampo =
       cliente.tipoPessoa === "pj" ? cliente.razaoSocial : cliente.nomeCliente;
+    // 🔹 Se for pessoa jurídica, usa razão social; caso contrário, nome do cliente.
 
     const cpfOuCnpjCampo =
       cliente.tipoPessoa === "pj" ? cliente.cnpj : cliente.cpf;
+    // 🔹 Campo que será usado como CPF ou CNPJ conforme o tipo de pessoa.
 
     const nomeClienteAssinaturaCampo =
       cliente.tipoPessoa === "pj" ? cliente.razaoSocial : cliente.nomeCliente;
+    // 🔹 Nome exibido na assinatura do contrato.
 
     const qtdPlacasUsadas =
       projeto.modo === "manual"
         ? projeto.qtdPlacasManual || projeto.qtdPlacas || "---"
         : projeto.qtdPlacas || projeto.qtdPlacasManual || "---";
+    // 🔹 Quantidade de placas usada (respeitando o modo do projeto).
 
     const geracaoMensal =
       projeto.modo === "manual"
         ? projeto.geracaoMensalManual ?? projeto.geracaoMensal ?? "---"
         : projeto.geracaoMensal ?? projeto.geracaoMensalManual ?? "---";
+    // 🔹 Geração mensal estimada (modo manual ou recomendado).
 
     const consumoMedioMensal =
       projeto.modo === "manual"
         ? projeto.consumoMedioMesManual ?? projeto.consumoMedioMes ?? "---"
         : projeto.consumoMedioMes ?? projeto.consumoMedioMesManual ?? "---";
+    // 🔹 Consumo médio mensal.
 
     const consumoMedioDiario =
       projeto.modo === "manual"
         ? projeto.consumoMedioDiaManual ?? projeto.consumoMedioDia ?? "---"
         : projeto.consumoMedioDia ?? projeto.consumoMedioDiaManual ?? "---";
+    // 🔹 Consumo médio diário.
 
     const financiamento = dadosOrcamento?.financiamentoSelecionado;
     const valorFinalProjeto = Number(
       financiamento?.valorFinalProjeto ?? financiamento?.totalPago ?? 0
     );
+    // 🔹 Valor final do projeto (total a ser pago).
 
     const campos: Record<string, string> = {
       // 🧍 Cliente
@@ -224,7 +293,7 @@ export default function GerarContratoPage() {
     return campos;
   };
 
-  // 🔹 Validação (baseada na da proposta, mas com RG obrigatório p/ PF)
+  // 🔹 Função de validação dos dados antes de gerar o contrato.
   function validarCamposContrato({
     cliente,
     projeto,
@@ -344,6 +413,7 @@ export default function GerarContratoPage() {
   }
 
   const handleGerarContrato = async () => {
+    // 🔹 Primeiro, valida todos os dados necessários para o contrato.
     const errosValidacao = validarCamposContrato({
       cliente,
       projeto,
@@ -351,19 +421,30 @@ export default function GerarContratoPage() {
     });
 
     if (errosValidacao.length > 0) {
+      // 👉 Se houver erros de validação, exibe-os e interrompe o fluxo.
       setErros(errosValidacao);
       return;
     }
 
+    // 🔹 Garante que temos tudo que é essencial antes de seguir.
     if (!templateSelecionado || !cliente || !projeto || !dadosOrcamento) {
       alert("Preencha todas as informações antes de gerar o contrato.");
       return;
     }
 
+    // 🔹 Também garante que temos os IDs necessários para depois atualizar o Firestore.
+    if (!clienteId || !projetoId || !orcamentoId) {
+      alert("IDs ausentes na URL (clienteId / projetoId / orcamentoId).");
+      return;
+    }
+
     try {
       setGerando(true);
+
+      // 🔹 Monta o objeto de campos que será usado para preencher o template .docx.
       const campos = montarCampos();
 
+      // 🔹 Chama a API interna que pega o template .docx, faz replace dos campos e devolve o arquivo pronto.
       const response = await fetch("/api/gerar-docx", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -375,8 +456,10 @@ export default function GerarContratoPage() {
 
       if (!response.ok) throw new Error("Erro ao gerar contrato");
 
+      // 🔹 Converte a resposta em blob (arquivo binário) para poder forçar o download.
       const blob = await response.blob();
 
+      // 🔹 Função auxiliar para limpar strings e formar um nome de arquivo "seguro".
       const limparNome = (texto: string) =>
         texto
           .normalize("NFD")
@@ -386,13 +469,57 @@ export default function GerarContratoPage() {
 
       const nomeProjeto = projeto?.nomeProjeto || "SemProjeto";
 
+      // 🔹 Monta o nome final do arquivo: "Contrato-NomeCliente-NomeProjeto-YYYY-MM-DD.docx".
       const nomeArquivo = `Contrato-${limparNome(
         cliente.nomeCliente
       )}-${limparNome(nomeProjeto)}-${
         new Date().toISOString().split("T")[0]
       }.docx`;
 
+      // 🔹 Inicia o download do arquivo gerado no navegador do usuário.
       saveAs(blob, nomeArquivo);
+
+      await updateDoc(
+        doc(
+          db,
+          "clientes",
+          clienteId,
+          "projetos",
+          projetoId,
+          "orcamentos",
+          orcamentoId
+        ),
+        {
+          status: "finalizado", 
+          // 🔸 Marca este orçamento como finalizado.
+
+          ultimaModificacao: Timestamp.now(), 
+          // 🔸 Atualiza a data de modificação do orçamento.
+        }
+      );
+
+      // 🔹 2) Marca o PROJETO como "finalizado"
+      // ✅ ESSA É A PARTE QUE FAZ A NOVA TELA /projeto FICAR RÁPIDA
+      await updateDoc(
+        doc(db, "clientes", clienteId, "projetos", projetoId),
+        {
+          statusProjeto: "finalizado", 
+          // ✅ Campo novo: a tela /projeto vai ler isso direto,
+          //    e NÃO vai mais precisar entrar em /orcamentos.
+
+          ultimaModificacao: Timestamp.now(), 
+          // 🔸 Atualiza a data de modificação do projeto também.
+          
+          contratoGeradoEm: Timestamp.now(),
+          // ✅ Opcional (mas MUITO útil): guarda quando o contrato foi gerado.
+
+          contratoOrcamentoId: orcamentoId,
+          // ✅ Opcional (mas útil): guarda qual orçamento virou contrato.
+        }
+      );
+
+      alert("Contrato gerado e projeto marcado como finalizado com sucesso!");
+
     } catch (error) {
       console.error("❌ Erro ao gerar contrato:", error);
       alert("Erro ao gerar contrato. Verifique os dados e tente novamente.");
@@ -401,7 +528,7 @@ export default function GerarContratoPage() {
     }
   };
 
-  // 🔹 limpa toasts depois de 5s
+  // 🔹 Efeito responsável por limpar os erros de validação após 5 segundos.
   useEffect(() => {
     if (erros.length > 0) {
       const timer = setTimeout(() => setErros([]), 5000);
@@ -409,25 +536,28 @@ export default function GerarContratoPage() {
     }
   }, [erros]);
 
+  // 🔹 Enquanto cliente ou projeto não estiverem carregados, mostra uma mensagem simples.
   if (!cliente || !projeto) {
     return <div className="text-white p-10">Carregando contrato...</div>;
   }
 
+  // 🔹 Render principal da página de geração de contrato.
   return (
     <section className="text-white px-6 py-6 space-y-8">
+      {/* 🔹 Toast de erros (lado superior direito) */}
       {erros.length > 0 && (
-  <div className="toast toast-top toast-end z-50">
-    {erros.map((erro, i) => (
-      <div key={i} className="alert alert-error">
-        <span>{erro}</span>
-      </div>
-    ))}
-  </div>
-)}
+        <div className="toast toast-top toast-end z-50">
+          {erros.map((erro, i) => (
+            <div key={i} className="alert alert-error">
+              <span>{erro}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <h1 className="text-3xl font-bold text-center">Gerar Contrato 📄</h1>
 
-      {/* Usa o mesmo resumo, passando o orçamento */}
+      {/* 🔹 Usa o mesmo componente de resumo do projeto, passando o orçamento. */}
       <ResumoProjeto
         cliente={cliente}
         projeto={projeto}
@@ -435,7 +565,7 @@ export default function GerarContratoPage() {
         variante="contrato"
       />
 
-      {/* Seletor de template de contrato */}
+      {/* 🔹 Seletor de template de contrato vindo do Storage */}
       <div className="max-w-md mx-auto">
         <label htmlFor="template" className="block font-semibold mb-2">
           Escolha o template de contrato:
@@ -455,7 +585,7 @@ export default function GerarContratoPage() {
         </select>
       </div>
 
-      {/* Botões */}
+      {/* 🔹 Botões de ação (voltar / gerar contrato) */}
       <div className="flex justify-end gap-4">
         <button
           onClick={() => router.push("/contrato")}

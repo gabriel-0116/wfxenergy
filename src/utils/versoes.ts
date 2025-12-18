@@ -1,6 +1,15 @@
 // 📁 utils/versoes.ts
 export const versoes = [
   {
+    numero: "2.3",
+    data: "2025-12-14",
+    alteracoes: [
+      "Otimização do código",
+      "Tela home com dados verdadeiros",
+      "Projeto finaliza quando gerar o contrato",
+    ],
+  },
+  {
     numero: "2.2",
     data: "2025-12-09",
     alteracoes: [

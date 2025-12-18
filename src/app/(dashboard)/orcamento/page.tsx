@@ -1,20 +1,63 @@
 "use client";
+/**
+ * ✅ Página: /orcamento/page.tsx
+ *
+ * ✅ Objetivo deste refactor:
+ * - Acelerar MUITO o carregamento da listagem de orçamentos
+ * - Corrigir o erro do TypeScript: statusCliente (string) vs ("ativo" | "inativo")
+ *
+ * ⚠️ Problema do seu código antigo:
+ * - Você varria: clientes -> projetos -> orçamentos (N+1 queries em cascata) = lento
+ *
+ * ✅ Solução:
+ * - 1 query com collectionGroup("orcamentos") + orderBy + limit
+ * - Agrupa no client por clienteId
+ * - Busca pontual (com cache) só se faltar nome/telefone/nomeProjeto
+ */
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+/**
+ * Fragment: agrupar linhas sem wrapper
+ * useEffect: buscar dados async
+ * useMemo: evitar recalcular filtros/ordenação a cada render
+ * useRef: cache sem causar re-render
+ * useState: estados
+ */
+
 import { useRouter } from "next/navigation";
+/** useRouter: navegação no App Router */
+
 import { useConfirm } from "@/context/ConfirmContext";
+/** confirm: modal de confirmação */
+
 import {
-  collection,
-  query,
-  where,
-  getDocs,
   addDoc,
-  Timestamp,
+  collection,
+  collectionGroup,
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  Timestamp,
+  where,
 } from "firebase/firestore";
+/**
+ * addDoc: cria doc (novo orçamento)
+ * collection: referência de coleção
+ * collectionGroup: busca global em subcoleções "orcamentos"
+ * deleteDoc: exclui doc
+ * doc: referência de doc
+ * getDoc/getDocs: lê dados
+ * limit/orderBy/query/where: montar query
+ * Timestamp: datas do Firestore
+ */
+
 import { db, auth } from "@/firebase/firebaseConfig";
+/** db: Firestore | auth: Auth */
+
 import {
   faSearch,
   faUser,
@@ -22,165 +65,347 @@ import {
   faFolderOpen,
   faCalendarAlt,
 } from "@fortawesome/free-solid-svg-icons";
+/** Ícones */
+
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+/** Renderizador de ícone */
+
 import { IMaskInput } from "react-imask";
+/** Input com máscara */
+
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
+/** Formatação de data */
+
+// =========================================================
+// Tipos (aqui é onde a gente elimina o "any" e para o TS de brigar)
+// =========================================================
+
+type StatusCliente = "ativo" | "inativo";
+/** ✅ Union literal (NÃO permite string genérica) */
+
+type ClienteMini = {
+  id: string;
+  nomeCliente: string;
+  telefone: string;
+};
+/** ✅ Usado no autocomplete */
+
+type OrcamentoItem = {
+  clienteId: string;
+  projetoId: string;
+  orcamentoId: string;
+
+  nomeProjeto: string;
+  criadoEm: Date;
+  ultimaModificacao: Date;
+
+  status: string;
+};
+/** ✅ Item exibido dentro de cada cliente */
+
+type ClienteComOrcamentos = {
+  id: string;
+  nomeCliente: string;
+  telefone: string;
+  projetos: OrcamentoItem[];
+  statusCliente: StatusCliente;
+};
+/** ✅ Estrutura final exibida na tabela */
+
+// =========================================================
+// Helpers
+// =========================================================
+
+function toDateSafe(value: any, fallback: Date = new Date()): Date {
+  /**
+   * ✅ Converte Timestamp/Date/undefined para Date com fallback
+   * - Firestore Timestamp tem .toDate()
+   * - Date já é Date
+   * - undefined/null cai no fallback
+   */
+  if (!value) return fallback;
+  if (value instanceof Date) return value;
+  if (typeof value?.toDate === "function") return value.toDate();
+  return fallback;
+}
+
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  /**
+   * ✅ Debounce para evitar disparar efeitos a cada tecla
+   * - melhora UX
+   * - reduz consultas e processamento
+   */
+  const [debounced, setDebounced] = useState<T>(value);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebounced(value), delayMs);
+    return () => window.clearTimeout(id);
+  }, [value, delayMs]);
+
+  return debounced;
+}
+
+// =========================================================
+// Página
+// =========================================================
 
 export default function OrcamentoPage() {
   const router = useRouter();
   const { confirm } = useConfirm();
 
-  // 📦 estados básicos
+  // =========================
+  // Estados do formulário (novo orçamento)
+  // =========================
+
   const [nomeCliente, setNomeCliente] = useState("");
   const [telefone, setTelefone] = useState("");
+
   const [sugestoes, setSugestoes] = useState<string[]>([]);
-  const [clientes, setClientes] = useState<
-    { nomeCliente: string; telefone: string; id: string }[]
-  >([]);
+  const [clientes, setClientes] = useState<ClienteMini[]>([]);
   const [mostrarSugestoes, setMostrarSugestoes] = useState(false);
 
   const [clienteExiste, setClienteExiste] = useState<boolean | null>(null);
   const [clienteIdSelecionado, setClienteIdSelecionado] = useState("");
+
   const [projetosDoCliente, setProjetosDoCliente] = useState<
     { id: string; nomeProjeto: string; criadoEm: Timestamp }[]
   >([]);
+
   const [projetoSelecionado, setProjetoSelecionado] = useState("");
 
-  // 📋 listagem
-  const [clientesComOrcamento, setClientesComOrcamento] = useState<any[]>([]);
+  // =========================
+  // Estados da listagem
+  // =========================
+
+  const [clientesComOrcamento, setClientesComOrcamento] = useState<
+    ClienteComOrcamentos[]
+  >([]);
+  /** ✅ Agora o estado já “exige” statusCliente como "ativo" | "inativo" */
+
   const [clienteAberto, setClienteAberto] = useState<string | null>(null);
   const [filtro, setFiltro] = useState("");
+
   const [filtroStatus, setFiltroStatus] = useState<
     "todos" | "ativo" | "inativo"
   >("todos");
+
   const [tipoOrdenacao, setTipoOrdenacao] = useState<
     "modificacao_recente" | "modificacao_antiga" | "nome_az" | "nome_za"
   >("modificacao_recente");
 
+  // =========================
+  // Loadings
+  // =========================
+
+  const [loadingAutocomplete, setLoadingAutocomplete] = useState(false);
+  const [loadingClienteProjetos, setLoadingClienteProjetos] = useState(false);
+  const [loadingListagem, setLoadingListagem] = useState(false);
+
+  // =========================
+  // Caches (evitam re-buscas)
+  // =========================
+
+  const clientesCacheRef = useRef<ClienteMini[] | null>(null);
+  /** ✅ Cache do autocomplete (evita buscar "clientes" a cada tecla) */
+
+  const clienteDocCacheRef = useRef<Map<string, any>>(new Map());
+  /** ✅ Cache de docs do cliente (fallback para nome/telefone) */
+
+  const projetoDocCacheRef = useRef<Map<string, any>>(new Map());
+  /** ✅ Cache de docs do projeto (fallback para nomeProjeto/criadoEm) */
+
+  // =========================
+  // Toggle UI
+  // =========================
+
   const toggleCliente = (id: string) => {
-    setClienteAberto(clienteAberto === id ? null : id);
+    setClienteAberto((prev) => (prev === id ? null : id));
   };
 
-  // 🔍 buscar clientes para autocomplete
+  // =========================================================
+  // 1) Autocomplete (com debounce + cache)
+  // =========================================================
+
+  const nomeClienteDebounced = useDebouncedValue(nomeCliente, 250);
+
   useEffect(() => {
-    const buscarClientes = async () => {
-      if (nomeCliente.length < 1) {
+    const run = async () => {
+      if (nomeClienteDebounced.trim().length < 1) {
         setSugestoes([]);
+        setClientes([]);
         return;
       }
 
-      const ref = collection(db, "clientes");
-      const q = query(ref);
-      const snapshot = await getDocs(q);
+      try {
+        // ✅ Se já tem cache, filtra no client e acabou
+        if (clientesCacheRef.current) {
+          const filtrados = clientesCacheRef.current.filter((c) =>
+            c.nomeCliente
+              .toLowerCase()
+              .includes(nomeClienteDebounced.toLowerCase())
+          );
 
-      const encontrados: {
-        nomeCliente: string;
-        telefone: string;
-        id: string;
-      }[] = [];
-
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        if (
-          data.nomeCliente &&
-          data.nomeCliente.toLowerCase().includes(nomeCliente.toLowerCase())
-        ) {
-          encontrados.push({
-            nomeCliente: data.nomeCliente,
-            telefone: data.telefone,
-            id: docSnap.id,
-          });
+          setClientes(filtrados);
+          setSugestoes(filtrados.map((c) => c.nomeCliente));
+          return;
         }
-      });
 
-      setClientes(encontrados);
-      setSugestoes(encontrados.map((c) => c.nomeCliente));
+        // ✅ Primeira vez: carrega clientes uma vez
+        setLoadingAutocomplete(true);
+
+        const snap = await getDocs(collection(db, "clientes"));
+
+        const todos: ClienteMini[] = snap.docs.map((d) => {
+          const data = d.data() as any;
+          return {
+            id: d.id,
+            nomeCliente: data.nomeCliente || "Sem nome",
+            telefone: data.telefone || "",
+          };
+        });
+
+        clientesCacheRef.current = todos;
+
+        const filtrados = todos.filter((c) =>
+          c.nomeCliente.toLowerCase().includes(nomeClienteDebounced.toLowerCase())
+        );
+
+        setClientes(filtrados);
+        setSugestoes(filtrados.map((c) => c.nomeCliente));
+      } catch (e) {
+        console.error("Erro ao carregar clientes (autocomplete):", e);
+        setSugestoes([]);
+        setClientes([]);
+      } finally {
+        setLoadingAutocomplete(false);
+      }
     };
 
-    buscarClientes();
-  }, [nomeCliente]);
+    run();
+  }, [nomeClienteDebounced]);
 
-  // preencher quando clicar numa sugestão
   const handleSelecionarSugestao = (nome: string) => {
     const cliente = clientes.find((c) => c.nomeCliente === nome);
-    if (cliente) {
-      setNomeCliente(cliente.nomeCliente);
-      setTelefone(cliente.telefone);
-      setSugestoes([]);
-      setMostrarSugestoes(false);
-    }
+    if (!cliente) return;
+
+    setNomeCliente(cliente.nomeCliente);
+    setTelefone(cliente.telefone);
+
+    setSugestoes([]);
+    setMostrarSugestoes(false);
   };
 
-  // verificar cliente existente + carregar projetos
+  // =========================================================
+  // 2) Verificar cliente + carregar projetos (debounce)
+  // =========================================================
+
+  const telefoneDebounced = useDebouncedValue(telefone, 250);
+
   useEffect(() => {
     const verificarCliente = async () => {
-      if (nomeCliente && telefone) {
+      const nomeOk = nomeClienteDebounced.trim().length >= 2;
+      const telefoneOk = telefoneDebounced.trim().length >= 14;
+
+      if (!nomeOk || !telefoneOk) {
+        setClienteExiste(null);
+        setProjetosDoCliente([]);
+        setClienteIdSelecionado("");
+        return;
+      }
+
+      try {
+        setLoadingClienteProjetos(true);
+
         const q = query(
           collection(db, "clientes"),
-          where("nomeCliente", "==", nomeCliente),
-          where("telefone", "==", telefone)
+          where("nomeCliente", "==", nomeClienteDebounced.trim()),
+          where("telefone", "==", telefoneDebounced.trim())
         );
 
         const snapshot = await getDocs(q);
         const existe = !snapshot.empty;
+
         setClienteExiste(existe);
 
-        if (existe) {
-          const clienteDoc = snapshot.docs[0];
-          const clienteId = clienteDoc.id;
-          setClienteIdSelecionado(clienteId);
-
-          const projetosRef = collection(db, `clientes/${clienteId}/projetos`);
-          const projetosSnap = await getDocs(projetosRef);
-
-          const projetos = projetosSnap.docs.map((doc) => {
-            const data = doc.data();
-            return {
-              id: doc.id,
-              nomeProjeto: data.nomeProjeto || "Sem nome",
-              criadoEm: data.criadoEm || Timestamp.now(),
-            };
-          });
-
-          setProjetosDoCliente(projetos);
-        } else {
+        if (!existe) {
           setProjetosDoCliente([]);
           setClienteIdSelecionado("");
+          return;
         }
-      } else {
-        setClienteExiste(null);
+
+        const clienteDoc = snapshot.docs[0];
+        const clienteId = clienteDoc.id;
+
+        setClienteIdSelecionado(clienteId);
+
+        const projetosRef = collection(db, "clientes", clienteId, "projetos");
+        const projetosSnap = await getDocs(projetosRef);
+
+        const projetos = projetosSnap.docs.map((d) => {
+          const data = d.data() as any;
+          return {
+            id: d.id,
+            nomeProjeto: data.nomeProjeto || "Sem nome",
+            criadoEm: data.criadoEm || Timestamp.now(),
+          };
+        });
+
+        setProjetosDoCliente(projetos);
+      } catch (e) {
+        console.error("Erro ao verificar cliente/carregar projetos:", e);
+        setClienteExiste(false);
         setProjetosDoCliente([]);
         setClienteIdSelecionado("");
+      } finally {
+        setLoadingClienteProjetos(false);
       }
     };
 
     verificarCliente();
-  }, [nomeCliente, telefone]);
+  }, [nomeClienteDebounced, telefoneDebounced]);
 
-  // ➕ criar novo orçamento
+  // =========================================================
+  // 3) Criar novo orçamento (já grava ultimaModificacao)
+  // =========================================================
+
   const handleIniciarOrcamento = async () => {
     const user = auth.currentUser;
+
     if (!user) {
       alert("Usuário não autenticado!");
       return;
     }
+
     if (!projetoSelecionado) {
       alert("Selecione um projeto antes de continuar.");
       return;
     }
 
     try {
+      const projetoInfo = projetosDoCliente.find((p) => p.id === projetoSelecionado);
+
       const orcamentoRef = await addDoc(
         collection(
           db,
-          `clientes/${clienteIdSelecionado}/projetos/${projetoSelecionado}/orcamentos`
+          "clientes",
+          clienteIdSelecionado,
+          "projetos",
+          projetoSelecionado,
+          "orcamentos"
         ),
         {
           clienteId: clienteIdSelecionado,
           projetoId: projetoSelecionado,
+
+          // ✅ Denormalização leve para listagem mais rápida
           clienteNome: nomeCliente,
+          clienteTelefone: telefone,
+          nomeProjeto: projetoInfo?.nomeProjeto || "Sem nome",
+
           criadoEm: Timestamp.now(),
+          ultimaModificacao: Timestamp.now(),
+
           criadoPor: user.uid,
           status: "emAndamento",
         }
@@ -195,73 +420,165 @@ export default function OrcamentoPage() {
     }
   };
 
-  // carregar orçamentos existentes
+  // =========================================================
+  // 4) Carregar listagem RÁPIDA (collectionGroup)
+  // =========================================================
+
   useEffect(() => {
-    const fetchClientes = async () => {
-      const snapshotClientes = await getDocs(collection(db, "clientes"));
-      const lista: any[] = [];
+    const fetchListagem = async () => {
+      try {
+        setLoadingListagem(true);
 
-      for (const docCli of snapshotClientes.docs) {
-        const clienteId = docCli.id;
-        const clienteData = docCli.data();
-
-        const projetosSnap = await getDocs(
-          collection(db, `clientes/${clienteId}/projetos`)
+        const orcQ = query(
+          collectionGroup(db, "orcamentos"),
+          orderBy("ultimaModificacao", "desc"),
+          limit(300)
         );
-        const projetos = [];
 
-        for (const docProj of projetosSnap.docs) {
-          const projetoId = docProj.id;
-          const dadosProjeto = docProj.data();
+        const orcSnap = await getDocs(orcQ);
 
-          const orcamentosSnap = await getDocs(
-            collection(
-              db,
-              `clientes/${clienteId}/projetos/${projetoId}/orcamentos`
-            )
-          );
+        const itens = orcSnap.docs.map((d) => {
+          const data = d.data() as any;
 
-          if (!orcamentosSnap.empty) {
-            for (const orcamentoDoc of orcamentosSnap.docs) {
-              const orcamentoId = orcamentoDoc.id;
-              const orcamentoData = orcamentoDoc.data();
+          return {
+            clienteId: String(data.clienteId || ""),
+            projetoId: String(data.projetoId || ""),
+            orcamentoId: d.id,
 
-              projetos.push({
-                id: projetoId,
-                projetoId,
-                nomeProjeto: dadosProjeto.nomeProjeto,
-                criadoEm: dadosProjeto.criadoEm?.toDate?.() ?? new Date(),
-                status: orcamentoData.status || "emAndamento",
-                orcamentoId,
-                ultimaModificacao:
-                  orcamentoData.ultimaModificacao?.toDate?.() ?? new Date(),
-              });
-            }
+            status: String(data.status || "emAndamento"),
+
+            criadoEm: toDateSafe(data.criadoEm),
+            ultimaModificacao: toDateSafe(
+              data.ultimaModificacao,
+              toDateSafe(data.criadoEm)
+            ),
+
+            clienteNome: data.clienteNome as string | undefined,
+            clienteTelefone: data.clienteTelefone as string | undefined,
+            nomeProjeto: data.nomeProjeto as string | undefined,
+          };
+        });
+
+        const missingClienteIds = new Set<string>();
+        const missingProjetoKeys = new Set<string>();
+
+        for (const it of itens) {
+          if (!it.clienteId || !it.projetoId) continue;
+
+          if (!it.clienteNome || !it.clienteTelefone) {
+            missingClienteIds.add(it.clienteId);
+          }
+
+          if (!it.nomeProjeto) {
+            missingProjetoKeys.add(`${it.clienteId}__${it.projetoId}`);
           }
         }
 
-        const clienteAtivo = projetos.some(
-          (p: any) => p.status !== "finalizado"
+        await Promise.all(
+          Array.from(missingClienteIds).map(async (cid) => {
+            if (clienteDocCacheRef.current.has(cid)) return;
+
+            const snap = await getDoc(doc(db, "clientes", cid));
+            if (snap.exists()) clienteDocCacheRef.current.set(cid, snap.data());
+          })
         );
 
-        if (projetos.length > 0) {
-          lista.push({
-            id: clienteId,
-            nomeCliente: clienteData.nomeCliente,
-            telefone: clienteData.telefone,
-            projetos,
-            statusCliente: clienteAtivo ? "ativo" : "inativo",
-          });
-        }
-      }
+        await Promise.all(
+          Array.from(missingProjetoKeys).map(async (key) => {
+            if (projetoDocCacheRef.current.has(key)) return;
 
-      setClientesComOrcamento(lista);
+            const [cid, pid] = key.split("__");
+            const snap = await getDoc(doc(db, "clientes", cid, "projetos", pid));
+            if (snap.exists()) projetoDocCacheRef.current.set(key, snap.data());
+          })
+        );
+
+        // ✅ AQUI está o ajuste que corrige o erro do TypeScript:
+        // - tipamos o Map com ClienteComOrcamentos
+        // - statusCliente é StatusCliente (literal)
+        const mapCliente = new Map<string, ClienteComOrcamentos>();
+
+        for (const it of itens) {
+          const cid = it.clienteId;
+          const pid = it.projetoId;
+
+          if (!cid || !pid) continue;
+
+          const clienteDoc = clienteDocCacheRef.current.get(cid) as any | undefined;
+
+          const nomeFinal =
+            it.clienteNome || clienteDoc?.nomeCliente || "Sem nome";
+
+          const telFinal =
+            it.clienteTelefone || clienteDoc?.telefone || "";
+
+          const projKey = `${cid}__${pid}`;
+          const projetoDoc = projetoDocCacheRef.current.get(projKey) as any | undefined;
+
+          const nomeProjetoFinal =
+            it.nomeProjeto || projetoDoc?.nomeProjeto || "Sem nome";
+
+          const criadoProjetoFinal = toDateSafe(projetoDoc?.criadoEm, it.criadoEm);
+
+          const orcItem: OrcamentoItem = {
+            clienteId: cid,
+            projetoId: pid,
+            orcamentoId: it.orcamentoId,
+            nomeProjeto: nomeProjetoFinal,
+            criadoEm: criadoProjetoFinal,
+            ultimaModificacao: it.ultimaModificacao,
+            status: it.status,
+          };
+
+          if (!mapCliente.has(cid)) {
+            mapCliente.set(cid, {
+              id: cid,
+              nomeCliente: nomeFinal,
+              telefone: telFinal,
+              projetos: [orcItem],
+              statusCliente: "ativo" as const,
+              /**
+               * ✅ "ativo" as const:
+               * - impede o TS de “widen” pra string
+               * - mantém o literal "ativo"
+               */
+            });
+          } else {
+            mapCliente.get(cid)!.projetos.push(orcItem);
+            /** ✅ "!" ok porque acabamos de checar has(cid) */
+          }
+        }
+
+        const listaFinal: ClienteComOrcamentos[] = Array.from(
+          mapCliente.values()
+        ).map((c) => {
+          const clienteAtivo = c.projetos.some((p) => p.status !== "finalizado");
+
+          const statusCliente: StatusCliente = clienteAtivo ? "ativo" : "inativo";
+          /** ✅ Aqui também travamos no union literal */
+
+          return {
+            ...c,
+            statusCliente,
+          };
+        });
+
+        setClientesComOrcamento(listaFinal);
+      } catch (e) {
+        console.error("Erro ao carregar listagem de orçamentos:", e);
+        setClientesComOrcamento([]);
+      } finally {
+        setLoadingListagem(false);
+      }
     };
 
-    fetchClientes();
+    fetchListagem();
   }, []);
 
-  // excluir orçamento
+  // =========================================================
+  // 5) Excluir orçamento
+  // =========================================================
+
   const handleExcluirOrcamento = async (
     clienteId: string,
     projetoId: string,
@@ -272,10 +589,7 @@ export default function OrcamentoPage() {
 
     try {
       await deleteDoc(
-        doc(
-          db,
-          `clientes/${clienteId}/projetos/${projetoId}/orcamentos/${orcamentoId}`
-        )
+        doc(db, "clientes", clienteId, "projetos", projetoId, "orcamentos", orcamentoId)
       );
 
       setClientesComOrcamento((prev) =>
@@ -284,9 +598,7 @@ export default function OrcamentoPage() {
             cli.id === clienteId
               ? {
                   ...cli,
-                  projetos: cli.projetos.filter(
-                    (p: any) => p.orcamentoId !== orcamentoId
-                  ),
+                  projetos: cli.projetos.filter((p) => p.orcamentoId !== orcamentoId),
                 }
               : cli
           )
@@ -297,61 +609,67 @@ export default function OrcamentoPage() {
     }
   };
 
-  // filtros e ordenação
-  const clientesFiltrados = clientesComOrcamento.filter((cliente) => {
-    const nome = cliente.nomeCliente?.toLowerCase() || "";
-    const telefone = cliente.telefone?.toLowerCase() || "";
-    const correspondeBusca = nome.includes(filtro) || telefone.includes(filtro);
-    const correspondeStatus =
-      filtroStatus === "todos" || cliente.statusCliente === filtroStatus;
-    return correspondeBusca && correspondeStatus;
-  });
+  // =========================================================
+  // 6) Filtros e ordenação (useMemo)
+  // =========================================================
 
-  const clientesOrdenados = [...clientesFiltrados].sort((a, b) => {
-    if (tipoOrdenacao === "modificacao_recente") {
-      const dataA = Math.max(
-        ...a.projetos.map(
-          (p: any) =>
-            p.ultimaModificacao?.getTime?.() ||
-            p.criadoEm?.getTime?.() ||
-            0
-        )
-      );
-      const dataB = Math.max(
-        ...b.projetos.map(
-          (p: any) => p.ultimaModificacao?.getTime?.() ?? 0
-        )
-      );
-      return dataB - dataA;
-    }
-    if (tipoOrdenacao === "modificacao_antiga") {
-      const dataA = Math.max(
-        ...a.projetos.map(
-          (p: any) => p.ultimaModificacao?.getTime?.() ?? 0
-        )
-      );
-      const dataB = Math.max(
-        ...b.projetos.map(
-          (p: any) => p.ultimaModificacao?.getTime?.() ?? 0
-        )
-      );
-      return dataA - dataB;
-    }
-    if (tipoOrdenacao === "nome_az") return a.nomeCliente.localeCompare(b.nomeCliente);
-    if (tipoOrdenacao === "nome_za") return b.nomeCliente.localeCompare(a.nomeCliente);
-    return 0;
-  });
+  const clientesFiltrados = useMemo(() => {
+    const f = filtro.trim().toLowerCase();
 
-  // ========================= UI =========================
+    return clientesComOrcamento.filter((cliente) => {
+      const nome = (cliente.nomeCliente || "").toLowerCase();
+      const tel = (cliente.telefone || "").toLowerCase();
+
+      const correspondeBusca = !f || nome.includes(f) || tel.includes(f);
+
+      const correspondeStatus =
+        filtroStatus === "todos" || cliente.statusCliente === filtroStatus;
+
+      return correspondeBusca && correspondeStatus;
+    });
+  }, [clientesComOrcamento, filtro, filtroStatus]);
+
+  const clientesOrdenados = useMemo(() => {
+    const arr = [...clientesFiltrados];
+
+    arr.sort((a, b) => {
+      if (tipoOrdenacao === "modificacao_recente") {
+        const dataA = Math.max(...a.projetos.map((p) => p.ultimaModificacao.getTime()));
+        const dataB = Math.max(...b.projetos.map((p) => p.ultimaModificacao.getTime()));
+        return dataB - dataA;
+      }
+
+      if (tipoOrdenacao === "modificacao_antiga") {
+        const dataA = Math.max(...a.projetos.map((p) => p.ultimaModificacao.getTime()));
+        const dataB = Math.max(...b.projetos.map((p) => p.ultimaModificacao.getTime()));
+        return dataA - dataB;
+      }
+
+      if (tipoOrdenacao === "nome_az") return a.nomeCliente.localeCompare(b.nomeCliente);
+      if (tipoOrdenacao === "nome_za") return b.nomeCliente.localeCompare(a.nomeCliente);
+
+      return 0;
+    });
+
+    return arr;
+  }, [clientesFiltrados, tipoOrdenacao]);
+
+  // =========================================================
+  // UI
+  // =========================================================
+
   return (
     <div className="text-white min-h-screen flex-1 justify-center items-center shadow-2xl p-10">
-      {/* novo orçamento */}
+      {/* =========================
+          NOVO ORÇAMENTO
+      ========================= */}
       <div className="p-8 mt-20 rounded-2xl shadow-2xl max-w-xl space-y-6 w-full justify-self-center mb-10">
         <h2 className="text-2xl font-bold text-center">Novo Orçamento</h2>
 
         {/* nome cliente */}
         <div className="relative">
           <p className="mb-1">Nome do Cliente:</p>
+
           <input
             type="text"
             placeholder="Nome do cliente"
@@ -363,18 +681,24 @@ export default function OrcamentoPage() {
             }}
             required
           />
+
+          {loadingAutocomplete && (
+            <p className="text-xs text-gray-300 mt-1">Buscando clientes...</p>
+          )}
+
           {mostrarSugestoes && sugestoes.length > 0 && (
             <ul className="absolute z-10 w-full bg-base-100 shadow-lg rounded-md mt-1 max-h-40 overflow-y-auto">
               {sugestoes.map((nome, index) => {
-                const cliente = clientes.find((c) => c.nomeCliente === nome);
-                const telefone = cliente?.telefone ?? "";
+                const cli = clientes.find((c) => c.nomeCliente === nome);
+                const tel = cli?.telefone ?? "";
+
                 return (
                   <li
                     key={index}
                     className="p-2 hover:bg-base-200 cursor-pointer"
                     onClick={() => handleSelecionarSugestao(nome)}
                   >
-                    {nome} {telefone ? `( ${telefone} )` : ""}
+                    {nome} {tel ? `( ${tel} )` : ""}
                   </li>
                 );
               })}
@@ -393,6 +717,12 @@ export default function OrcamentoPage() {
             onAccept={(value: any) => setTelefone(value)}
             required
           />
+
+          {loadingClienteProjetos && (
+            <p className="text-xs text-gray-300 mt-1">
+              Verificando cliente e projetos...
+            </p>
+          )}
         </div>
 
         {/* se cliente não existe */}
@@ -407,6 +737,7 @@ export default function OrcamentoPage() {
         {clienteExiste && (
           <div>
             <label className="block mb-1">Selecione o projeto</label>
+
             {projetosDoCliente.length > 0 ? (
               <select
                 className="select select-bordered w-full"
@@ -429,21 +760,18 @@ export default function OrcamentoPage() {
           </div>
         )}
 
-        {/* continuar */}
         <button
           onClick={handleIniciarOrcamento}
           className="btn btn-primary w-full"
-          disabled={
-            !clienteExiste ||
-            projetosDoCliente.length === 0 ||
-            !projetoSelecionado
-          }
+          disabled={!clienteExiste || projetosDoCliente.length === 0 || !projetoSelecionado}
         >
           Continuar
         </button>
       </div>
 
-      {/* tabela listagem */}
+      {/* =========================
+          LISTAGEM
+      ========================= */}
       <div className="overflow-x-auto mx-10">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center w-96">
@@ -458,6 +786,7 @@ export default function OrcamentoPage() {
               onChange={(e) => setFiltro(e.target.value.toLowerCase())}
             />
           </div>
+
           <div className="ml-6">
             <label className="text-white font-medium mr-2">Status:</label>
             <select
@@ -470,6 +799,7 @@ export default function OrcamentoPage() {
               <option value="inativo">Inativos</option>
             </select>
           </div>
+
           <div className="ml-6">
             <label className="text-white font-medium mr-2 flex items-center w-32">
               Ordenar por:
@@ -479,15 +809,17 @@ export default function OrcamentoPage() {
               onChange={(e) => setTipoOrdenacao(e.target.value as any)}
               className="select select-bordered bg-gray-800 text-white"
             >
-              <option value="modificacao_recente">
-                Mais recentes primeiro
-              </option>
+              <option value="modificacao_recente">Mais recentes primeiro</option>
               <option value="modificacao_antiga">Mais antigos primeiro</option>
               <option value="nome_az">Nome A → Z</option>
               <option value="nome_za">Nome Z → A</option>
             </select>
           </div>
         </div>
+
+        {loadingListagem && (
+          <p className="text-sm text-gray-300 mb-3">Carregando orçamentos...</p>
+        )}
 
         <table className="table w-full">
           <thead>
@@ -504,6 +836,7 @@ export default function OrcamentoPage() {
               <th className="p-4">Status</th>
             </tr>
           </thead>
+
           <tbody>
             {clientesOrdenados.map((cliente) => (
               <Fragment key={cliente.id}>
@@ -511,20 +844,11 @@ export default function OrcamentoPage() {
                   className="hover:bg-base-200 cursor-pointer"
                   onClick={() => toggleCliente(cliente.id)}
                 >
-                  <td className="p-4 text-white font-medium">
-                    {cliente.nomeCliente}
-                  </td>
+                  <td className="p-4 text-white font-medium">{cliente.nomeCliente}</td>
                   <td className="p-4 text-gray-300">{cliente.telefone}</td>
                   <td className="p-4">
                     {format(
-                      Math.max(
-                        ...cliente.projetos.map((p: any) => {
-                          const data =
-                            p.ultimaModificacao ??
-                            p.criadoEm;
-                          return data?.getTime?.() ?? 0;
-                        })
-                      ),
+                      Math.max(...cliente.projetos.map((p) => p.ultimaModificacao.getTime())),
                       "dd/MM/yyyy",
                       { locale: ptBR }
                     )}
@@ -537,51 +861,38 @@ export default function OrcamentoPage() {
                     )}
                   </td>
                 </tr>
+
                 {clienteAberto === cliente.id &&
-                  cliente.projetos.map((proj: any) => (
+                  cliente.projetos.map((proj) => (
                     <tr key={`${proj.projetoId}_${proj.orcamentoId}`}>
                       <td colSpan={4}>
                         <div className="bg-[#1e293b] border border-[#334155] p-5 rounded-lg flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                           <div className="flex-1">
                             <div className="flex flex-col sm:flex-row sm:items-center sm:gap-6 mb-2">
                               <div>
-                                <span className="font-bold text-white">
-                                  Status:
-                                </span>{" "}
+                                <span className="font-bold text-white">Status:</span>{" "}
                                 {proj.status === "finalizado" ? (
-                                  <span className="badge badge-success">
-                                    Finalizado
-                                  </span>
+                                  <span className="badge badge-success">Finalizado</span>
                                 ) : (
-                                  <span className="badge badge-warning">
-                                    Em Andamento
-                                  </span>
+                                  <span className="badge badge-warning">Em Andamento</span>
                                 )}
                               </div>
+
                               <p className="font-semibold text-md flex items-center gap-2">
-                                <FontAwesomeIcon
-                                  icon={faFolderOpen}
-                                  className="text-blue-400"
-                                />
-                                Projeto:{" "}
-                                <span className="font-normal">
-                                  {proj.nomeProjeto}
-                                </span>
+                                <FontAwesomeIcon icon={faFolderOpen} className="text-blue-400" />
+                                Projeto: <span className="font-normal">{proj.nomeProjeto}</span>
                               </p>
+
                               <div className="font-semibold text-md flex items-center gap-2">
-                                <FontAwesomeIcon
-                                  icon={faCalendarAlt}
-                                  className="text-blue-400"
-                                />
+                                <FontAwesomeIcon icon={faCalendarAlt} className="text-blue-400" />
                                 Criado em:{" "}
                                 <span className="font-normal">
-                                  {format(proj.criadoEm, "dd/MM/yyyy", {
-                                    locale: ptBR,
-                                  })}
+                                  {format(proj.criadoEm, "dd/MM/yyyy", { locale: ptBR })}
                                 </span>
                               </div>
                             </div>
                           </div>
+
                           <button
                             onClick={() =>
                               router.push(
@@ -592,6 +903,7 @@ export default function OrcamentoPage() {
                           >
                             Ver Orçamento
                           </button>
+
                           <button
                             onClick={() =>
                               handleExcluirOrcamento(
