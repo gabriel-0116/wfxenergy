@@ -2,7 +2,7 @@
 export const versoes = [
   {
     numero: "2.3",
-    data: "2025-12-14",
+    data: "2025-12-15",
     alteracoes: [
       "Otimização do código",
       "Tela home com dados verdadeiros",
