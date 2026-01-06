@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { db } from "@/firebase/firebaseConfig";
-import { deleteField, doc, getDoc, Timestamp, updateDoc } from "firebase/firestore";
+import { doc, getDoc, Timestamp, updateDoc } from "firebase/firestore";
 import BottomNavButtons from "@/components/BottomNavButtons";
 
 export default function QuantidadePlacasPage() {
@@ -83,13 +83,11 @@ await updateDoc(projetoRef, {
   ...camposBase,
   modo: "manual",
   qtdPlacasManual: qtdManual,
-  qtdPlacas: deleteField(),
   geracaoMensal: parseFloat(geracaoMensalManual.toFixed(2)),
   geracaoDiaria: parseFloat(geracaoDiariaManual.toFixed(2)),
   geracaoMensalManual: parseFloat(geracaoMensalManual.toFixed(2)),
   geracaoDiariaManual: parseFloat(geracaoDiariaManual.toFixed(2)),
   potenciaPicoManual: parseFloat(potenciaPicoManual.toFixed(2)), // ✅ salva como 'manual'
-  potenciaPico: deleteField(), // ✅ limpa o antigo
   excedente: parseFloat(excedenteManual.toFixed(2)),
   potenciaInversorManual: parseFloat(potenciaInversorManual.toFixed(2)),
   excedenteUnidadeManual: parseFloat(excedenteUnidadeManual.toFixed(2)),
@@ -100,11 +98,9 @@ await updateDoc(projetoRef, {
           ...camposBase,
           modo: "recomendado",
           qtdPlacas,
-          qtdPlacasManual: deleteField(), 
           geracaoMensal: parseFloat(geracaoMensal.toFixed(2)),
           geracaoDiaria: parseFloat(geracaoDiaria.toFixed(2)),
           potenciaPico: parseFloat(potenciaPico.toFixed(2)),
-          potenciaPicoManual: deleteField(),
           excedente: parseFloat(excedente.toFixed(2)),
           potenciaInversor: parseFloat(potenciaInversor.toFixed(2)),
           excedenteUnidade: parseFloat(excedenteUnidade.toFixed(2)),

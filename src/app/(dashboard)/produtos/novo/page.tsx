@@ -1,10 +1,6 @@
-"use client"; 
-// 🔹 Indica que este componente é um Client Component do Next.js (necessário para usar hooks).
+"use client";
 
 import { useEffect, useState } from "react";
-// 🔹 Hooks do React:
-//    - useState: estados locais.
-//    - useEffect: efeitos colaterais (carregar dados ao montar).
 
 import {
   collection,
@@ -17,35 +13,17 @@ import {
   query,
   where,
 } from "firebase/firestore";
-// 🔹 Funções do Firestore:
-//    - collection: referência para coleção ("produtos").
-//    - addDoc: cria novo doc.
-//    - doc: referência para doc específico.
-//    - getDoc: busca um doc.
-//    - updateDoc: atualiza um doc existente.
-//    - Timestamp: data/hora Firestore.
-//    - getDocs: busca vários docs (usado para checar duplicado).
-//    - query, where: montar consulta filtrando por nomeProduto.
 
 import { db } from "@/firebase/firebaseConfig";
-// 🔹 Instância do Firestore configurada no projeto.
-
 import { getAuth } from "firebase/auth";
-// 🔹 Pegar o usuário atual logado.
-
 import { useRouter, useSearchParams } from "next/navigation";
-// 🔹 Navegação (router) e leitura de query string (searchParams).
-
 import AdminRoute from "@/components/AdminRoute";
-// 🔹 Protege a página para acesso somente admin.
 
 export default function ProdutosNovoPage() {
   // --------------------------------------------------------
-  // helpers (funções utilitárias para tratar números)
+  // helpers
   // --------------------------------------------------------
-
   const parseDecimal = (valor: unknown): number => {
-    // 🔹 Converte qualquer coisa em número decimal.
     if (valor === null || valor === undefined) return 0;
     const normalizado = String(valor).replace(",", ".").trim();
     const numero = parseFloat(normalizado);
@@ -53,71 +31,57 @@ export default function ProdutosNovoPage() {
   };
 
   const sanitizeNumericInput = (value: string): string =>
-    // 🔹 Mantém só dígitos, ponto e vírgula. Converte vírgula para ponto.
-    value
-      .replace(/[^\d.,]/g, "")
-      .replace(/,/g, ".");
+    value.replace(/[^\d.,]/g, "").replace(/,/g, ".");
 
   // --------------------------------------------------------
   // router / auth / search params
   // --------------------------------------------------------
-
   const router = useRouter();
-  // 🔹 Para voltar para /produtos depois de salvar/cancelar.
-
   const auth = getAuth();
-  // 🔹 Para pegar usuário logado (auth.currentUser).
-
   const searchParams = useSearchParams();
-  // 🔹 Para ler parâmetros da URL: ?id=...
-
   const produtoId = searchParams.get("id");
-  // 🔹 Se existir, estamos editando um produto. Se não, criando um novo.
 
   // --------------------------------------------------------
-  // estados principais (inputs de custo)
+  // estados (custos)
   // --------------------------------------------------------
-
   const [nomeProduto, setNomeProduto] = useState("");
-  // 🔹 Nome do kit/produto.
 
   const [kitFotovoltaico, setKitFotovoltaico] = useState("0");
   const [valorProjeto, setValorProjeto] = useState("62.7");
-  const [valorPlacaAdvertencia, setValorPlacaAdvertencia] =
-    useState("60");
+  const [valorPlacaAdvertencia, setValorPlacaAdvertencia] = useState("60");
   const [valorEletricista, setValorEletricista] = useState("200");
   const [valorInfra, setValorInfra] = useState("62.5");
-  // 🔹 Todos esses são custos base (custo real, sem lucro).
+
+  // ✅ NOVO: Comissão externa (valor inteiro/normal)
+  const [custoComissaoExterna, setCustoComissaoExterna] = useState("0");
 
   const [custoAdicional, setCustoAdicional] = useState("0");
-  // 🔹 Custo extra fixo.
 
-  const [comissaoInternaMaxima, setComissaoInternaMaxima] =
-    useState("0");
-  // 🔹 Comissão interna máxima (%) que será usada em outra tela.
+  // Desconto máximo (%)
+  const [descontoInternaMaxima, setDescontoInternaMaxima] = useState("0");
+
+  // Comissão interna (%)
+  const [comissaoInternaPercent, setComissaoInternaPercent] = useState("0");
 
   // --------------------------------------------------------
-  // estados das vendas (inputs manuais de venda)
+  // estados (vendas)
   // --------------------------------------------------------
-
   const [vendaKit, setVendaKit] = useState("0");
   const [vendaProjeto, setVendaProjeto] = useState("0");
-  const [vendaPlacaAdvertencia, setVendaPlacaAdvertencia] =
-    useState("0");
+  const [vendaPlacaAdvertencia, setVendaPlacaAdvertencia] = useState("0");
   const [vendaEletricista, setVendaEletricista] = useState("0");
   const [vendaInfra, setVendaInfra] = useState("0");
-  // 🔹 Valores de VENDA de cada item.
 
-  // 🔹 Estado para evitar double-submit e dar feedback se estiver checando duplicado/salvando.
+  // ✅ NOVO: venda da comissão externa
+  const [vendaComissaoExterna, setVendaComissaoExterna] = useState("0");
+
   const [salvando, setSalvando] = useState(false);
 
   // --------------------------------------------------------
-  // carregar dados se estiver editando (modo edição)
+  // carregar dados se estiver editando
   // --------------------------------------------------------
-
   useEffect(() => {
     if (!produtoId) return;
-    // 🔹 Se não tem produtoId, é criação. Não precisa carregar nada.
 
     const carregarDados = async () => {
       const ref = doc(db, "produtos", produtoId);
@@ -130,24 +94,25 @@ export default function ProdutosNovoPage() {
 
         setKitFotovoltaico(String(data.custoKitFotovoltaico ?? "0"));
         setValorProjeto(String(data.custoProjeto ?? "0"));
-        setValorPlacaAdvertencia(
-          String(data.custoPlacaAdvertencia ?? "0")
-        );
+        setValorPlacaAdvertencia(String(data.custoPlacaAdvertencia ?? "0"));
         setValorEletricista(String(data.custoEletricista ?? "0"));
         setValorInfra(String(data.custoInfraestrutura ?? "0"));
 
+        // ✅ NOVO
+        setCustoComissaoExterna(String(data.custoComissaoExterna ?? "0"));
+
         setVendaKit(String(data.vendaKitFotovoltaico ?? "0"));
         setVendaProjeto(String(data.vendaProjeto ?? "0"));
-        setVendaPlacaAdvertencia(
-          String(data.vendaPlacaAdvertencia ?? "0")
-        );
+        setVendaPlacaAdvertencia(String(data.vendaPlacaAdvertencia ?? "0"));
         setVendaEletricista(String(data.vendaEletricista ?? "0"));
         setVendaInfra(String(data.vendaInfraestrutura ?? "0"));
 
+        // ✅ NOVO
+        setVendaComissaoExterna(String(data.vendaComissaoExterna ?? "0"));
+
         setCustoAdicional(String(data.custoAdicional ?? "0"));
-        setComissaoInternaMaxima(
-          String(data.comissaoInternaMaxima ?? "0")
-        );
+        setDescontoInternaMaxima(String(data.descontoInternaMaxima ?? "0"));
+        setComissaoInternaPercent(String(data.comissaoInternaPercent ?? "0"));
       }
     };
 
@@ -155,14 +120,17 @@ export default function ProdutosNovoPage() {
   }, [produtoId]);
 
   // --------------------------------------------------------
-  // cálculos derivados (custos, vendas, lucros e totais)
+  // cálculos
   // --------------------------------------------------------
-
   const custoKit = parseDecimal(kitFotovoltaico);
   const custoProjeto = parseDecimal(valorProjeto);
   const custoPlaca = parseDecimal(valorPlacaAdvertencia);
   const custoEletricistaNum = parseDecimal(valorEletricista);
   const custoInfraNum = parseDecimal(valorInfra);
+
+  // ✅ NOVO
+  const custoComissaoExternaNum = parseDecimal(custoComissaoExterna);
+
   const custoExtra = parseDecimal(custoAdicional);
 
   const vendaKitNum = parseDecimal(vendaKit);
@@ -171,81 +139,90 @@ export default function ProdutosNovoPage() {
   const vendaEletricistaNum = parseDecimal(vendaEletricista);
   const vendaInfraNum = parseDecimal(vendaInfra);
 
+  // ✅ NOVO
+  const vendaComissaoExternaNum = parseDecimal(vendaComissaoExterna);
+
+  // lucros por linha (sem desconto/comissão interna)
   const lucroKit = vendaKitNum - custoKit;
   const lucroProjeto = vendaProjetoNum - custoProjeto;
   const lucroPlaca = vendaPlacaNum - custoPlaca;
   const lucroEletricista = vendaEletricistaNum - custoEletricistaNum;
   const lucroInfra = vendaInfraNum - custoInfraNum;
 
+  // ✅ NOVO
+  const lucroComissaoExterna = vendaComissaoExternaNum - custoComissaoExternaNum;
+
+  // ✅ CORRETO: totalCusto NÃO inclui custoExtra (pra não duplicar depois)
   const totalCusto =
     custoKit +
     custoProjeto +
     custoPlaca +
     custoEletricistaNum +
-    custoInfraNum;
+    custoInfraNum +
+    custoComissaoExternaNum;
 
   const totalVenda =
     vendaKitNum +
     vendaProjetoNum +
     vendaPlacaNum +
     vendaEletricistaNum +
-    vendaInfraNum;
+    vendaInfraNum +
+    vendaComissaoExternaNum;
 
-  const totalLucro = totalVenda - totalCusto - custoExtra;
+  // ---------------------------
+  // comissão interna (%)
+  // ---------------------------
+  const comissaoNum = parseDecimal(comissaoInternaPercent);
+  const comissaoClamp = Math.min(100, Math.max(0, comissaoNum));
+  const fatorComissao = 1 + comissaoClamp / 100;
 
-  const totalCustoFinal = totalVenda + custoExtra;
-  // 🔹 Esse "CUSTO FINAL" está sendo usado como VALOR DE VENDA do kit em outras telas.
+  // preço base: venda + adicional (sua regra)
+  const precoBase = totalVenda + custoExtra;
 
-  const comissaoInternaMaximaNum =
-    parseDecimal(comissaoInternaMaxima);
+  // custo final (amarelo) com comissão interna embutida (+)
+  const totalCustoFinal = precoBase * fatorComissao;
+
+  // ---------------------------
+  // desconto máximo (%)
+  // ---------------------------
+  const descontoNum = parseDecimal(descontoInternaMaxima);
+  const descontoClamp = Math.min(100, Math.max(0, descontoNum));
+  const fatorDescMax = 1 - descontoClamp / 100;
+
+  // receita pior caso
+  const receitaComDescMax = totalCustoFinal * fatorDescMax;
+
+  // custo real total (inclui adicional como custo)
+  const custoTotalReal = totalCusto + custoExtra;
+
+  // comissão paga ao vendedor (% da receita já com desconto)
+  const comissaoPaga = receitaComDescMax * (comissaoClamp / 100);
+
+  // lucro total pior caso
+  const totalLucro = receitaComDescMax - custoTotalReal - comissaoPaga;
 
   // --------------------------------------------------------
-  // verificação de kit duplicado (nomeProduto)
+  // duplicidade por nome
   // --------------------------------------------------------
-
   const existeOutroKitComMesmoNome = async (
     nomeNormalizado: string
   ): Promise<boolean> => {
-    // 🔹 Checa se já existe algum outro documento em "produtos"
-    //    com o mesmo nomeProduto (trim exato).
-    //    - Na criação: qualquer doc encontrado já é conflito.
-    //    - Na edição: ignoramos o próprio documento (mesmo id).
-
     const produtosRef = collection(db, "produtos");
-    const q = query(
-      produtosRef,
-      where("nomeProduto", "==", nomeNormalizado)
-    );
-    // 🔹 Monta uma query onde nomeProduto é exatamente igual ao nome informado.
-
+    const q = query(produtosRef, where("nomeProduto", "==", nomeNormalizado));
     const snap = await getDocs(q);
-    // 🔹 Executa a query.
 
-    if (snap.empty) {
-      // 🔹 Não existe nenhum com esse nome -> não é duplicado.
-      return false;
-    }
+    if (snap.empty) return false;
+    if (!produtoId) return true;
 
-    // 🔹 Se estamos criando (não tem produtoId), qualquer doc encontrado é duplicado.
-    if (!produtoId) {
-      return true;
-    }
-
-    // 🔹 Se estamos editando, precisamos ver se o único encontrado é o próprio doc ou outro.
-    const docsDiferentes = snap.docs.filter(
-      (docSnap) => docSnap.id !== produtoId
-    );
-    // 🔹 Se sobrou algum com id diferente, é duplicado.
+    const docsDiferentes = snap.docs.filter((docSnap) => docSnap.id !== produtoId);
     return docsDiferentes.length > 0;
   };
 
   // --------------------------------------------------------
-  // salvar produto (create/update) no Firestore
+  // salvar
   // --------------------------------------------------------
-
   const salvarProduto = async () => {
     if (salvando) return;
-    // 🔹 Evita duplo clique enquanto ainda está salvando.
 
     const user = auth.currentUser;
     if (!user) {
@@ -254,8 +231,6 @@ export default function ProdutosNovoPage() {
     }
 
     const nomeNormalizado = nomeProduto.trim();
-    // 🔹 Remove espaços extras no começo/fim.
-
     if (!nomeNormalizado) {
       alert("Informe um nome para o produto.");
       return;
@@ -264,20 +239,12 @@ export default function ProdutosNovoPage() {
     setSalvando(true);
 
     try {
-      // 🔹 1) Checar se já existe kit com o mesmo nome
-      const jaExiste = await existeOutroKitComMesmoNome(
-        nomeNormalizado
-      );
-
+      const jaExiste = await existeOutroKitComMesmoNome(nomeNormalizado);
       if (jaExiste) {
-        // 🔹 Se já existir outro kit com o mesmo nome, bloqueamos.
-        alert(
-          "Já existe um kit/produto cadastrado com esse nome. Escolha outro nome para evitar duplicidade."
-        );
+        alert("Já existe um kit/produto cadastrado com esse nome.");
         return;
       }
 
-      // 🔹 2) Montar payload com os dados calculados
       const payload = {
         nomeProduto: nomeNormalizado,
 
@@ -286,6 +253,10 @@ export default function ProdutosNovoPage() {
         custoPlacaAdvertencia: custoPlaca,
         custoEletricista: custoEletricistaNum,
         custoInfraestrutura: custoInfraNum,
+
+        // ✅ NOVO
+        custoComissaoExterna: custoComissaoExternaNum,
+
         custoAdicional: custoExtra,
 
         vendaKitFotovoltaico: vendaKitNum,
@@ -294,23 +265,32 @@ export default function ProdutosNovoPage() {
         vendaEletricista: vendaEletricistaNum,
         vendaInfraestrutura: vendaInfraNum,
 
+        // ✅ NOVO
+        vendaComissaoExterna: vendaComissaoExternaNum,
+
         lucroKitFotovoltaico: lucroKit,
         lucroProjeto,
         lucroPlacaAdvertencia: lucroPlaca,
         lucroEletricista,
         lucroInfraestrutura: lucroInfra,
 
-        totalCusto: totalCustoFinal,
+        // ✅ NOVO
+        lucroComissaoExterna,
+
         totalVenda,
+
+        // usado como valor final do kit no resto do sistema
+        totalCusto: totalCustoFinal,
+
         totalLucro,
 
-        comissaoInternaMaxima: comissaoInternaMaximaNum,
+        descontoInternaMaxima: descontoClamp,
+        comissaoInternaPercent: comissaoClamp,
 
         criadoPor: user.uid,
         atualizadoEm: Timestamp.now(),
       };
 
-      // 🔹 3) Create ou Update dependendo se existe produtoId ou não
       if (produtoId) {
         const ref = doc(db, "produtos", produtoId);
         await updateDoc(ref, payload);
@@ -333,22 +313,17 @@ export default function ProdutosNovoPage() {
   };
 
   // --------------------------------------------------------
-  // UI (interface visual)
+  // UI
   // --------------------------------------------------------
-
   return (
     <AdminRoute>
-      {/* 🔹 Protege a página: só admin acessa. */}
       <div className="p-6 mx-auto max-w-6xl text-white">
         <h1 className="text-2xl font-bold mb-6 text-center">
           {produtoId ? "Editar Produto" : "Cadastrar Produto"}
         </h1>
 
-        {/* Nome do produto */}
         <div className="mb-8">
-          <label className="block mb-1 font-semibold text-sm">
-            Nome do Produto
-          </label>
+          <label className="block mb-1 font-semibold text-sm">Nome do Produto</label>
           <input
             type="text"
             value={nomeProduto}
@@ -358,7 +333,6 @@ export default function ProdutosNovoPage() {
           />
         </div>
 
-        {/* Tabela principal Custo / Venda / Lucro */}
         <div className="flex rounded-2xl shadow-2xl overflow-x-auto mt-6 border border-base-300">
           {/* Descrição */}
           <table className="table w-full">
@@ -368,21 +342,14 @@ export default function ProdutosNovoPage() {
               </tr>
             </thead>
             <tbody className="text-sm">
-              <tr>
-                <th>Kit Fotovoltaico</th>
-              </tr>
-              <tr>
-                <th>Projeto</th>
-              </tr>
-              <tr>
-                <th>Placa de advertência</th>
-              </tr>
-              <tr>
-                <th>Eletricista / Instalador</th>
-              </tr>
-              <tr>
-                <th>Infraestrutura</th>
-              </tr>
+              <tr><th>Kit Fotovoltaico</th></tr>
+              <tr><th>Projeto</th></tr>
+              <tr><th>Placa de advertência</th></tr>
+              <tr><th>Eletricista / Instalador</th></tr>
+              <tr><th>Infraestrutura</th></tr>
+
+              {/* ✅ NOVO */}
+              <tr><th>Comissão externa</th></tr>
             </tbody>
             <tfoot>
               <tr className="bg-base-100 text-white">
@@ -405,12 +372,7 @@ export default function ProdutosNovoPage() {
                     type="text"
                     className="input input-sm input-bordered w-28 text-center bg-base-100"
                     value={kitFotovoltaico}
-                    onChange={(e) =>
-                      setKitFotovoltaico(
-                        sanitizeNumericInput(e.target.value)
-                      )
-                    }
-                    placeholder="R$"
+                    onChange={(e) => setKitFotovoltaico(sanitizeNumericInput(e.target.value))}
                   />
                 </td>
               </tr>
@@ -421,11 +383,7 @@ export default function ProdutosNovoPage() {
                     type="text"
                     className="input input-sm input-bordered w-28 text-center bg-base-100"
                     value={valorProjeto}
-                    onChange={(e) =>
-                      setValorProjeto(
-                        sanitizeNumericInput(e.target.value)
-                      )
-                    }
+                    onChange={(e) => setValorProjeto(sanitizeNumericInput(e.target.value))}
                   />
                 </td>
               </tr>
@@ -437,9 +395,7 @@ export default function ProdutosNovoPage() {
                     className="input input-sm input-bordered w-28 text-center bg-base-100"
                     value={valorPlacaAdvertencia}
                     onChange={(e) =>
-                      setValorPlacaAdvertencia(
-                        sanitizeNumericInput(e.target.value)
-                      )
+                      setValorPlacaAdvertencia(sanitizeNumericInput(e.target.value))
                     }
                   />
                 </td>
@@ -451,12 +407,7 @@ export default function ProdutosNovoPage() {
                     type="text"
                     className="input input-sm input-bordered w-28 text-center bg-base-100"
                     value={valorEletricista}
-                    onChange={(e) =>
-                      setValorEletricista(
-                        sanitizeNumericInput(e.target.value)
-                      )
-                    }
-                    placeholder="R$"
+                    onChange={(e) => setValorEletricista(sanitizeNumericInput(e.target.value))}
                   />
                 </td>
               </tr>
@@ -467,10 +418,20 @@ export default function ProdutosNovoPage() {
                     type="text"
                     className="input input-sm input-bordered w-28 text-center bg-base-100"
                     value={valorInfra}
+                    onChange={(e) => setValorInfra(sanitizeNumericInput(e.target.value))}
+                  />
+                </td>
+              </tr>
+
+              {/* ✅ NOVO */}
+              <tr>
+                <td className="text-center">
+                  <input
+                    type="text"
+                    className="input input-sm input-bordered w-28 text-center bg-base-100"
+                    value={custoComissaoExterna}
                     onChange={(e) =>
-                      setValorInfra(
-                        sanitizeNumericInput(e.target.value)
-                      )
+                      setCustoComissaoExterna(sanitizeNumericInput(e.target.value))
                     }
                     placeholder="R$"
                   />
@@ -479,9 +440,7 @@ export default function ProdutosNovoPage() {
             </tbody>
             <tfoot>
               <tr className="bg-orange-500 text-base font-semibold">
-                <td className="text-center text-white">
-                  R$ {totalCusto.toFixed(2)}
-                </td>
+                <td className="text-center text-white">R$ {totalCusto.toFixed(2)}</td>
               </tr>
             </tfoot>
           </table>
@@ -500,12 +459,7 @@ export default function ProdutosNovoPage() {
                     type="text"
                     className="input input-sm input-bordered w-28 text-center bg-base-100"
                     value={vendaKit}
-                    onChange={(e) =>
-                      setVendaKit(
-                        sanitizeNumericInput(e.target.value)
-                      )
-                    }
-                    placeholder="R$"
+                    onChange={(e) => setVendaKit(sanitizeNumericInput(e.target.value))}
                   />
                 </td>
               </tr>
@@ -516,12 +470,7 @@ export default function ProdutosNovoPage() {
                     type="text"
                     className="input input-sm input-bordered w-28 text-center bg-base-100"
                     value={vendaProjeto}
-                    onChange={(e) =>
-                      setVendaProjeto(
-                        sanitizeNumericInput(e.target.value)
-                      )
-                    }
-                    placeholder="R$"
+                    onChange={(e) => setVendaProjeto(sanitizeNumericInput(e.target.value))}
                   />
                 </td>
               </tr>
@@ -533,11 +482,8 @@ export default function ProdutosNovoPage() {
                     className="input input-sm input-bordered w-28 text-center bg-base-100"
                     value={vendaPlacaAdvertencia}
                     onChange={(e) =>
-                      setVendaPlacaAdvertencia(
-                        sanitizeNumericInput(e.target.value)
-                      )
+                      setVendaPlacaAdvertencia(sanitizeNumericInput(e.target.value))
                     }
-                    placeholder="R$"
                   />
                 </td>
               </tr>
@@ -548,12 +494,7 @@ export default function ProdutosNovoPage() {
                     type="text"
                     className="input input-sm input-bordered w-28 text-center bg-base-100"
                     value={vendaEletricista}
-                    onChange={(e) =>
-                      setVendaEletricista(
-                        sanitizeNumericInput(e.target.value)
-                      )
-                    }
-                    placeholder="R$"
+                    onChange={(e) => setVendaEletricista(sanitizeNumericInput(e.target.value))}
                   />
                 </td>
               </tr>
@@ -564,10 +505,20 @@ export default function ProdutosNovoPage() {
                     type="text"
                     className="input input-sm input-bordered w-28 text-center bg-base-100"
                     value={vendaInfra}
+                    onChange={(e) => setVendaInfra(sanitizeNumericInput(e.target.value))}
+                  />
+                </td>
+              </tr>
+
+              {/* ✅ NOVO */}
+              <tr>
+                <td className="text-center">
+                  <input
+                    type="text"
+                    className="input input-sm input-bordered w-28 text-center bg-base-100"
+                    value={vendaComissaoExterna}
                     onChange={(e) =>
-                      setVendaInfra(
-                        sanitizeNumericInput(e.target.value)
-                      )
+                      setVendaComissaoExterna(sanitizeNumericInput(e.target.value))
                     }
                     placeholder="R$"
                   />
@@ -576,9 +527,7 @@ export default function ProdutosNovoPage() {
             </tbody>
             <tfoot>
               <tr className="bg-green-500 text-base font-semibold">
-                <td className="text-center text-white">
-                  R$ {totalVenda.toFixed(2)}
-                </td>
+                <td className="text-center text-white">R$ {totalVenda.toFixed(2)}</td>
               </tr>
             </tfoot>
           </table>
@@ -591,46 +540,24 @@ export default function ProdutosNovoPage() {
               </tr>
             </thead>
             <tbody className="text-sm">
-              <tr>
-                <td className="text-center">
-                  R$ {lucroKit.toFixed(2)}
-                </td>
-              </tr>
+              <tr><td className="text-center">R$ {lucroKit.toFixed(2)}</td></tr>
+              <tr><td className="text-center">R$ {lucroProjeto.toFixed(2)}</td></tr>
+              <tr><td className="text-center">R$ {lucroPlaca.toFixed(2)}</td></tr>
+              <tr><td className="text-center">R$ {lucroEletricista.toFixed(2)}</td></tr>
+              <tr><td className="text-center">R$ {lucroInfra.toFixed(2)}</td></tr>
 
-              <tr>
-                <td className="text-center">
-                  R$ {lucroProjeto.toFixed(2)}
-                </td>
-              </tr>
+              {/* ✅ NOVO */}
+              <tr><td className="text-center">R$ {lucroComissaoExterna.toFixed(2)}</td></tr>
 
-              <tr>
-                <td className="text-center">
-                  R$ {lucroPlaca.toFixed(2)}
-                </td>
-              </tr>
-
-              <tr>
-                <td className="text-center">
-                  R$ {lucroEletricista.toFixed(2)}
-                </td>
-              </tr>
-
-              <tr>
-                <td className="text-center">
-                  R$ {lucroInfra.toFixed(2)}
-                </td>
-              </tr>
-
+              {/* Total lucro (pior caso) */}
               <tr className="bg-blue-300 text-base font-semibold h-10">
-                <td className="text-center text-white">
-                  R$ {totalLucro.toFixed(2)}
-                </td>
+                <td className="text-center text-white">R$ {totalLucro.toFixed(2)}</td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        {/* Ajustes: custo adicional + comissão interna máxima + CUSTO FINAL */}
+        {/* Ajustes */}
         <div className="flex flex-col lg:flex-row justify-between gap-6 mb-8 mt-10">
           <div className="bg-[#1a1a1a] p-5 rounded-2xl shadow-2xl w-full lg:max-w-md border border-base-300">
             <h2 className="font-bold text-white text-lg mb-4 text-center gap-2">
@@ -643,11 +570,7 @@ export default function ProdutosNovoPage() {
               </label>
               <input
                 value={custoAdicional}
-                onChange={(e) =>
-                  setCustoAdicional(
-                    sanitizeNumericInput(e.target.value)
-                  )
-                }
+                onChange={(e) => setCustoAdicional(sanitizeNumericInput(e.target.value))}
                 className="input input-sm input-bordered w-full bg-base-100"
                 placeholder="Ex: 200.00"
               />
@@ -655,14 +578,26 @@ export default function ProdutosNovoPage() {
 
             <div className="mt-6">
               <label className="text-sm font-semibold block text-white">
-                Comissão interna máxima (%)
+                Comissão interna (%)
               </label>
               <input
-                value={comissaoInternaMaxima}
+                value={comissaoInternaPercent}
                 onChange={(e) =>
-                  setComissaoInternaMaxima(
-                    sanitizeNumericInput(e.target.value)
-                  )
+                  setComissaoInternaPercent(sanitizeNumericInput(e.target.value))
+                }
+                className="input input-sm input-bordered w-full bg-base-100"
+                placeholder="Ex: 10"
+              />
+            </div>
+
+            <div className="mt-6">
+              <label className="text-sm font-semibold block text-white">
+                Desconto máximo (%)
+              </label>
+              <input
+                value={descontoInternaMaxima}
+                onChange={(e) =>
+                  setDescontoInternaMaxima(sanitizeNumericInput(e.target.value))
                 }
                 className="input input-sm input-bordered w-full bg-base-100"
                 placeholder="Ex: 3"
@@ -670,7 +605,7 @@ export default function ProdutosNovoPage() {
             </div>
           </div>
 
-          <div className="w-full lg:max-w-xl rounded-2xl overflow-hidden shadow-2xl">
+          <div className="w-full lg:max-w-xl rounded-2xl overflow-hidden ">
             <h2 className="bg-base-100 text-white text-center font-bold py-2">
               CUSTO FINAL
             </h2>

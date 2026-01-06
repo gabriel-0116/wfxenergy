@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, onSnapshot, doc, deleteDoc, getDocs } from "firebase/firestore";
+import {
+  collection,
+  onSnapshot,
+  doc,
+  deleteDoc,
+  getDocs,
+} from "firebase/firestore";
 import { db } from "@/firebase/firebaseConfig";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCaretDown, faSearch } from "@fortawesome/free-solid-svg-icons";
@@ -16,6 +22,8 @@ type Cliente = {
   tipo: "Pessoa Física" | "Pessoa Jurídica";
 };
 
+const somenteDigitos = (v: string) => v.replace(/\D/g, "");
+
 export default function ClientesPage() {
   const router = useRouter();
 
@@ -23,13 +31,9 @@ export default function ClientesPage() {
   const [selecionados, setSelecionados] = useState<string[]>([]);
   const [termoBusca, setTermoBusca] = useState("");
 
-  // EStado para filtros
+  // Estado para filtros
   const [situacaoFiltro, setSituacaoFiltro] = useState("");
   const [cpfCnpjFiltro, setCpfCnpjFiltro] = useState("");
-
-  const handleRowClick = (id: string) => {
-    irParaDetalhes(id);
-  };
 
   const irParaDetalhes = (id: string) => {
     router.push(`/clientes/dados-do-cliente?id=${id}`);
@@ -37,19 +41,22 @@ export default function ClientesPage() {
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "clientes"), (snapshot) => {
-      const lista: Cliente[] = snapshot.docs.map((doc) => {
-        const data = doc.data();
-      
+      const lista: Cliente[] = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data() as any;
+
+        const cnpjCpf =
+          data.tipoPessoa === "PJ" ? data.cnpj || "" : data.cpf || "";
+
         return {
-          id: doc.id,
-          nome: data.nomeCliente || "Sem nome",
-          cnpjCpf: data.tipoPessoa === "PJ" ? data.cnpj || "" : data.cpf || "", // 👈 AQUI
+          id: docSnap.id,
+          nome: data.nomeCliente || data.nomeFantasia || "Sem nome",
+          cnpjCpf,
           telefone: data.telefone || "",
           situacao: data.situacao || "Ativo",
           tipo: data.tipoPessoa === "PJ" ? "Pessoa Jurídica" : "Pessoa Física",
         };
       });
-      
+
       setClientes(lista);
     });
 
@@ -67,67 +74,61 @@ export default function ClientesPage() {
       "Deseja realmente excluir os clientes selecionados?"
     );
     if (!confirmar) return;
-  
+
     try {
-      // para cada cliente selecionado, excluir os projetos e depois o cliente
       for (const id of selecionados) {
-        // 1. Deleta os projetos do cliente
         const projetosRef = collection(db, "clientes", id, "projetos");
         const projetosSnap = await getDocs(projetosRef);
         const deletarProjetos = projetosSnap.docs.map((docProjeto) =>
           deleteDoc(docProjeto.ref)
         );
         await Promise.all(deletarProjetos);
-  
-        // 2. Deleta o próprio cliente
+
         await deleteDoc(doc(db, "clientes", id));
       }
-  
+
       setSelecionados([]);
     } catch (err) {
       console.error("Erro ao excluir clientes:", err);
       alert("Erro ao excluir os clientes. Tente novamente.");
     }
   };
-  
 
-  // Esta função filtra os clientes com base no input de busca principal
-  // e nos filtros avançados de situação, tipo e gênero
   const clientesFiltrados = clientes.filter((cliente) => {
-    const termo = termoBusca.toLowerCase(); // termo do input principal (nome, telefone, cnpj/cpf)
+    const termo = termoBusca.toLowerCase();
 
-    // Verifica se o termo aparece em nome, telefone ou cnpj/cpf
     const correspondeBusca =
       cliente.nome.toLowerCase().includes(termo) ||
       cliente.telefone.toLowerCase().includes(termo) ||
       cliente.cnpjCpf.toLowerCase().includes(termo);
 
-    // Verifica se a situação bate com o filtro (se selecionado)
     const correspondeSituacao = situacaoFiltro
       ? cliente.situacao === situacaoFiltro
       : true;
 
-    // Retorna somente clientes que passam por todos os filtros
-    return correspondeBusca && correspondeSituacao;
+    // ✅ filtro CPF/CNPJ (compara só dígitos)
+    const filtroCpfCnpj = somenteDigitos(cpfCnpjFiltro);
+    const clienteCpfCnpj = somenteDigitos(cliente.cnpjCpf);
+
+    const correspondeCpfCnpj = filtroCpfCnpj
+      ? clienteCpfCnpj.includes(filtroCpfCnpj)
+      : true;
+
+    return correspondeBusca && correspondeSituacao && correspondeCpfCnpj;
   });
 
   const toggleTodosSelecionados = () => {
     if (selecionados.length === clientesFiltrados.length) {
-      // Já estavam todos selecionados → desmarca todos
       setSelecionados([]);
     } else {
-      // Marca todos os clientes filtrados
-      const todosIds = clientesFiltrados.map((c) => c.id);
-      setSelecionados(todosIds);
+      setSelecionados(clientesFiltrados.map((c) => c.id));
     }
   };
 
   return (
     <div className="p-6">
       <div className="flex items-center mb-6">
-        <h1 className="text-3xl font-bold">
-          Clientes
-        </h1>
+        <h1 className="text-3xl font-bold">Clientes</h1>
       </div>
 
       <div className="mb-4 flex justify-between">
@@ -138,6 +139,7 @@ export default function ClientesPage() {
           >
             ADICIONAR
           </button>
+
           <button
             className="bg-neutral-400 hover:bg-red-500 text-white font-bold px-4 rounded shadow-[0_4px_0_0_#756868] hover:translate-y-[2px] hover:shadow-[0_2px_0_0_#f70000] transition-all duration-150"
             onClick={excluirSelecionados}
@@ -149,12 +151,12 @@ export default function ClientesPage() {
 
         <div className="flex items-center">
           <div className="flex items-center w-96">
-            <button className="btn btn-square rounded-r-none">
+            <button className="btn btn-square rounded-r-none" type="button">
               <FontAwesomeIcon icon={faSearch} />
             </button>
             <input
               type="text"
-              placeholder="Pesquisar"
+              placeholder="Pesquisar (nome, telefone, cpf/cnpj)"
               className="input input-bordered rounded-l-none"
               value={termoBusca}
               onChange={(e) => setTermoBusca(e.target.value)}
@@ -171,12 +173,11 @@ export default function ClientesPage() {
               Busca avançada
             </label>
 
-            {/* Conteúdo do dropdown */}
             <div
               tabIndex={0}
               className="dropdown-content z-[1] card card-compact w-80 p-4 shadow bg-base-200 text-base-content space-y-4"
             >
-              {/* Filtro por Situação (Ativo ou Inativo) */}
+              {/* Filtro por Situação */}
               <div>
                 <label className="label text-sm font-bold">Situação:</label>
                 <select
@@ -188,6 +189,34 @@ export default function ClientesPage() {
                   <option value="Ativo">Ativo</option>
                   <option value="Inativo">Inativo</option>
                 </select>
+              </div>
+
+              {/* ✅ Filtro por CPF/CNPJ */}
+              <div>
+                <label className="label text-sm font-bold">CPF/CNPJ:</label>
+                <input
+                  className="input input-bordered w-full"
+                  placeholder="Digite CPF/CNPJ"
+                  value={cpfCnpjFiltro}
+                  onChange={(e) => setCpfCnpjFiltro(e.target.value)}
+                />
+                <p className="text-xs opacity-70 mt-1">
+                  Dica: pode digitar só os números.
+                </p>
+              </div>
+
+              {/* Botão limpar (opcional, mas útil) */}
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => {
+                    setSituacaoFiltro("");
+                    setCpfCnpjFiltro("");
+                  }}
+                >
+                  Limpar filtros
+                </button>
               </div>
             </div>
           </div>
@@ -231,19 +260,19 @@ export default function ClientesPage() {
                     className="checkbox checkbox-sm"
                   />
                 </td>
-                <td onClick={() => handleRowClick(cliente.id)}>{index + 1}</td>
-                <td onClick={() => handleRowClick(cliente.id)}>
+
+                <td onClick={() => irParaDetalhes(cliente.id)}>{index + 1}</td>
+                <td onClick={() => irParaDetalhes(cliente.id)}>
                   {cliente.nome}
                 </td>
-                <td onClick={() => handleRowClick(cliente.id)}>
+                <td onClick={() => irParaDetalhes(cliente.id)}>
                   {cliente.cnpjCpf}
                 </td>
-                <td onClick={() => handleRowClick(cliente.id)}>
+                <td onClick={() => irParaDetalhes(cliente.id)}>
                   {cliente.telefone}
                 </td>
-                <td onClick={() => handleRowClick(cliente.id)}>
+                <td onClick={() => irParaDetalhes(cliente.id)}>
                   <div className="flex items-center gap-2">
-                    {/* Span com borda arredondada (círculo), cor baseada na situação */}
                     <span
                       className={`h-3 w-3 rounded-full ${
                         cliente.situacao === "Ativo"
@@ -251,13 +280,10 @@ export default function ClientesPage() {
                           : "bg-red-500"
                       }`}
                     />
-                    {/* Texto da situação ao lado do círculo */}
                     <span>{cliente.situacao}</span>
                   </div>
                 </td>
-                <td onClick={() => handleRowClick(cliente.id)}>
-                  {cliente.tipo}
-                </td>
+                <td onClick={() => irParaDetalhes(cliente.id)}>{cliente.tipo}</td>
               </tr>
             ))}
           </tbody>

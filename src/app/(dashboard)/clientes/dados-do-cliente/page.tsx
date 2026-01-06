@@ -1,13 +1,75 @@
 "use client";
 
 import { IMaskInput } from "react-imask";
-import { useState } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { doc, updateDoc, getDoc, collection, addDoc } from "firebase/firestore";
 import { db } from "@/firebase/firebaseConfig";
 import { useRouter, useSearchParams } from "next/navigation";
 import { estadosBrasil } from "@/utils/estados";
 import { validCPF, validCNPJ } from "@/utils/validacoes";
+
+type TipoPessoa = "PF" | "PJ";
+type Situacao = "Ativo" | "Inativo";
+
+type Endereco = {
+  cep: string;
+  endereco: string;
+  numero: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
+  pais: string;
+  complemento: string;
+  referencia: string;
+};
+
+const ENDERECOS_INICIAIS: Endereco[] = [
+  {
+    cep: "",
+    endereco: "",
+    numero: "",
+    bairro: "",
+    cidade: "",
+    estado: "",
+    pais: "Brasil",
+    complemento: "",
+    referencia: "",
+  },
+];
+
+type ClienteDoc = Partial<{
+  tipoPessoa: TipoPessoa;
+  situacao: Situacao;
+  isento: boolean;
+
+  nomeCliente: string;
+  cpf: string;
+  dataNascimento: string;
+  genero: string;
+
+  telefone: string;
+  email: string;
+  link: string;
+  observacao: string;
+  rg: string;
+
+  razaoSocial: string;
+  nomeFantasia: string;
+  cnpj: string;
+  inscricaoEstadual: string;
+  inscricaoMunicipal: string;
+
+  enderecos: Endereco[];
+  dataCadastro: Date;
+}>;
+
+type ViaCepResponse = {
+  erro?: boolean;
+  logradouro?: string;
+  bairro?: string;
+  localidade?: string;
+  uf?: string;
+};
 
 export default function DadosDoClientePage() {
   const router = useRouter();
@@ -15,8 +77,8 @@ export default function DadosDoClientePage() {
   const clienteId = searchParams.get("id");
 
   // Estados dos dados do cliente
-  const [tipoPessoa, setTipoPessoa] = useState<"PF" | "PJ">("PF");
-  const [situacao, setSituacao] = useState<"Ativo" | "Inativo">("Ativo");
+  const [tipoPessoa, setTipoPessoa] = useState<TipoPessoa>("PF");
+  const [situacao, setSituacao] = useState<Situacao>("Ativo");
   const [isento, setIsento] = useState(false);
   const [nome, setNome] = useState("");
   const [cpf, setCpf] = useState("");
@@ -43,49 +105,40 @@ export default function DadosDoClientePage() {
   const [showAlerta, setShowAlerta] = useState(false);
 
   // Estado para o endereço com base no CEP
-  const [enderecos, setEnderecos] = useState([
-    {
-      cep: "",
-      endereco: "",
-      numero: "",
-      bairro: "",
-      cidade: "",
-      estado: "",
-      pais: "Brasil",
-      complemento: "",
-      referencia: "",
-    },
-  ]);
+  const [enderecos, setEnderecos] = useState<Endereco[]>(ENDERECOS_INICIAIS);
+
+  const atualizarEndereco0 = (patch: Partial<Endereco>) => {
+    setEnderecos((prev) => [
+      {
+        ...(prev[0] ?? ENDERECOS_INICIAIS[0]),
+        ...patch,
+      },
+    ]);
+  };
 
   // Função para buscar endereço usando a API do ViaCEP
   const buscarCep = async () => {
-    const cepLimpo = enderecos[0].cep.replace(/\D/g, "");
+    const cepLimpo = (enderecos[0]?.cep ?? "").replace(/\D/g, "");
     if (cepLimpo.length !== 8) {
       alert("Digite um CEP válido com 8 dígitos.");
       return;
     }
 
     try {
-      const response = await fetch(
-        `https://viacep.com.br/ws/${cepLimpo}/json/`
-      );
-      const data = await response.json();
+      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const data = (await response.json()) as ViaCepResponse;
 
       if (data.erro) {
         alert("CEP não encontrado.");
         return;
       }
 
-      // Atualiza os campos do endereço automaticamente
-      setEnderecos([
-        {
-          ...enderecos[0],
-          endereco: (data.logradouro || "").toUpperCase(),
-          bairro: (data.bairro || "").toUpperCase(),
-          cidade: (data.localidade || "").toUpperCase(),
-          estado: (data.uf || "").toUpperCase(),
-        },
-      ]);
+      atualizarEndereco0({
+        endereco: (data.logradouro || "").toUpperCase(),
+        bairro: (data.bairro || "").toUpperCase(),
+        cidade: (data.localidade || "").toUpperCase(),
+        estado: (data.uf || "").toUpperCase(),
+      });
     } catch (error) {
       console.error("Erro ao buscar CEP:", error);
       alert("Erro ao buscar endereço. Tente novamente.");
@@ -121,8 +174,8 @@ export default function DadosDoClientePage() {
     setErroTelefone(null);
     setErroCnpj(null);
 
-    // 🛠️ Cria o objeto de dados que será salvo
-    const dados: any = {
+    // 🛠️ Cria o objeto de dados que será salvo (sem any)
+    const dados: ClienteDoc = {
       tipoPessoa,
       situacao,
       isento,
@@ -132,7 +185,7 @@ export default function DadosDoClientePage() {
       observacao,
       rg,
       enderecos, // 🏠 salvando o array de endereço
-      ...(clienteId ? {} : { dataCadastro: new Date() }), // adiciona data de cadastro apenas se for novo cliente
+      ...(clienteId ? {} : { dataCadastro: new Date() }),
     };
 
     if (tipoPessoa === "PF") {
@@ -167,7 +220,7 @@ export default function DadosDoClientePage() {
         await updateDoc(ref, dados);
         setShowAlerta(true);
       } else {
-        const docRef = await addDoc(collection(db, "clientes"), dados);
+        await addDoc(collection(db, "clientes"), dados);
         setShowAlerta(true);
         router.push(`/clientes`);
       }
@@ -188,7 +241,7 @@ export default function DadosDoClientePage() {
       const snap = await getDoc(ref);
 
       if (snap.exists()) {
-        const data = snap.data();
+        const data = snap.data() as ClienteDoc;
 
         setTipoPessoa(data.tipoPessoa || "PF");
         setSituacao(data.situacao || "Ativo");
@@ -198,7 +251,7 @@ export default function DadosDoClientePage() {
         setLink(data.link || "");
         setObservacao(data.observacao || "");
         setRg(data.rg || "");
-        setEnderecos(data.enderecos || enderecos);
+        setEnderecos(data.enderecos || ENDERECOS_INICIAIS);
 
         if (data.tipoPessoa === "PF") {
           setNome(data.nomeCliente || "");
@@ -211,6 +264,7 @@ export default function DadosDoClientePage() {
           setCnpj(data.cnpj || "");
           setInscricaoEstadual(data.inscricaoEstadual || "");
           setInscricaoMunicipal(data.inscricaoMunicipal || "");
+
           // ⚡ Para segurança: se nomeCliente existir no banco, mas nomeFantasia não, preenche com nomeCliente
           if (!data.nomeFantasia && data.nomeCliente) {
             setNomeFantasia(data.nomeCliente);
@@ -225,10 +279,8 @@ export default function DadosDoClientePage() {
   return (
     <div className="p-6">
       <div className="relative mb-8 pb-5">
-        {/* Título centralizado */}
         <h1 className="text-3xl font-bold text-center">Dados do Cliente</h1>
 
-        {/* Subtítulo no canto inferior esquerdo */}
         <p
           className={`absolute left-0 bottom-[-20px] text-sm font-bold ${
             clienteId ? "text-green-400" : "text-yellow-400"
@@ -237,7 +289,6 @@ export default function DadosDoClientePage() {
           {clienteId ? "Cliente Cadastrado" : "Cliente sem Cadastro"}
         </p>
 
-        {/* Alerta no canto inferior direito */}
         {showAlerta && (
           <div className="fixed z-50 top-36 right-6 animate-fade-in">
             <div className="alert alert-success shadow-lg w-fit">
@@ -268,7 +319,7 @@ export default function DadosDoClientePage() {
             <select
               className="select select-bordered w-full"
               value={tipoPessoa}
-              onChange={(e) => setTipoPessoa(e.target.value as "PF" | "PJ")}
+              onChange={(e) => setTipoPessoa(e.target.value as TipoPessoa)}
             >
               <option value="PF">Pessoa Física</option>
               <option value="PJ">Pessoa Jurídica</option>
@@ -334,7 +385,7 @@ export default function DadosDoClientePage() {
                 value={nome}
                 onChange={(e) => {
                   setNome(e.target.value?.toUpperCase() || "");
-                  setErroNome(null); // Limpa o erro quando o usuário digita
+                  setErroNome(null);
                 }}
               />
               {erroNome && (
@@ -351,7 +402,7 @@ export default function DadosDoClientePage() {
                 }`}
                 placeholder="000.000.000-00"
                 value={cpf}
-                onAccept={(value) => {
+                onAccept={(value: string) => {
                   setCpf(value);
                   setErroCpf(null);
                 }}
@@ -411,9 +462,9 @@ export default function DadosDoClientePage() {
                 }`}
                 placeholder="00.000.000/0000-00"
                 value={cnpj}
-                onAccept={(value) => {
+                onAccept={(value: string) => {
                   setCnpj(value);
-                  setErroCnpj(null); // limpa o erro ao digitar
+                  setErroCnpj(null);
                 }}
               />
               {erroCnpj && (
@@ -466,7 +517,7 @@ export default function DadosDoClientePage() {
               mask="00.000.000-0"
               className="input input-bordered w-full"
               value={rg}
-              onAccept={(value) => setRg(value)}
+              onAccept={(value: string) => setRg(value)}
             />
           </div>
           <div>
@@ -478,7 +529,7 @@ export default function DadosDoClientePage() {
               }`}
               placeholder="(00) 00000-0000"
               value={telefone}
-              onAccept={(value) => {
+              onAccept={(value: string) => {
                 setTelefone(value);
                 setErroTelefone(null);
               }}
@@ -522,7 +573,6 @@ export default function DadosDoClientePage() {
         <hr className="my-6" />
 
         <div>
-          {/* ENDEREÇO */}
           <h2 className="text-3xl font-bold mb-8">Endereço</h2>
           <div className="grid md:grid-cols-3 gap-6">
             {/* CEP com botão de busca */}
@@ -535,10 +585,8 @@ export default function DadosDoClientePage() {
                   mask="00000-000"
                   placeholder="00000-000"
                   className="input input-bordered w-full"
-                  value={enderecos[0].cep}
-                  onAccept={(value) =>
-                    setEnderecos([{ ...enderecos[0], cep: value }])
-                  }
+                  value={enderecos[0]?.cep ?? ""}
+                  onAccept={(value: string) => atualizarEndereco0({ cep: value })}
                 />
                 <button
                   onClick={buscarCep}
@@ -559,11 +607,9 @@ export default function DadosDoClientePage() {
                 type="text"
                 className="input input-bordered w-full"
                 placeholder="Endereço"
-                value={enderecos[0].endereco}
+                value={enderecos[0]?.endereco ?? ""}
                 onChange={(e) =>
-                  setEnderecos([
-                    { ...enderecos[0], endereco: e.target.value.toUpperCase() },
-                  ])
+                  atualizarEndereco0({ endereco: e.target.value.toUpperCase() })
                 }
               />
             </div>
@@ -577,11 +623,9 @@ export default function DadosDoClientePage() {
                 type="text"
                 className="input input-bordered w-full"
                 placeholder="Número"
-                value={enderecos[0].numero}
+                value={enderecos[0]?.numero ?? ""}
                 onChange={(e) =>
-                  setEnderecos([
-                    { ...enderecos[0], numero: e.target.value.toUpperCase() },
-                  ])
+                  atualizarEndereco0({ numero: e.target.value.toUpperCase() })
                 }
               />
             </div>
@@ -595,11 +639,9 @@ export default function DadosDoClientePage() {
                 type="text"
                 className="input input-bordered w-full"
                 placeholder="Bairro"
-                value={enderecos[0].bairro}
+                value={enderecos[0]?.bairro ?? ""}
                 onChange={(e) =>
-                  setEnderecos([
-                    { ...enderecos[0], bairro: e.target.value.toUpperCase() },
-                  ])
+                  atualizarEndereco0({ bairro: e.target.value.toUpperCase() })
                 }
               />
             </div>
@@ -613,11 +655,9 @@ export default function DadosDoClientePage() {
                 type="text"
                 className="input input-bordered w-full"
                 placeholder="Cidade"
-                value={enderecos[0].cidade}
+                value={enderecos[0]?.cidade ?? ""}
                 onChange={(e) =>
-                  setEnderecos([
-                    { ...enderecos[0], cidade: e.target.value.toUpperCase() },
-                  ])
+                  atualizarEndereco0({ cidade: e.target.value.toUpperCase() })
                 }
               />
             </div>
@@ -629,10 +669,8 @@ export default function DadosDoClientePage() {
               </label>
               <select
                 className="select select-bordered w-full"
-                value={enderecos[0].estado}
-                onChange={(e) =>
-                  setEnderecos([{ ...enderecos[0], estado: e.target.value }])
-                }
+                value={enderecos[0]?.estado ?? ""}
+                onChange={(e) => atualizarEndereco0({ estado: e.target.value })}
               >
                 <option value="">Selecione o estado</option>
                 {estadosBrasil.map((estado) => (
@@ -652,11 +690,9 @@ export default function DadosDoClientePage() {
                 type="text"
                 className="input input-bordered w-full"
                 placeholder="País"
-                value={enderecos[0].pais}
+                value={enderecos[0]?.pais ?? ""}
                 onChange={(e) =>
-                  setEnderecos([
-                    { ...enderecos[0], pais: e.target.value.toUpperCase() },
-                  ])
+                  atualizarEndereco0({ pais: e.target.value.toUpperCase() })
                 }
               />
             </div>
@@ -672,14 +708,11 @@ export default function DadosDoClientePage() {
                 type="text"
                 className="input input-bordered w-full"
                 placeholder="Complemento"
-                value={enderecos[0].complemento}
+                value={enderecos[0]?.complemento ?? ""}
                 onChange={(e) =>
-                  setEnderecos([
-                    {
-                      ...enderecos[0],
-                      complemento: e.target.value.toUpperCase(),
-                    },
-                  ])
+                  atualizarEndereco0({
+                    complemento: e.target.value.toUpperCase(),
+                  })
                 }
               />
             </div>
@@ -695,14 +728,11 @@ export default function DadosDoClientePage() {
                 type="text"
                 className="input input-bordered w-full"
                 placeholder="Referência"
-                value={enderecos[0].referencia}
+                value={enderecos[0]?.referencia ?? ""}
                 onChange={(e) =>
-                  setEnderecos([
-                    {
-                      ...enderecos[0],
-                      referencia: e.target.value.toUpperCase(),
-                    },
-                  ])
+                  atualizarEndereco0({
+                    referencia: e.target.value.toUpperCase(),
+                  })
                 }
               />
             </div>

@@ -1,47 +1,41 @@
 "use client";
-// 👆 Componente client-side porque usa hooks.
 
-import { useContext, useEffect, useState } from "react"; // hooks do React
-import { useRouter } from "next/navigation"; // redireciono no App Router
-import { AuthContext } from "../context/AuthContext"; // seu contexto de auth
+import { useContext, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { AuthContext } from "../context/AuthContext";
 
 interface AdminRouteProps {
-  children: React.ReactNode; // conteúdo que só admin pode ver
+  children: React.ReactNode;
 }
 
 export default function AdminRoute({ children }: AdminRouteProps) {
-  // 👇 Pega user, loading e role do contexto de autenticação.
-  const { user, loading, role } = useContext(AuthContext) || {};
-
+  const auth = useContext(AuthContext);
   const router = useRouter();
 
-  // 👇 Flag interna pra saber se ainda estamos verificando permissão.
-  const [verifying, setVerifying] = useState(true);
+  // Se seu provider às vezes retorna null/undefined, trate isso explicitamente
+  const user = auth?.user;
+  const role = auth?.role;
+  const loading = auth?.loading ?? true;
 
+  // Redirecionamentos (efeitos colaterais) ficam no useEffect
   useEffect(() => {
-    console.log("🔍 AdminRoute:", { user, role, loading });
-
-    // ⏳ Enquanto o AuthProvider ainda está carregando, não decide nada.
     if (loading) return;
 
-    // ❌ Se não tem usuário logado, manda pro login.
     if (!user) {
       router.replace("/login");
       return;
     }
 
-    // ❌ Se a role NÃO for "admin", bloqueia.
     if (role !== "admin") {
       router.replace("/sem-permissao");
       return;
     }
+  }, [loading, user, role, router]);
 
-    // ✅ Se chegou aqui: user existe e é admin.
-    setVerifying(false);
-  }, [user, role, loading, router]);
+  // UI é derivada do estado atual (sem setState inútil)
+  const allowed = !loading && !!user && role === "admin";
 
-  // 👇 Enquanto estiver carregando auth ou checando permissão, mostra uma tela de "espera".
-  if (loading || verifying) {
+  if (!allowed) {
     return (
       <div className="flex justify-center items-center min-h-screen text-white">
         Verificando permissões...
@@ -49,6 +43,5 @@ export default function AdminRoute({ children }: AdminRouteProps) {
     );
   }
 
-  // ✅ Se é admin, renderiza o conteúdo normalmente.
   return <>{children}</>;
 }

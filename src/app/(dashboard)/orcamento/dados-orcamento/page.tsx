@@ -1,4 +1,4 @@
-"use client"; 
+"use client";
 // 🔹 Indica que este componente roda no cliente (necessário para hooks, etc).
 
 import { useEffect, useMemo, useState } from "react";
@@ -45,7 +45,7 @@ type Produto = {
   valorVendaUnitario: number;
 
   // 🔹 comissão interna máxima cadastrada no produto (em %)
-  comissaoInternaMaxPercent: number;
+  descontoInternaMaxPercent: number;
 };
 
 type PlanoFinanciamento = {
@@ -91,36 +91,40 @@ export default function DadosOrcamentoPage() {
 
   const [salvandoPlano, setSalvandoPlano] = useState(false);
   // 🔹 Indica se estamos no processo de salvar o orçamento/financiamento.
+  const [potenciaPicoSistema, setPotenciaPicoSistema] = useState<number | null>(null);
+const [consumoMensalKwh, setConsumoMensalKwh] = useState<number | null>(null);
+const [qtdPlacasRecomendada, setQtdPlacasRecomendada] = useState<number | null>(null);
+const [potenciaPlacaWp, setPotenciaPlacaWp] = useState<number | null>(null);
 
   const [parcelaSelecionada, setParcelaSelecionada] = useState<
     number | "avista" | null
   >(null);
   // 🔹 Qual opção de parcelamento está selecionada na tabela (ex.: 12, 24, "avista").
 
-  const [opcoesFinanciamento, setOpcoesFinanciamento] =
-    useState<PlanoFinanciamento[]>([
-      // 🔹 Opções padrão de financiamento com parcelas/taxas.
-      { parcelas: "avista", taxa: 0 },
-      { parcelas: 12, taxa: 2.3 },
-      { parcelas: 18, taxa: 2.5 },
-      { parcelas: 24, taxa: 2.7 },
-      { parcelas: 36, taxa: 2.9 },
-      { parcelas: 48, taxa: 3.1 },
-      { parcelas: 60, taxa: 3.3 },
-      { parcelas: 72, taxa: 3.5 },
-      { parcelas: 84, taxa: 3.7 },
-      { parcelas: 96, taxa: 3.9 },
-    ]);
+  const [opcoesFinanciamento, setOpcoesFinanciamento] = useState<
+    PlanoFinanciamento[]
+  >([
+    // 🔹 Opções padrão de financiamento com parcelas/taxas.
+    { parcelas: "avista", taxa: 0 },
+    { parcelas: 12, taxa: 2.3 },
+    { parcelas: 18, taxa: 2.5 },
+    { parcelas: 24, taxa: 2.7 },
+    { parcelas: 36, taxa: 2.9 },
+    { parcelas: 48, taxa: 3.1 },
+    { parcelas: 60, taxa: 3.3 },
+    { parcelas: 72, taxa: 3.5 },
+    { parcelas: 84, taxa: 3.7 },
+    { parcelas: 96, taxa: 3.9 },
+  ]);
 
   /** -------------------------------------------------------
    *  Comissão interna
    *  ------------------------------------------------------*/
   // 🔹 Valor de desconto interno digitado para ESTE orçamento (%).
   //    Não precisa ser igual ao máximo do produto, mas não pode passar dele.
-  const [comissaoInternaPercent, setComissaoInternaPercent] = useState<
+  const [descontoInternaPercent, setDescontoInternaPercent] = useState<
     number | null
   >(null);
-
   /** -------------------------------------------------------
    *  Utils
    *  ------------------------------------------------------*/
@@ -129,6 +133,9 @@ export default function DadosOrcamentoPage() {
     if (valor === null || valor === undefined) return 0;
     return parseFloat(String(valor).replace(",", ".").trim()) || 0;
   };
+
+  const formatBRL = (v: number) =>
+  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   /** -------------------------------------------------------
    *  Kit selecionado (resumo)
@@ -181,7 +188,7 @@ export default function DadosOrcamentoPage() {
             valorVendaUnitario: Number(d.totalCusto ?? 0),
 
             // 🔹 comissão interna máxima salva no Firestore.
-            comissaoInternaMaxPercent: Number(d.comissaoInternaMaxima ?? 0),
+            descontoInternaMaxPercent: Number(d.descontoInternaMaxima ?? 0),
           });
         });
 
@@ -218,13 +225,13 @@ export default function DadosOrcamentoPage() {
           }
 
           // 🔹 Restaura comissão interna (formato novo).
-          if (data.comissaoInterna?.valorPercent !== undefined) {
-            setComissaoInternaPercent(
-              Number(data.comissaoInterna.valorPercent)
+          if (data.descontoInterna?.valorPercent !== undefined) {
+            setDescontoInternaPercent(
+              Number(data.descontoInterna.valorPercent)
             );
-          } else if (data.comissaoInternaPercent !== undefined) {
+          } else if (data.descontoInternaPercent !== undefined) {
             // 🔹 Fallback pro formato antigo.
-            setComissaoInternaPercent(Number(data.comissaoInternaPercent));
+            setDescontoInternaPercent(Number(data.descontoInternaPercent));
           }
         }
 
@@ -233,19 +240,41 @@ export default function DadosOrcamentoPage() {
         const snapProj = await getDoc(refProj);
 
         if (snapProj.exists()) {
-          const p = snapProj.data() as any;
-          const modo: "manual" | "recomendado" = p.modo || "recomendado";
+  const p = snapProj.data() as any;
 
-          const quantidade =
-            modo === "manual"
-              ? Number(p.qtdPlacasManual ?? 0)
-              : Number(p.qtdPlacas ?? 0);
+  const modo: "manual" | "recomendado" =
+    p.modo === "manual" ? "manual" : "recomendado";
+  setModoProjeto(modo);
 
-          setModoProjeto(modo);
-          // 🔹 qdtPlacas agora não entra mais no cálculo do valor final, mas mantemos
-          //    para exibição e contexto de auditoria.
-          setQtdPlacas(quantidade > 0 ? quantidade : null);
-        }
+  // ✅ consumo médio (só existe consumoMedioMes)
+  const consumoMensal = parseDecimal(p.consumoMedioMes);
+  setConsumoMensalKwh(consumoMensal > 0 ? consumoMensal : null);
+
+  // ✅ potência da placa (Wp)
+  const potPlaca = parseDecimal(p.potenciaPlaca);
+  setPotenciaPlacaWp(potPlaca > 0 ? potPlaca : null);
+
+  // ✅ potência pico do sistema (kWp) conforme o modo
+  const potPico =
+    modo === "manual"
+      ? parseDecimal(p.potenciaPicoManual)
+      : parseDecimal(p.potenciaPico);
+
+  setPotenciaPicoSistema(potPico > 0 ? potPico : null);
+
+  // ✅ quantidade atual do projeto (manual ou recomendado) — se você ainda quiser mostrar isso em algum lugar
+  const qtdAtual =
+    modo === "manual"
+      ? Math.trunc(parseDecimal(p.qtdPlacasManual))
+      : Math.trunc(parseDecimal(p.qtdPlacas));
+
+  setQtdPlacas(qtdAtual > 0 ? qtdAtual : null);
+
+  // ✅ quantidade recomendada (mínimo) = qtdPlacas (recomendado)
+  const qtdRec = Math.trunc(parseDecimal(p.qtdPlacas));
+  setQtdPlacasRecomendada(qtdRec > 0 ? qtdRec : null);
+}
+
       } catch (err) {
         console.error("Erro ao carregar dados do orçamento:", err);
       } finally {
@@ -263,9 +292,9 @@ export default function DadosOrcamentoPage() {
   useEffect(() => {
     if (!kitResumo) return;
 
-    const max = kitResumo.comissaoInternaMaxPercent ?? 0;
+    const max = kitResumo.descontoInternaMaxPercent ?? 0;
 
-    setComissaoInternaPercent((prev) => {
+    setDescontoInternaPercent((prev) => {
       if (prev === null) {
         // 🔹 Se ainda não tinha comissão setada, usamos o máximo como default.
         return max > 0 ? max : 0;
@@ -275,17 +304,17 @@ export default function DadosOrcamentoPage() {
     });
   }, [kitResumo]);
 
-  const handleChangeComissao = (valueStr: string) => {
+  const handleChangeDesconto = (valueStr: string) => {
     // 🔹 Manipula mudança da comissão interna (%), respeitando o máximo do kit.
     if (!kitResumo) return;
 
-    const max = kitResumo.comissaoInternaMaxPercent ?? 0;
+    const max = kitResumo.descontoInternaMaxPercent ?? 0;
     let valor = parseDecimal(valueStr);
 
     if (valor < 0) valor = 0;
     if (valor > max) valor = max;
 
-    setComissaoInternaPercent(valor);
+    setDescontoInternaPercent(valor);
   };
 
   /** -------------------------------------------------------
@@ -297,27 +326,27 @@ export default function DadosOrcamentoPage() {
   // 🔹 Base sem comissão:
   //    AGORA NÃO MULTIPLICA MAIS POR qtdPlacas.
   //    O valor de venda do kit (valorVendaUnitario) já é o valor final de tudo.
-  const totalBaseSemComissao = useMemo(() => {
+  const totalBaseSemDesconto = useMemo(() => {
     if (!kitResumo) return 0;
     return kitResumo.valorVendaUnitario || 0;
   }, [kitResumo]);
 
   // 🔹 Base com desconto da comissão interna (%).
   const totalBaseComDesconto = useMemo(() => {
-    const base = totalBaseSemComissao;
-    const perc = comissaoInternaPercent ?? 0;
+    const base = totalBaseSemDesconto;
+    const perc = descontoInternaPercent ?? 0;
 
     if (base <= 0) return 0;
     if (perc <= 0) return base;
 
     // 🔹 Aplica desconto percentual em cima da base.
     return base * (1 - perc / 100);
-  }, [totalBaseSemComissao, comissaoInternaPercent]);
+  }, [totalBaseSemDesconto, descontoInternaPercent]);
 
   // 🔹 Valor do desconto em reais (diferença entre sem e com comissão).
-  const descontoComissaoValor = useMemo(
-    () => totalBaseSemComissao - totalBaseComDesconto,
-    [totalBaseSemComissao, totalBaseComDesconto]
+  const descontoDescontoValor = useMemo(
+    () => totalBaseSemDesconto - totalBaseComDesconto,
+    [totalBaseSemDesconto, totalBaseComDesconto]
   );
 
   const calcularLinha = (
@@ -332,9 +361,7 @@ export default function DadosOrcamentoPage() {
       const valorFinalProjeto = totalBase; // 🔹 à vista = base com desconto.
       const lucroFinal = lucroBase; // 🔹 lucro base (aqui está 0, juros só em financiado).
       const margemLucroPercent =
-        valorFinalProjeto > 0
-          ? (lucroFinal / valorFinalProjeto) * 100
-          : 0;
+        valorFinalProjeto > 0 ? (lucroFinal / valorFinalProjeto) * 100 : 0;
 
       return {
         parcelas: "avista",
@@ -401,9 +428,8 @@ export default function DadosOrcamentoPage() {
     if (parcelaSelecionada === null) return null;
 
     return (
-      dadosParcelas.find(
-        (linha) => linha.parcelas === parcelaSelecionada
-      ) || null
+      dadosParcelas.find((linha) => linha.parcelas === parcelaSelecionada) ||
+      null
     );
   }, [parcelaSelecionada, dadosParcelas]);
 
@@ -411,107 +437,102 @@ export default function DadosOrcamentoPage() {
    *  4) Salvar financiamento + kit + comissão e ir pra proposta
    *  ------------------------------------------------------*/
   const salvarFinanciamentoEIr = async () => {
-  if (!clienteId || !projetoId || !orcamentoId) {
-    alert("IDs ausentes na URL (clienteId / projetoId / orcamentoId).");
-    return;
-  }
-  if (!kitResumo) {
-    alert("Selecione um kit primeiro.");
-    return;
-  }
-  if (!qtdPlacas) {
-    alert("O projeto não possui quantidade de placas válida.");
-    return;
-  }
-  if (!linhaSelecionada) {
-    alert("Selecione uma opção de pagamento na tabela.");
-    return;
-  }
+    if (!clienteId || !projetoId || !orcamentoId) {
+      alert("IDs ausentes na URL (clienteId / projetoId / orcamentoId).");
+      return;
+    }
+    if (!kitResumo) {
+      alert("Selecione um kit primeiro.");
+      return;
+    }
+    if (!qtdPlacas) {
+      alert("O projeto não possui quantidade de placas válida.");
+      return;
+    }
+    if (!linhaSelecionada) {
+      alert("Selecione uma opção de pagamento na tabela.");
+      return;
+    }
 
-  try {
-    setSalvandoPlano(true);
+    try {
+      setSalvandoPlano(true);
 
-    const ref = doc(
-      db,
-      `clientes/${clienteId}/projetos/${projetoId}/orcamentos/${orcamentoId}`
-    );
+      const ref = doc(
+        db,
+        `clientes/${clienteId}/projetos/${projetoId}/orcamentos/${orcamentoId}`
+      );
 
-    const comissaoPercent = comissaoInternaPercent ?? 0;
+      const descontoPercent = descontoInternaPercent ?? 0;
 
-    // 🔥🔥🔥 AQUI — ATUALIZA O ORÇAMENTO 🔥🔥🔥
-    await updateDoc(ref, {
-      kitSelecionado: {
-        id: kitResumo.id,
-        nomeProduto: kitResumo.nomeProduto,
-        valorVendaUnitario: kitResumo.valorVendaUnitario,
-        comissaoInternaMaxPercent: kitResumo.comissaoInternaMaxPercent ?? 0,
-      },
+      // 🔥🔥🔥 AQUI — ATUALIZA O ORÇAMENTO 🔥🔥🔥
+      await updateDoc(ref, {
+        kitSelecionado: {
+          id: kitResumo.id,
+          nomeProduto: kitResumo.nomeProduto,
+          valorVendaUnitario: kitResumo.valorVendaUnitario,
+          descontoInternaMaxPercent: kitResumo.descontoInternaMaxPercent ?? 0,
+        },
 
-      financiamentoSelecionado: {
-        parcelas: linhaSelecionada.parcelas,
-        taxaMesPercent: linhaSelecionada.taxaMesPercent,
-        valorParcela: linhaSelecionada.valorParcela,
-        totalPago: linhaSelecionada.totalPago,
-        jurosReais: linhaSelecionada.jurosReais,
-        jurosPercentual: linhaSelecionada.jurosPercentual,
-        valorFinalProjeto: linhaSelecionada.valorFinalProjeto,
-        lucroFinal: linhaSelecionada.lucroFinal,
-        margemLucroPercent: linhaSelecionada.margemLucroPercent,
-      },
+        financiamentoSelecionado: {
+          parcelas: linhaSelecionada.parcelas,
+          taxaMesPercent: linhaSelecionada.taxaMesPercent,
+          valorParcela: linhaSelecionada.valorParcela,
+          totalPago: linhaSelecionada.totalPago,
+          jurosReais: linhaSelecionada.jurosReais,
+          jurosPercentual: linhaSelecionada.jurosPercentual,
+          valorFinalProjeto: linhaSelecionada.valorFinalProjeto,
+          lucroFinal: linhaSelecionada.lucroFinal,
+          margemLucroPercent: linhaSelecionada.margemLucroPercent,
+        },
 
-      parcelaSelecionada: linhaSelecionada.parcelas,
+        parcelaSelecionada: linhaSelecionada.parcelas,
 
-      opcoesFinanciamento: opcoesFinanciamento.map((p) => ({
-        parcelas: p.parcelas,
-        taxa: p.taxa,
-      })),
+        opcoesFinanciamento: opcoesFinanciamento.map((p) => ({
+          parcelas: p.parcelas,
+          taxa: p.taxa,
+        })),
 
-      comissaoInterna: {
-        valorPercent: comissaoPercent,
-        valorMaxPercent: kitResumo.comissaoInternaMaxPercent ?? 0,
-        descontoReais: descontoComissaoValor,
-      },
+        descontoInterna: {
+          valorPercent: descontoPercent,
+          valorMaxPercent: kitResumo.descontoInternaMaxPercent ?? 0,
+          descontoReais: descontoDescontoValor,
+        },
 
-      contextoCalculo: {
-        modoProjeto: modoProjeto ?? "recomendado",
-        qtdPlacas: qtdPlacas ?? 0,
-        valorUnitarioKit: kitResumo.valorVendaUnitario,
-        totalBaseSemComissao,
-        totalBaseComDesconto,
-        descontoComissaoValor,
-        totalBaseUsado: totalBaseComDesconto,
-      },
+        contextoCalculo: {
+          modoProjeto: modoProjeto ?? "recomendado",
+          qtdPlacas: qtdPlacas ?? 0,
+          valorUnitarioKit: kitResumo.valorVendaUnitario,
+          totalBaseSemDesconto,
+          totalBaseComDesconto,
+          descontoDescontoValor,
+          totalBaseUsado: totalBaseComDesconto,
+        },
 
-      // 🔥🔥🔥 IMPORTANTE: STATUS DO ORÇAMENTO 🔥🔥🔥
-      // Isso permite que a tela de projetos saiba se o projeto está finalizado ou não.
-      status: "emAndamento", // mude para "finalizado" quando o fluxo terminar
+        // 🔥🔥🔥 IMPORTANTE: STATUS DO ORÇAMENTO 🔥🔥🔥
+        // Isso permite que a tela de projetos saiba se o projeto está finalizado ou não.
+        status: "emAndamento", // mude para "finalizado" quando o fluxo terminar
 
-      ultimaModificacao: Timestamp.now(),
-      atualizadoPor: auth.currentUser?.uid || "sistema",
-    });
-
-    // 🔥🔥🔥 AQUI — ATUALIZA O DOCUMENTO DO PROJETO 🔥🔥🔥
-    await updateDoc(
-      doc(db, "clientes", clienteId, "projetos", projetoId),
-      {
         ultimaModificacao: Timestamp.now(),
         atualizadoPor: auth.currentUser?.uid || "sistema",
-      }
-    );
+      });
 
-    // 🔥 NAVEGA PARA A PROPOSTA
-    router.push(
-      `/proposta/gerar-proposta?clienteId=${clienteId}&projetoId=${projetoId}&orcamentoId=${orcamentoId}`
-    );
+      // 🔥🔥🔥 AQUI — ATUALIZA O DOCUMENTO DO PROJETO 🔥🔥🔥
+      await updateDoc(doc(db, "clientes", clienteId, "projetos", projetoId), {
+        ultimaModificacao: Timestamp.now(),
+        atualizadoPor: auth.currentUser?.uid || "sistema",
+      });
 
-  } catch (err) {
-    console.error("Erro ao salvar financiamento:", err);
-    alert("Erro ao salvar opção selecionada.");
-  } finally {
-    setSalvandoPlano(false);
-  }
-};
-
+      // 🔥 NAVEGA PARA A PROPOSTA
+      router.push(
+        `/proposta/gerar-proposta?clienteId=${clienteId}&projetoId=${projetoId}&orcamentoId=${orcamentoId}`
+      );
+    } catch (err) {
+      console.error("Erro ao salvar financiamento:", err);
+      alert("Erro ao salvar opção selecionada.");
+    } finally {
+      setSalvandoPlano(false);
+    }
+  };
 
   /** -------------------------------------------------------
    *  5) Render
@@ -548,32 +569,80 @@ export default function DadosOrcamentoPage() {
             >
               <option value="">Selecione um kit</option>
               {kits.map((kit) => (
-                <option key={kit.id} value={kit.id}>
-                  {kit.nomeProduto}
-                </option>
-              ))}
+  <option key={kit.id} value={kit.id}>
+    {kit.nomeProduto} — {formatBRL(kit.valorVendaUnitario)}
+  </option>
+))}
             </select>
+            {/* ===================== RESUMO DO PROJETO (antes do kit) ===================== */}
+            <section className="mt-6 bg-base-200/20 border border-base-300 rounded-2xl shadow-2xl p-6">
+              <h2 className="text-lg font-bold mb-4">Resumo do Projeto</h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <div className="rounded-xl border border-base-300 bg-base-200/10 p-4">
+                  <p className="text-gray-300">Potência de pico do sistema</p>
+                  <p className="font-semibold">
+                    {potenciaPicoSistema !== null
+                      ? `${potenciaPicoSistema.toLocaleString("pt-BR", {
+                          maximumFractionDigits: 2,
+                        })} kWp`
+                      : "—"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-base-300 bg-base-200/10 p-4">
+                  <p className="text-gray-300">Consumo médio do cliente</p>
+                  <p className="font-semibold">
+                    {consumoMensalKwh !== null
+                      ? `${consumoMensalKwh.toLocaleString("pt-BR", {
+                          maximumFractionDigits: 0,
+                        })} kWh/mês`
+                      : "—"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-base-300 bg-base-200/10 p-4">
+                  <p className="text-gray-300">Placas recomendadas (mín.)</p>
+                  <p className="font-semibold">
+                    {qtdPlacasRecomendada !== null ? qtdPlacasRecomendada : "—"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-base-300 bg-base-200/10 p-4">
+                  <p className="text-gray-300">Potência das placas</p>
+                  <p className="font-semibold">
+                    {potenciaPlacaWp !== null
+                      ? `${potenciaPlacaWp.toLocaleString("pt-BR", {
+                          maximumFractionDigits: 0,
+                        })} Wp`
+                      : "—"}
+                  </p>
+                </div>
+              </div>
+
+              {/* opcional: expõe inconsistencia manual vs recomendado */}
+              {modoProjeto === "manual" &&
+                qtdPlacasRecomendada !== null &&
+                qtdPlacas !== null &&
+                qtdPlacas < qtdPlacasRecomendada && (
+                  <p className="mt-4 text-xs text-amber-300">
+                    Atenção: seu projeto está com menos placas do que o
+                    recomendado ({qtdPlacas} vs {qtdPlacasRecomendada}). Se você
+                    ignorar isso, a “economia prometida” vira dor de cabeça
+                    depois.
+                  </p>
+                )}
+            </section>
           </div>
 
           {kitResumo && (
             <>
-              {/* 🔹 Informação da quantidade de placas apenas como contexto. */}
-              {qtdPlacas && (
-                <p className="text-sm">
-                  Quantidade de placas do projeto:{" "}
-                  <span className="font-semibold">{qtdPlacas}</span>{" "}
-                  {modoProjeto ? `(${modoProjeto})` : ""}
-                </p>
-              )}
-
               {/* 🔹 Valor de venda do kit (à vista), que AGORA já é o valor final de tudo. */}
               <p className="text-sm">
                 Valor de venda do kit (à vista):{" "}
                 <span className="font-semibold text-emerald-400">
                   R{"$ "}
-                  {kitResumo.valorVendaUnitario
-                    .toFixed(2)
-                    .replace(".", ",")}
+                  {kitResumo.valorVendaUnitario.toFixed(2).replace(".", ",")}
                 </span>
               </p>
 
@@ -588,17 +657,15 @@ export default function DadosOrcamentoPage() {
                       type="number"
                       step="0.1"
                       min={0}
-                      max={kitResumo.comissaoInternaMaxPercent ?? 0}
-                      value={comissaoInternaPercent ?? ""}
-                      onChange={(e) =>
-                        handleChangeComissao(e.target.value)
-                      }
+                      max={kitResumo.descontoInternaMaxPercent ?? 0}
+                      value={descontoInternaPercent ?? ""}
+                      onChange={(e) => handleChangeDesconto(e.target.value)}
                       className="input input-bordered bg-base-200 w-24 text-center"
                     />
                     <span className="text-xs text-gray-300">
                       Máximo permitido para este kit:{" "}
                       <span className="font-semibold">
-                        {kitResumo.comissaoInternaMaxPercent ?? 0}%
+                        {kitResumo.descontoInternaMaxPercent ?? 0}%
                       </span>
                     </span>
                   </div>
@@ -610,27 +677,21 @@ export default function DadosOrcamentoPage() {
                     Total do projeto sem Desconto:{" "}
                     <span className="font-semibold">
                       R{"$ "}
-                      {totalBaseSemComissao
-                        .toFixed(2)
-                        .replace(".", ",")}
+                      {totalBaseSemDesconto.toFixed(2).replace(".", ",")}
                     </span>
                   </p>
                   <p>
                     Desconto:{" "}
                     <span className="font-semibold text-amber-300">
                       R{"$ "}
-                      {descontoComissaoValor
-                        .toFixed(2)
-                        .replace(".", ",")}
+                      {descontoDescontoValor.toFixed(2).replace(".", ",")}
                     </span>
                   </p>
                   <p>
                     Total do projeto com Desconto (base da simulação):{" "}
                     <span className="font-semibold text-emerald-400">
                       R{"$ "}
-                      {totalBaseComDesconto
-                        .toFixed(2)
-                        .replace(".", ",")}
+                      {totalBaseComDesconto.toFixed(2).replace(".", ",")}
                     </span>
                   </p>
                 </div>
@@ -662,8 +723,7 @@ export default function DadosOrcamentoPage() {
 
               <tbody className="text-center">
                 {dadosParcelas.map((linha, index) => {
-                  const isSelecionado =
-                    parcelaSelecionada === linha.parcelas;
+                  const isSelecionado = parcelaSelecionada === linha.parcelas;
                   const isAvista = linha.parcelas === "avista";
 
                   return (
@@ -715,9 +775,7 @@ export default function DadosOrcamentoPage() {
 
                       <td>
                         R{"$ "}
-                        {linha.valorParcela
-                          .toFixed(2)
-                          .replace(".", ",")}
+                        {linha.valorParcela.toFixed(2).replace(".", ",")}
                       </td>
                       <td>
                         R{"$ "}
@@ -725,16 +783,12 @@ export default function DadosOrcamentoPage() {
                       </td>
                       <td>
                         R{"$ "}
-                        {linha.jurosReais
-                          .toFixed(2)
-                          .replace(".", ",")}
+                        {linha.jurosReais.toFixed(2).replace(".", ",")}
                       </td>
                       <td>{linha.jurosPercentual.toFixed(0)}%</td>
                       <td>
                         R{"$ "}
-                        {linha.valorFinalProjeto
-                          .toFixed(2)
-                          .replace(".", ",")}
+                        {linha.valorFinalProjeto.toFixed(2).replace(".", ",")}
                       </td>
                       <td className="font-semibold text-emerald-400">
                         R{"$ "}

@@ -1,6 +1,6 @@
 "use client"; // ⬅ Adicionado para forçar o uso no lado do cliente
 
-import React, { createContext } from 'react';
+import { createContext } from 'react';
 import { User } from 'firebase/auth';
 import { SignInResponse } from "../types/types"
 

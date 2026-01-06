@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { db } from "@/firebase/firebaseConfig";
 import { doc, getDoc, Timestamp, updateDoc } from "firebase/firestore";
@@ -28,14 +28,42 @@ export default function EstimativaPage() {
   const [consumoMedio, setConsumoMedio] = useState(0);
   const [geracaoMedia, setGeracaoMedia] = useState(0);
 
-  const [tarifaMinima, setTarifaMinima] = useState(0);
-  const [iluminacaoPublica, setIluminacaoPublica] = useState(0);
-
   const valorKWhNum = parseFloat(valorKWh || "0");
   const fioBNum = parseFloat(fioB || "0");
   const percentualFioBNum = parseFloat(percentualFioB || "0");
   const percentualImpostoNum = parseFloat(percentualImposto || "0");
   const percentualInjecaoNum = parseFloat(percentualInjecao || "0");
+
+  // ✅ Estado derivado: calcula, não armazena em useState
+  const { tarifaMinima, iluminacaoPublica } = useMemo(() => {
+    const fator =
+      tipoLigacao === "Monofásico"
+        ? 30
+        : tipoLigacao === "Bifásico"
+        ? 50
+        : tipoLigacao === "Trifásico"
+        ? 100
+        : 0;
+
+    const calculo = fator * valorKWhNum;
+
+    return {
+      tarifaMinima: calculo,
+      iluminacaoPublica: calculo, // se for a mesma regra mesmo
+    };
+  }, [tipoLigacao, valorKWhNum]);
+
+  const injecaoEstimada = geracaoMedia * (percentualInjecaoNum / 100);
+  const consumoTempoReal = geracaoMedia - injecaoEstimada;
+  const fioBCalculado = fioBNum * (percentualFioBNum / 100);
+  const fioBaPagar = injecaoEstimada * fioBCalculado;
+  const consumoConcessionaria = consumoMedio - consumoTempoReal;
+  const consumoAPagar = consumoConcessionaria * valorKWhNum;
+  const injecaoPaga = (valorKWhNum - fioBCalculado) * injecaoEstimada;
+  const totalSemImposto =
+    consumoAPagar + fioBaPagar + iluminacaoPublica - injecaoPaga;
+  const totalComImposto =
+    totalSemImposto + totalSemImposto * (percentualImpostoNum / 100);
 
   const handleSubmit = async () => {
     if (
@@ -107,32 +135,6 @@ export default function EstimativaPage() {
     fetchProjeto();
   }, [clienteId, projetoId]);
 
-  useEffect(() => {
-    const fator =
-      tipoLigacao === "Monofásico"
-        ? 30
-        : tipoLigacao === "Bifásico"
-        ? 50
-        : tipoLigacao === "Trifásico"
-        ? 100
-        : 0;
-    const calculo = fator * valorKWhNum;
-    setTarifaMinima(calculo);
-    setIluminacaoPublica(calculo);
-  }, [tipoLigacao, valorKWhNum]);
-
-  const injecaoEstimada = geracaoMedia * (percentualInjecaoNum / 100);
-  const consumoTempoReal = geracaoMedia - injecaoEstimada;
-  const fioBCalculado = fioBNum * (percentualFioBNum / 100);
-  const fioBaPagar = injecaoEstimada * fioBCalculado;
-  const consumoConcessionaria = consumoMedio - consumoTempoReal;
-  const consumoAPagar = consumoConcessionaria * valorKWhNum;
-  const injecaoPaga = (valorKWhNum - fioBCalculado) * injecaoEstimada;
-  const totalSemImposto =
-    consumoAPagar + fioBaPagar + iluminacaoPublica - injecaoPaga;
-  const totalComImposto =
-    totalSemImposto + totalSemImposto * (percentualImpostoNum / 100);
-
   return (
     <section className="text-white h-[850px]">
       <div className="bg-[#1a1a1a] rounded-2xl shadow-2xl border border-base-300 p-8 max-w-7xl mx-auto space-y-8">
@@ -142,6 +144,7 @@ export default function EstimativaPage() {
           </span>
           Quanto vou pagar ?
         </h1>
+
         <div className="flex flex-wrap justify-center gap-6">
           {/* Tipo de Ligação */}
           <div className="form-control w-44">
@@ -274,9 +277,8 @@ export default function EstimativaPage() {
             )}
           </div>
         </div>
-        {/* Cards lado a lado responsivos */}
+
         <div className="grid grid-cols-2 gap-6">
-          {/* Card 1 */}
           <div className="bg-[#272727] shadow-2xl rounded-xl p-5">
             <h2 className="text-xl font-bold mb-2 text-[#63a2e9] border-b border-gray-400 pb-2">
               Dados de Consumo e Geração
@@ -293,7 +295,6 @@ export default function EstimativaPage() {
             </div>
           </div>
 
-          {/* Card 2 */}
           <div className="bg-[#272727] shadow-2xl rounded-xl p-5">
             <h2 className="text-xl font-bold mb-2 text-[#63a2e9] border-b border-gray-400 pb-2">
               Tarifas e Encargos
@@ -308,7 +309,6 @@ export default function EstimativaPage() {
             </ul>
           </div>
 
-          {/* Card 3 */}
           <div className="bg-[#272727] shadow-2xl rounded-xl  p-5">
             <h2 className="text-xl font-bold mb-2 text-[#63a2e9] border-b border-gray-400 pb-2">
               Cálculo do Fio B
@@ -319,7 +319,6 @@ export default function EstimativaPage() {
             </ul>
           </div>
 
-          {/* Card 4 - Conta Final Estimada */}
           <div className="bg-[#272727] shadow-2xl rounded-xl p-5 space-y-4">
             <h2 className="text-xl font-bold mb-2 text-[#63a2e9] border-b border-gray-400 pb-2">
               Cálculo da Conta Estimada

@@ -32,11 +32,6 @@ export default function AreaMinima() {
 
   const [estruturaProjeto, setEstruturaProjeto] = useState<string>("");
 
-  const [tipoInversor, setTipoInversor] = useState<string>("");
-  const [quantidadeInversor, setQuantidadeInversor] = useState<string>("0");
-  const [potenciaInversorDigitada, setPotenciaInversorDigitada] =
-    useState<string>("0");
-
   useEffect(() => {
     async function fetchProjeto() {
       if (!clienteId || !projetoId) return;
@@ -58,20 +53,6 @@ export default function AreaMinima() {
         setLargura((data.largura as number | undefined) ?? 1.23);
 
         setEstruturaProjeto((data.estruturaProjeto as string | undefined) ?? "");
-
-        setTipoInversor((data.tipoInversor as string | undefined) ?? "");
-        setQuantidadeInversor(
-          data.quantidadeInversor !== undefined &&
-            data.quantidadeInversor !== null
-            ? String(data.quantidadeInversor)
-            : "0"
-        );
-        setPotenciaInversorDigitada(
-          data.potenciaInversorDigitada !== undefined &&
-            data.potenciaInversorDigitada !== null
-            ? String(data.potenciaInversorDigitada)
-            : "0"
-        );
       }
 
       setLoading(false);
@@ -91,19 +72,6 @@ export default function AreaMinima() {
       return;
     }
 
-    if (!tipoInversor) {
-      alert("Selecione o tipo de inversor.");
-      return;
-    }
-
-    const quantidadeNum = parseFloat(quantidadeInversor || "0");
-    if (!quantidadeNum || quantidadeNum <= 0) {
-      alert("Informe uma quantidade de inversores válida.");
-      return;
-    }
-
-    const potenciaNum = parseFloat(potenciaInversorDigitada || "0");
-
     const areaTotal = Math.ceil(largura * comprimento * qtdPlacasUsada);
     const ref = doc(db, "clientes", clienteId, "projetos", projetoId);
 
@@ -113,9 +81,6 @@ export default function AreaMinima() {
       comprimento,
       largura,
       estruturaProjeto,
-      tipoInversor,
-      quantidadeInversor: quantidadeNum,
-      potenciaInversorDigitada: potenciaNum,
       ultimaModificacao: Timestamp.now(),
     });
 
@@ -227,71 +192,7 @@ export default function AreaMinima() {
           )}
 
           {/* 🔥 AQUI: grid com 2 colunas (cards lado a lado em desktop) */}
-          <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* CARD: Inversor */}
-            <div className="bg-[#1a1a1a] p-5 rounded-2xl shadow-2xl w-full border border-base-300 flex flex-col">
-              <h2 className="font-bold text-white text-lg mb-1 text-center gap-2">
-                <span className="text-yellow-400">
-                  <FontAwesomeIcon icon={faBolt} />
-                </span>{" "}
-                Inversor
-              </h2>
-              <p className="text-gray-500 text-sm font-semibold mb-2">
-                <FontAwesomeIcon icon={faBell} className="mr-2" />
-                Selecione o tipo do inversor e a quantidade para prosseguir
-              </p>
-
-              <div className="mb-4 w-full flex items-center">
-                <label className="block text-sm text-white mb-1 text-center w-32">
-                  Tipo de Inversor:
-                </label>
-                <select
-                  className="select select-bordered w-full"
-                  value={tipoInversor}
-                  onChange={(e) => setTipoInversor(e.target.value)}
-                  required
-                >
-                  <option value="">Selecione...</option>
-                  <option value="Inversor">Inversor</option>
-                  <option value="Microinversor">Microinversor</option>
-                </select>
-              </div>
-
-              <div className="w-full flex items-center mb-2">
-                <label className="block text-sm text-white mb-1 mx-2">
-                  Quantidade:
-                </label>
-
-                <input
-                  type="text"
-                  className="input input-bordered w-20 text-center"
-                  value={quantidadeInversor}
-                  onChange={(e) =>
-                    setQuantidadeInversor(
-                      sanitizeNumericInput(e.target.value)
-                    )
-                  }
-                  required
-                />
-              </div>
-
-              <div className="w-full flex items-center">
-                <label className="block text-sm text-white mb-1 mx-2">
-                  Potência do Inversor (kWp):
-                </label>
-                <input
-                  type="text"
-                  className="input input-sm input-bordered w-32 text-center"
-                  value={potenciaInversorDigitada}
-                  onChange={(e) =>
-                    setPotenciaInversorDigitada(
-                      sanitizeNumericInput(e.target.value)
-                    )
-                  }
-                  placeholder="Ex: 4.5"
-                />
-              </div>
-            </div>
+          <div className="mt-10">
 
             {/* CARD: Estrutura */}
             <div className="bg-[#1a1a1a] p-5 rounded-2xl shadow-2xl w-full border border-base-300 flex flex-col">
