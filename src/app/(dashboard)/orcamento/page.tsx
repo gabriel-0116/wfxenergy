@@ -4,7 +4,8 @@
  * /orcamento/page.tsx
  * - Listagem rápida via collectionGroup("orcamentos")
  * - Agrupa por clienteId
- * - Busca cliente/projeto pontualmente com cache quando faltar dado
+ * - Fallback robusto: se faltar nome/telefone/nomeProjeto OU estiver "Sem nome", busca doc do cliente/projeto
+ * - Extrai clienteId/projetoId do PATH (mais confiável)
  */
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
@@ -95,6 +96,30 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
   return debounced;
 }
 
+function normStr(v: unknown): string {
+  return String(v ?? "").trim();
+}
+
+function isMissingName(v: unknown): boolean {
+  const s = normStr(v).toLowerCase();
+  return !s || s === "sem nome";
+}
+
+function isMissingPhone(v: unknown): boolean {
+  const s = normStr(v).toLowerCase();
+  return !s || s === "sem telefone";
+}
+
+// Extrai IDs do path:
+// /clientes/{clienteId}/projetos/{projetoId}/orcamentos/{orcamentoId}
+function extractIdsFromPath(path: string): { clienteId: string; projetoId: string } {
+  const m = path.match(/clientes\/([^/]+)\/projetos\/([^/]+)\/orcamentos\/([^/]+)/);
+  return {
+    clienteId: m?.[1] ?? "",
+    projetoId: m?.[2] ?? "",
+  };
+}
+
 // =========================================================
 // Página
 // =========================================================
@@ -127,16 +152,11 @@ export default function OrcamentoPage() {
   // Listagem
   // =========================
 
-  const [clientesComOrcamento, setClientesComOrcamento] = useState<
-    ClienteComOrcamentos[]
-  >([]);
-
+  const [clientesComOrcamento, setClientesComOrcamento] = useState<ClienteComOrcamentos[]>([]);
   const [clienteAberto, setClienteAberto] = useState<string | null>(null);
   const [filtro, setFiltro] = useState("");
 
-  const [filtroStatus, setFiltroStatus] = useState<"todos" | "ativo" | "inativo">(
-    "todos"
-  );
+  const [filtroStatus, setFiltroStatus] = useState<"todos" | "ativo" | "inativo">("todos");
 
   const [tipoOrdenacao, setTipoOrdenacao] = useState<
     "modificacao_recente" | "modificacao_antiga" | "nome_az" | "nome_za"
@@ -157,10 +177,6 @@ export default function OrcamentoPage() {
   const clientesCacheRef = useRef<ClienteMini[] | null>(null);
   const clienteDocCacheRef = useRef<Map<string, any | null>>(new Map());
   const projetoDocCacheRef = useRef<Map<string, any | null>>(new Map());
-
-  // =========================
-  // Toggle UI
-  // =========================
 
   const toggleCliente = (id: string) => {
     setClienteAberto((prev) => (prev === id ? null : id));
@@ -191,7 +207,6 @@ export default function OrcamentoPage() {
         }
 
         setLoadingAutocomplete(true);
-
         const snap = await getDocs(collection(db, "clientes"));
 
         const todos: ClienteMini[] = snap.docs.map((d) => {
@@ -324,21 +339,14 @@ export default function OrcamentoPage() {
       const projetoInfo = projetosDoCliente.find((p) => p.id === projetoSelecionado);
 
       const orcamentoRef = await addDoc(
-        collection(
-          db,
-          "clientes",
-          clienteIdSelecionado,
-          "projetos",
-          projetoSelecionado,
-          "orcamentos"
-        ),
+        collection(db, "clientes", clienteIdSelecionado, "projetos", projetoSelecionado, "orcamentos"),
         {
           clienteId: clienteIdSelecionado,
           projetoId: projetoSelecionado,
 
           // denormalização leve
-          clienteNome: nomeCliente,
-          clienteTelefone: telefone,
+          clienteNome: nomeCliente.trim(),
+          clienteTelefone: telefone.trim(),
           nomeProjeto: projetoInfo?.nomeProjeto || "Sem nome",
 
           criadoEm: Timestamp.now(),
@@ -378,47 +386,48 @@ export default function OrcamentoPage() {
         const itens = orcSnap.docs.map((d) => {
           const data = d.data() as any;
 
-          // ✅ id do projeto/cliente vem do path real:
-          // /clientes/{clienteId}/projetos/{projetoId}/orcamentos/{orcamentoId}
-          const projetoRef = d.ref.parent.parent; // doc do projeto
-          const projetoIdFromPath = projetoRef?.id ?? "";
-          const clienteIdFromPath = projetoRef?.parent.parent?.id ?? ""; // doc do cliente
+          // ✅ IDs do PATH (mais confiável)
+          const { clienteId: cidPath, projetoId: pidPath } = extractIdsFromPath(d.ref.path);
 
           const criadoEm = toDateSafe(data.criadoEm);
           const ultimaModificacao = toDateSafe(data.ultimaModificacao, criadoEm);
 
+          // compat: se você já teve versões com outros nomes
+          const clienteNomeRaw = data.clienteNome ?? data.nomeCliente;
+          const clienteTelefoneRaw = data.clienteTelefone ?? data.telefone;
+
           return {
-            clienteId: clienteIdFromPath || String(data.clienteId || ""),
-            projetoId: projetoIdFromPath || String(data.projetoId || ""),
+            clienteId: cidPath || normStr(data.clienteId),
+            projetoId: pidPath || normStr(data.projetoId),
             orcamentoId: d.id,
 
-            status: String(data.status || "emAndamento"),
+            status: normStr(data.status) || "emAndamento",
 
             criadoEm,
             ultimaModificacao,
 
-            clienteNome: data.clienteNome as string | undefined,
-            clienteTelefone: data.clienteTelefone as string | undefined,
-            nomeProjeto: data.nomeProjeto as string | undefined,
+            clienteNome: clienteNomeRaw as string | undefined,
+            clienteTelefone: clienteTelefoneRaw as string | undefined,
+            nomeProjeto: (data.nomeProjeto as string | undefined) ?? undefined,
           };
         });
+
+        // se o doc não está no path esperado e não tem ids dentro, ele morre aqui
+        const itensValidos = itens.filter((it) => it.clienteId && it.projetoId);
 
         const missingClienteIds = new Set<string>();
         const missingProjetoKeys = new Set<string>();
 
-        for (const it of itens) {
-          if (!it.clienteId || !it.projetoId) continue;
+        for (const it of itensValidos) {
+          const needsCliente =
+            isMissingName(it.clienteNome) || isMissingPhone(it.clienteTelefone);
 
-          if (!it.clienteNome || !it.clienteTelefone) {
-            missingClienteIds.add(it.clienteId);
-          }
+          if (needsCliente) missingClienteIds.add(it.clienteId);
 
-          if (!it.nomeProjeto) {
-            missingProjetoKeys.add(`${it.clienteId}__${it.projetoId}`);
-          }
+          const needsProjeto = isMissingName(it.nomeProjeto);
+          if (needsProjeto) missingProjetoKeys.add(`${it.clienteId}__${it.projetoId}`);
         }
 
-        // ✅ cacheia cliente (inclusive null)
         await Promise.all(
           Array.from(missingClienteIds).map(async (cid) => {
             if (clienteDocCacheRef.current.has(cid)) return;
@@ -428,7 +437,6 @@ export default function OrcamentoPage() {
           })
         );
 
-        // ✅ cacheia projeto (inclusive null)
         await Promise.all(
           Array.from(missingProjetoKeys).map(async (key) => {
             if (projetoDocCacheRef.current.has(key)) return;
@@ -441,26 +449,38 @@ export default function OrcamentoPage() {
 
         const mapCliente = new Map<string, ClienteComOrcamentos>();
 
-        for (const it of itens) {
+        for (const it of itensValidos) {
           const cid = it.clienteId;
           const pid = it.projetoId;
-          if (!cid || !pid) continue;
 
           const clienteDoc = clienteDocCacheRef.current.get(cid) as any | null;
 
-          const nomeFinal = it.clienteNome || clienteDoc?.nomeCliente || "Sem nome";
-          const telFinal = it.clienteTelefone || clienteDoc?.telefone || "";
+          // ✅ fonte da verdade: doc do cliente (se existir)
+          const nomeFinal =
+            normStr(clienteDoc?.nomeCliente) ||
+            normStr(it.clienteNome) ||
+            "Sem nome";
+
+          const telFinal =
+            normStr(clienteDoc?.telefone) ||
+            normStr(it.clienteTelefone) ||
+            "";
 
           const projKey = `${cid}__${pid}`;
           const projetoDoc = projetoDocCacheRef.current.get(projKey) as any | null;
 
-          const nomeProjetoFinal = it.nomeProjeto || projetoDoc?.nomeProjeto || "Sem nome";
+          const nomeProjetoFinal =
+            normStr(projetoDoc?.nomeProjeto) ||
+            normStr(it.nomeProjeto) ||
+            "Sem nome";
+
           const criadoProjetoFinal = toDateSafe(projetoDoc?.criadoEm, it.criadoEm);
 
           const orcItem: OrcamentoItem = {
             clienteId: cid,
             projetoId: pid,
             orcamentoId: it.orcamentoId,
+
             nomeProjeto: nomeProjetoFinal,
             criadoEm: criadoProjetoFinal,
             ultimaModificacao: it.ultimaModificacao,
@@ -480,13 +500,11 @@ export default function OrcamentoPage() {
           }
         }
 
-        const listaFinal: ClienteComOrcamentos[] = Array.from(mapCliente.values()).map(
-          (c) => {
-            const clienteAtivo = c.projetos.some((p) => p.status !== "finalizado");
-            const statusCliente: StatusCliente = clienteAtivo ? "ativo" : "inativo";
-            return { ...c, statusCliente };
-          }
-        );
+        const listaFinal: ClienteComOrcamentos[] = Array.from(mapCliente.values()).map((c) => {
+          const clienteAtivo = c.projetos.some((p) => p.status !== "finalizado");
+          const statusCliente: StatusCliente = clienteAtivo ? "ativo" : "inativo";
+          return { ...c, statusCliente };
+        });
 
         setClientesComOrcamento(listaFinal);
       } catch (e) {
@@ -504,27 +522,18 @@ export default function OrcamentoPage() {
   // 5) Excluir orçamento
   // =========================================================
 
-  const handleExcluirOrcamento = async (
-    clienteId: string,
-    projetoId: string,
-    orcamentoId: string
-  ) => {
+  const handleExcluirOrcamento = async (clienteId: string, projetoId: string, orcamentoId: string) => {
     const confirmado = await confirm("Deseja realmente excluir este orçamento?");
     if (!confirmado) return;
 
     try {
-      await deleteDoc(
-        doc(db, "clientes", clienteId, "projetos", projetoId, "orcamentos", orcamentoId)
-      );
+      await deleteDoc(doc(db, "clientes", clienteId, "projetos", projetoId, "orcamentos", orcamentoId));
 
       setClientesComOrcamento((prev) =>
         prev
           .map((cli) =>
             cli.id === clienteId
-              ? {
-                  ...cli,
-                  projetos: cli.projetos.filter((p) => p.orcamentoId !== orcamentoId),
-                }
+              ? { ...cli, projetos: cli.projetos.filter((p) => p.orcamentoId !== orcamentoId) }
               : cli
           )
           .filter((cli) => cli.projetos.length > 0)
@@ -546,9 +555,7 @@ export default function OrcamentoPage() {
       const tel = (cliente.telefone || "").toLowerCase();
 
       const correspondeBusca = !f || nome.includes(f) || tel.includes(f);
-
-      const correspondeStatus =
-        filtroStatus === "todos" || cliente.statusCliente === filtroStatus;
+      const correspondeStatus = filtroStatus === "todos" || cliente.statusCliente === filtroStatus;
 
       return correspondeBusca && correspondeStatus;
     });
@@ -766,9 +773,7 @@ export default function OrcamentoPage() {
                   <td className="p-4 text-gray-300">{cliente.telefone}</td>
                   <td className="p-4">
                     {format(
-                      Math.max(
-                        ...cliente.projetos.map((p) => p.ultimaModificacao.getTime())
-                      ),
+                      Math.max(...cliente.projetos.map((p) => p.ultimaModificacao.getTime())),
                       "dd/MM/yyyy",
                       { locale: ptBR }
                     )}
@@ -799,19 +804,12 @@ export default function OrcamentoPage() {
                               </div>
 
                               <p className="font-semibold text-md flex items-center gap-2">
-                                <FontAwesomeIcon
-                                  icon={faFolderOpen}
-                                  className="text-blue-400"
-                                />
-                                Projeto:{" "}
-                                <span className="font-normal">{proj.nomeProjeto}</span>
+                                <FontAwesomeIcon icon={faFolderOpen} className="text-blue-400" />
+                                Projeto: <span className="font-normal">{proj.nomeProjeto}</span>
                               </p>
 
                               <div className="font-semibold text-md flex items-center gap-2">
-                                <FontAwesomeIcon
-                                  icon={faCalendarAlt}
-                                  className="text-blue-400"
-                                />
+                                <FontAwesomeIcon icon={faCalendarAlt} className="text-blue-400" />
                                 Criado em:{" "}
                                 <span className="font-normal">
                                   {format(proj.criadoEm, "dd/MM/yyyy", { locale: ptBR })}
@@ -832,13 +830,7 @@ export default function OrcamentoPage() {
                           </button>
 
                           <button
-                            onClick={() =>
-                              handleExcluirOrcamento(
-                                cliente.id,
-                                proj.projetoId,
-                                proj.orcamentoId
-                              )
-                            }
+                            onClick={() => handleExcluirOrcamento(cliente.id, proj.projetoId, proj.orcamentoId)}
                             className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm transition"
                           >
                             Excluir
