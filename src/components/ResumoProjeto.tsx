@@ -219,22 +219,6 @@ export default function ResumoProjeto({
           <strong>Potência mínima do inversor:</strong>{" "}
           {potenciaMinInversor ? `${potenciaMinInversor} kW` : "---"}
         </p>
-
-        {/* 🔌 Inversor e Estrutura vindos do PROJETO */}
-        <p>
-          <strong>Tipo de inversor:</strong>{" "}
-          {projeto?.tipoInversor ?? "---"}
-        </p>
-        <p>
-          <strong>Qtd. de inversores:</strong>{" "}
-          {projeto?.quantidadeInversor ?? "---"}
-        </p>
-        <p>
-          <strong>Potência do inversor (kWp):</strong>{" "}
-          {projeto?.potenciaInversorDigitada
-            ? `${projeto.potenciaInversorDigitada} kWp`
-            : "---"}
-        </p>
         <p>
           <strong>Estrutura do projeto:</strong>{" "}
           {projeto?.estruturaProjeto ?? "---"}

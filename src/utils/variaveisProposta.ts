@@ -81,21 +81,6 @@ export const variaveisProposta = [
     categoria: "projeto",
   },
   {
-    nome: "[[potencia_inversor_microinversor]]",
-    descricao: "Potência total dos inversores ou microinversores",
-    categoria: "projeto",
-  },
-  {
-    nome: "[[inversor_microinversor]]",
-    descricao: "Tipo do equipamento (inversor ou microinversor)",
-    categoria: "projeto",
-  },
-  {
-    nome: "[[qtd_inversor_microinversor]]",
-    descricao: "Quantidade de inversores ou microinversores",
-    categoria: "projeto",
-  },
-  {
     nome: "[[estrutura]]",
     descricao: "Tipo de estrutura do projeto (ex: telhado, solo, etc.)",
     categoria: "projeto",

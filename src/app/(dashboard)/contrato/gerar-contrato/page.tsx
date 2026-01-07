@@ -271,13 +271,6 @@ export default function GerarContratoPage() {
 
       // 🧱 Estrutura + inversor → do PROJETO
       estrutura: projeto.estruturaProjeto || "---",
-      inversor_microinversor: projeto.tipoInversor ?? "---",
-      qtd_inversor_microinversor: String(
-        projeto.quantidadeInversor ?? "---"
-      ),
-      potencia_inversor_microinversor: projeto.potenciaInversorDigitada
-        ? `${projeto.potenciaInversorDigitada} kWp`
-        : "---",
 
       // ⚡ Consumos
       consumo_medio_mensal: String(consumoMedioMensal),
@@ -386,12 +379,6 @@ export default function GerarContratoPage() {
     // Estrutura + inversor (do PROJETO)
     if (isVazio(projeto?.estruturaProjeto))
       erros.push("Estrutura do projeto não informada.");
-    if (!projeto?.quantidadeInversor)
-      erros.push("Quantidade de inversores não informada.");
-    if (isVazio(projeto?.tipoInversor))
-      erros.push("Tipo de inversor não informado.");
-    if (!projeto?.potenciaInversorDigitada)
-      erros.push("Potência do inversor não informada.");
 
     // 💰 Orçamento
     const financiamento = dadosOrcamento?.financiamentoSelecionado;

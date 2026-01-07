@@ -238,11 +238,6 @@ const campos = {
 
   // 🧱 Estrutura + inversor → AGORA VINDO DO PROJETO
   estrutura: projeto.estruturaProjeto || "---",
-  inversor_microinversor: projeto.tipoInversor ?? "---",
-  qtd_inversor_microinversor: projeto.quantidadeInversor ?? "---",
-  potencia_inversor_microinversor: projeto.potenciaInversorDigitada
-    ? `${projeto.potenciaInversorDigitada} kWp`
-    : "---",
 
   // 💰 Financeiro — usa valor FINAL do orçamento
   valor_a_vista: valorFinalProjeto
@@ -384,14 +379,6 @@ const campos = {
     if (isVazio(projeto?.estruturaProjeto))
       erros.push("Estrutura do projeto não informada.");
 
-    if (!projeto?.quantidadeInversor)
-      erros.push("Quantidade de inversores não informada.");
-
-    if (isVazio(projeto?.tipoInversor))
-      erros.push("Tipo de inversor não informado.");
-
-    if (!projeto?.potenciaInversorDigitada)
-      erros.push("Potência do inversor não informada.");
 
     const valorFinalProjeto =
   dadosOrcamento?.financiamentoSelecionado?.valorFinalProjeto;
