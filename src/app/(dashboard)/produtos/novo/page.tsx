@@ -52,9 +52,10 @@ export default function ProdutosNovoPage() {
   const [valorEletricista, setValorEletricista] = useState("200");
   const [valorInfra, setValorInfra] = useState("62.5");
 
-  // ✅ NOVO: Comissão externa (valor inteiro/normal)
+  // Comissão externa
   const [custoComissaoExterna, setCustoComissaoExterna] = useState("0");
 
+  // ✅ Custo adicional (agora é uma linha na tabela)
   const [custoAdicional, setCustoAdicional] = useState("0");
 
   // Desconto máximo (%)
@@ -72,8 +73,11 @@ export default function ProdutosNovoPage() {
   const [vendaEletricista, setVendaEletricista] = useState("0");
   const [vendaInfra, setVendaInfra] = useState("0");
 
-  // ✅ NOVO: venda da comissão externa
+  // venda da comissão externa
   const [vendaComissaoExterna, setVendaComissaoExterna] = useState("0");
+
+  // ✅ venda do custo adicional
+  const [vendaAdicional, setVendaAdicional] = useState("0");
 
   const [salvando, setSalvando] = useState(false);
 
@@ -98,8 +102,9 @@ export default function ProdutosNovoPage() {
         setValorEletricista(String(data.custoEletricista ?? "0"));
         setValorInfra(String(data.custoInfraestrutura ?? "0"));
 
-        // ✅ NOVO
         setCustoComissaoExterna(String(data.custoComissaoExterna ?? "0"));
+
+        setCustoAdicional(String(data.custoAdicional ?? "0"));
 
         setVendaKit(String(data.vendaKitFotovoltaico ?? "0"));
         setVendaProjeto(String(data.vendaProjeto ?? "0"));
@@ -107,10 +112,11 @@ export default function ProdutosNovoPage() {
         setVendaEletricista(String(data.vendaEletricista ?? "0"));
         setVendaInfra(String(data.vendaInfraestrutura ?? "0"));
 
-        // ✅ NOVO
         setVendaComissaoExterna(String(data.vendaComissaoExterna ?? "0"));
 
-        setCustoAdicional(String(data.custoAdicional ?? "0"));
+        // ✅ novo (compatível com produtos antigos: cai em 0)
+        setVendaAdicional(String(data.vendaAdicional ?? "0"));
+
         setDescontoInternaMaxima(String(data.descontoInternaMaxima ?? "0"));
         setComissaoInternaPercent(String(data.comissaoInternaPercent ?? "0"));
       }
@@ -128,7 +134,6 @@ export default function ProdutosNovoPage() {
   const custoEletricistaNum = parseDecimal(valorEletricista);
   const custoInfraNum = parseDecimal(valorInfra);
 
-  // ✅ NOVO
   const custoComissaoExternaNum = parseDecimal(custoComissaoExterna);
 
   const custoExtra = parseDecimal(custoAdicional);
@@ -139,8 +144,9 @@ export default function ProdutosNovoPage() {
   const vendaEletricistaNum = parseDecimal(vendaEletricista);
   const vendaInfraNum = parseDecimal(vendaInfra);
 
-  // ✅ NOVO
   const vendaComissaoExternaNum = parseDecimal(vendaComissaoExterna);
+
+  const vendaAdicionalNum = parseDecimal(vendaAdicional);
 
   // lucros por linha (sem desconto/comissão interna)
   const lucroKit = vendaKitNum - custoKit;
@@ -149,39 +155,37 @@ export default function ProdutosNovoPage() {
   const lucroEletricista = vendaEletricistaNum - custoEletricistaNum;
   const lucroInfra = vendaInfraNum - custoInfraNum;
 
-  // ✅ NOVO
   const lucroComissaoExterna = vendaComissaoExternaNum - custoComissaoExternaNum;
 
-  // ✅ CORRETO: totalCusto NÃO inclui custoExtra (pra não duplicar depois)
+  // ✅ lucro do custo adicional (agora é item normal)
+  const lucroAdicional = vendaAdicionalNum - custoExtra;
+
+  // ✅ AGORA inclui custoExtra porque virou linha normal
   const totalCusto =
     custoKit +
     custoProjeto +
     custoPlaca +
     custoEletricistaNum +
     custoInfraNum +
-    custoComissaoExternaNum;
+    custoComissaoExternaNum +
+    custoExtra;
 
+  // ✅ inclui vendaAdicional
   const totalVenda =
     vendaKitNum +
     vendaProjetoNum +
     vendaPlacaNum +
     vendaEletricistaNum +
     vendaInfraNum +
-    vendaComissaoExternaNum;
+    vendaComissaoExternaNum +
+    vendaAdicionalNum;
 
   // ---------------------------
   // comissão interna (%)
   // ---------------------------
   const comissaoNum = parseDecimal(comissaoInternaPercent);
-  const comissaoClamp = Math.min(100, Math.max(0, comissaoNum));
-  const fatorComissao = 1 + comissaoClamp / 100;
-
-  // preço base: venda + adicional (sua regra)
-  const precoBase = totalVenda + custoExtra;
-
-  // custo final (amarelo) com comissão interna embutida (+)
-  const totalCustoFinal = precoBase * fatorComissao;
-
+  const comissaoClamp = Math.min(100, Math.max(0, comissaoNum)); 
+const totalCustoFinal = totalVenda;
   // ---------------------------
   // desconto máximo (%)
   // ---------------------------
@@ -192,8 +196,8 @@ export default function ProdutosNovoPage() {
   // receita pior caso
   const receitaComDescMax = totalCustoFinal * fatorDescMax;
 
-  // custo real total (inclui adicional como custo)
-  const custoTotalReal = totalCusto + custoExtra;
+  // custo real total (já inclui adicional)
+  const custoTotalReal = totalCusto;
 
   // comissão paga ao vendedor (% da receita já com desconto)
   const comissaoPaga = receitaComDescMax * (comissaoClamp / 100);
@@ -254,10 +258,12 @@ export default function ProdutosNovoPage() {
         custoEletricista: custoEletricistaNum,
         custoInfraestrutura: custoInfraNum,
 
-        // ✅ NOVO
         custoComissaoExterna: custoComissaoExternaNum,
 
+        // ✅ adicional virou item completo
         custoAdicional: custoExtra,
+        vendaAdicional: vendaAdicionalNum,
+        lucroAdicional,
 
         vendaKitFotovoltaico: vendaKitNum,
         vendaProjeto: vendaProjetoNum,
@@ -265,7 +271,6 @@ export default function ProdutosNovoPage() {
         vendaEletricista: vendaEletricistaNum,
         vendaInfraestrutura: vendaInfraNum,
 
-        // ✅ NOVO
         vendaComissaoExterna: vendaComissaoExternaNum,
 
         lucroKitFotovoltaico: lucroKit,
@@ -274,7 +279,6 @@ export default function ProdutosNovoPage() {
         lucroEletricista,
         lucroInfraestrutura: lucroInfra,
 
-        // ✅ NOVO
         lucroComissaoExterna,
 
         totalVenda,
@@ -347,9 +351,10 @@ export default function ProdutosNovoPage() {
               <tr><th>Placa de advertência</th></tr>
               <tr><th>Eletricista / Instalador</th></tr>
               <tr><th>Infraestrutura</th></tr>
-
-              {/* ✅ NOVO */}
               <tr><th>Comissão externa</th></tr>
+
+              {/* ✅ NOVO: custo adicional como linha */}
+              <tr><th>Custo adicional</th></tr>
             </tbody>
             <tfoot>
               <tr className="bg-base-100 text-white">
@@ -423,7 +428,6 @@ export default function ProdutosNovoPage() {
                 </td>
               </tr>
 
-              {/* ✅ NOVO */}
               <tr>
                 <td className="text-center">
                   <input
@@ -433,6 +437,19 @@ export default function ProdutosNovoPage() {
                     onChange={(e) =>
                       setCustoComissaoExterna(sanitizeNumericInput(e.target.value))
                     }
+                    placeholder="R$"
+                  />
+                </td>
+              </tr>
+
+              {/* ✅ NOVO */}
+              <tr>
+                <td className="text-center">
+                  <input
+                    type="text"
+                    className="input input-sm input-bordered w-28 text-center bg-base-100"
+                    value={custoAdicional}
+                    onChange={(e) => setCustoAdicional(sanitizeNumericInput(e.target.value))}
                     placeholder="R$"
                   />
                 </td>
@@ -510,7 +527,6 @@ export default function ProdutosNovoPage() {
                 </td>
               </tr>
 
-              {/* ✅ NOVO */}
               <tr>
                 <td className="text-center">
                   <input
@@ -520,6 +536,19 @@ export default function ProdutosNovoPage() {
                     onChange={(e) =>
                       setVendaComissaoExterna(sanitizeNumericInput(e.target.value))
                     }
+                    placeholder="R$"
+                  />
+                </td>
+              </tr>
+
+              {/* ✅ NOVO */}
+              <tr>
+                <td className="text-center">
+                  <input
+                    type="text"
+                    className="input input-sm input-bordered w-28 text-center bg-base-100"
+                    value={vendaAdicional}
+                    onChange={(e) => setVendaAdicional(sanitizeNumericInput(e.target.value))}
                     placeholder="R$"
                   />
                 </td>
@@ -545,9 +574,10 @@ export default function ProdutosNovoPage() {
               <tr><td className="text-center">R$ {lucroPlaca.toFixed(2)}</td></tr>
               <tr><td className="text-center">R$ {lucroEletricista.toFixed(2)}</td></tr>
               <tr><td className="text-center">R$ {lucroInfra.toFixed(2)}</td></tr>
+              <tr><td className="text-center">R$ {lucroComissaoExterna.toFixed(2)}</td></tr>
 
               {/* ✅ NOVO */}
-              <tr><td className="text-center">R$ {lucroComissaoExterna.toFixed(2)}</td></tr>
+              <tr><td className="text-center">R$ {lucroAdicional.toFixed(2)}</td></tr>
 
               {/* Total lucro (pior caso) */}
               <tr className="bg-blue-300 text-base font-semibold h-10">
@@ -557,24 +587,12 @@ export default function ProdutosNovoPage() {
           </table>
         </div>
 
-        {/* Ajustes */}
+        {/* Ajustes (sem custo adicional aqui) */}
         <div className="flex flex-col lg:flex-row justify-between gap-6 mb-8 mt-10">
           <div className="bg-[#1a1a1a] p-5 rounded-2xl shadow-2xl w-full lg:max-w-md border border-base-300">
             <h2 className="font-bold text-white text-lg mb-4 text-center gap-2">
-              Ajustes de Custos Variáveis
+              Ajustes de Custos Variáveis (Lucro)
             </h2>
-
-            <div className="mt-6">
-              <label className="text-sm font-semibold block text-white">
-                Custo adicional (valor fixo R$)
-              </label>
-              <input
-                value={custoAdicional}
-                onChange={(e) => setCustoAdicional(sanitizeNumericInput(e.target.value))}
-                className="input input-sm input-bordered w-full bg-base-100"
-                placeholder="Ex: 200.00"
-              />
-            </div>
 
             <div className="mt-6">
               <label className="text-sm font-semibold block text-white">
