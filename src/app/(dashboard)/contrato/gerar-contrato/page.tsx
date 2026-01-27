@@ -237,6 +237,12 @@ export default function GerarContratoPage() {
     );
     // 🔹 Valor final do projeto (total a ser pago).
 
+    // ✅ NOVO: nome do kit para template (use no DOCX como [[nome_kit]])
+    const nomeKitCampo =
+      dadosOrcamento?.kitSelecionado?.nomeProduto ||
+      dadosOrcamento?.kitSelecionado?.nome ||
+      "---";
+
     const campos: Record<string, string> = {
       // 🧍 Cliente
       nome_cliente: nomeClienteCampo || "---",
@@ -256,6 +262,9 @@ export default function GerarContratoPage() {
       validade: "7 dias",
       data_assinatura: new Date().toLocaleDateString("pt-BR"),
       nome_cliente_assinatura: nomeClienteAssinaturaCampo || "---",
+
+      // ✅ NOVO
+      nome_kit: nomeKitCampo,
 
       // 🔧 Projeto
       nome_projeto: projeto?.nomeProjeto || "---",
@@ -335,6 +344,13 @@ export default function GerarContratoPage() {
         erros.push("Número do endereço não informado.");
       if (isVazio(endereco.cep)) erros.push("CEP não informado.");
     }
+
+    // ✅ NOVO: KIT (nome do kit)
+    const nomeKit =
+      dadosOrcamento?.kitSelecionado?.nomeProduto ||
+      dadosOrcamento?.kitSelecionado?.nome;
+
+    if (isVazio(nomeKit)) erros.push("Kit não selecionado no orçamento.");
 
     // 📌 Projeto
     if (isVazio(projeto?.nomeProjeto))

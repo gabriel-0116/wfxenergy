@@ -105,16 +105,16 @@ export const variaveisProposta = [
     descricao: "Consumo médio diário (em kWh)",
     categoria: "projeto",
   },
+  {
+    nome: "[[nome_kit]]",
+    descricao: "Nome do Kit",
+    categoria: "projeto",
+  },
 
   // 🔹 FINANCEIRO
   {
     nome: "[[valor_a_vista]]",
     descricao: "Valor total à vista",
-    categoria: "financeiro",
-  },
-  {
-    nome: "[[total_financiado]]",
-    descricao: "Valor total financiado (entrada + parcelas)",
     categoria: "financeiro",
   },
   {

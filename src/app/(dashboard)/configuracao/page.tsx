@@ -321,6 +321,61 @@ export default function Configuracoes() {
           </div>
         </section>
       )}
+      
+      {/* Linha 3: Financeiro + Geral */}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  {/* Card: Financeiro */}
+  <div className="bg-base-100 shadow-2xl border border-base-300 transition-transform hover:scale-[1.02] p-5 rounded-xl">
+    <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+      💰 Financeiro
+    </h3>
+    <div className="space-y-4">
+      {variaveisProposta
+        .filter((v) => v.categoria === "financeiro")
+        .map((variavel, index) => (
+          <div
+            key={index}
+            className="relative bg-gray-900 p-3 rounded-lg hover:shadow-md"
+          >
+            <button
+              onClick={() => copiarTexto(variavel.nome)}
+              className="absolute top-2 right-2 text-gray-400 hover:text-white"
+            >
+              <FontAwesomeIcon icon={faCopy} size="sm" />
+            </button>
+            <p className="font-mono text-blue-400">{variavel.nome}</p>
+            <p className="text-gray-300 text-sm">{variavel.descricao}</p>
+          </div>
+        ))}
+    </div>
+  </div>
+
+  {/* Card: Geral */}
+  <div className="bg-base-100 shadow-2xl border border-base-300 transition-transform hover:scale-[1.02] p-5 rounded-xl">
+    <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+      📌 Geral
+    </h3>
+    <div className="space-y-4">
+      {variaveisProposta
+        .filter((v) => v.categoria === "geral")
+        .map((variavel, index) => (
+          <div
+            key={index}
+            className="relative bg-gray-900 p-3 rounded-lg hover:shadow-md"
+          >
+            <button
+              onClick={() => copiarTexto(variavel.nome)}
+              className="absolute top-2 right-2 text-gray-400 hover:text-white"
+            >
+              <FontAwesomeIcon icon={faCopy} size="sm" />
+            </button>
+            <p className="font-mono text-blue-400">{variavel.nome}</p>
+            <p className="text-gray-300 text-sm">{variavel.descricao}</p>
+          </div>
+        ))}
+    </div>
+  </div>
+</div>
 
       {abaAtiva !== "variaveis" && (
         <div className="space-y-6">

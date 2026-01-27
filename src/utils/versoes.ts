@@ -7,6 +7,7 @@ export const versoes = [
       "Correção de bugs",
       "Otimização do site",
       "Método novo atualizado",
+      "Nova Varivavel"
     ],
   },
   {

@@ -95,43 +95,42 @@ export default function GerarPropostaPage() {
   }, []);
 
   function gerarFormaPagamento(dados: any): string {
-  if (!dados) return "---";
+    if (!dados) return "---";
 
-  const entrada = Number(dados.entrada || 0);
-  const parcelas = dados.parcelaSelecionada;
-  const fin = dados.financiamentoSelecionado;
+    const entrada = Number(dados.entrada || 0);
+    const parcelas = dados.parcelaSelecionada;
+    const fin = dados.financiamentoSelecionado;
 
-  const format = (v: number) =>
-    v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const format = (v: number) =>
+      v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  // Se não tem financiamento salvo, tenta cair pra totalVenda
-  if (!fin) {
-    if (parcelas === "avista" && typeof dados.totalVenda === "number") {
-      return `À vista: ${format(dados.totalVenda)}`;
+    // Se não tem financiamento salvo, tenta cair pra totalVenda
+    if (!fin) {
+      if (parcelas === "avista" && typeof dados.totalVenda === "number") {
+        return `À vista: ${format(dados.totalVenda)}`;
+      }
+      return "---";
     }
-    return "---";
+
+    const valorParcela = Number(fin.valorParcela || 0);
+    const totalPago = Number(fin.totalPago || fin.valorFinalProjeto || 0);
+    const valorFinalProjeto = Number(fin.valorFinalProjeto || totalPago || 0);
+
+    if (parcelas === "avista") {
+      // À vista: usa valor final do projeto
+      return `À vista: ${format(valorFinalProjeto)}`;
+    }
+
+    if (entrada > 0) {
+      return `Entrada de ${format(entrada)} + ${parcelas}x de ${format(
+        valorParcela
+      )} (Total: ${format(valorFinalProjeto)})`;
+    }
+
+    return `${parcelas}x de ${format(valorParcela)} (Total: ${format(
+      valorFinalProjeto
+    )})`;
   }
-
-  const valorParcela = Number(fin.valorParcela || 0);
-  const totalPago = Number(fin.totalPago || fin.valorFinalProjeto || 0);
-  const valorFinalProjeto = Number(fin.valorFinalProjeto || totalPago || 0);
-
-  if (parcelas === "avista") {
-    // À vista: usa valor final do projeto
-    return `À vista: ${format(valorFinalProjeto)}`;
-  }
-
-  if (entrada > 0) {
-    return `Entrada de ${format(entrada)} + ${parcelas}x de ${format(
-      valorParcela
-    )} (Total: ${format(valorFinalProjeto)})`;
-  }
-
-  return `${parcelas}x de ${format(valorParcela)} (Total: ${format(
-    valorFinalProjeto
-  )})`;
-}
-
 
   const handleGerarProposta = async () => {
     const errosValidacao = validarCamposProposta({
@@ -176,75 +175,84 @@ export default function GerarPropostaPage() {
           : projeto.potenciaPico ?? projeto.potenciaPicoManual;
 
       const financiamento = dadosOrcamento?.financiamentoSelecionado;
-const valorFinalProjeto = Number(
-  financiamento?.valorFinalProjeto ?? financiamento?.totalPago ?? 0
-);
+      const valorFinalProjeto = Number(
+        financiamento?.valorFinalProjeto ?? financiamento?.totalPago ?? 0
+      );
 
-const campos = {
-  // 🧍 Cliente
-  nome_cliente: nomeClienteCampo || "---",
-  cpf: cpfOuCnpjCampo || "---", // não é usado no template atual, mas não atrapalha
-  telefone: cliente.telefone || "---",
+      // ✅ NOVO: nome do kit para template (use no DOCX como [[nome_kit]])
+      const nomeKitCampo =
+        dadosOrcamento?.kitSelecionado?.nomeProduto ||
+        dadosOrcamento?.kitSelecionado?.nome ||
+        "---";
 
-  // 📍 Endereço
-  cidade: enderecoPrincipal.cidade || "---",
-  estado: enderecoPrincipal.estado || "---",
-  logradouro: enderecoPrincipal.endereco || "---",
-  numero: enderecoPrincipal.numero || "---",
-  cep: enderecoPrincipal.cep || "---",
+      const campos = {
+        // 🧍 Cliente
+        nome_cliente: nomeClienteCampo || "---",
+        cpf: cpfOuCnpjCampo || "---", // não é usado no template atual, mas não atrapalha
+        telefone: cliente.telefone || "---",
 
-  // 📅 Datas
-  criado_em: new Date().toLocaleDateString("pt-BR"),
-  validade: "7 dias",
-  data_assinatura: new Date().toLocaleDateString("pt-BR"),
-  nome_cliente_assinatura: nomeClienteAssinaturaCampo || "---",
+        // 📍 Endereço
+        cidade: enderecoPrincipal.cidade || "---",
+        estado: enderecoPrincipal.estado || "---",
+        logradouro: enderecoPrincipal.endereco || "---",
+        numero: enderecoPrincipal.numero || "---",
+        cep: enderecoPrincipal.cep || "---",
 
-  // 📊 Consumo / geração
-  consumo_medio_mensal:
-    projeto.modo === "manual"
-      ? projeto.consumoMedioMesManual ?? projeto.consumoMedioMes ?? "---"
-      : projeto.consumoMedioMes ?? projeto.consumoMedioMesManual ?? "---",
+        // 📅 Datas
+        criado_em: new Date().toLocaleDateString("pt-BR"),
+        validade: "7 dias",
+        data_assinatura: new Date().toLocaleDateString("pt-BR"),
+        nome_cliente_assinatura: nomeClienteAssinaturaCampo || "---",
 
-  consumo_medio_diario:
-    projeto.modo === "manual"
-      ? projeto.consumoMedioDiaManual ?? projeto.consumoMedioDia ?? "---"
-      : projeto.consumoMedioDia ?? projeto.consumoMedioDiaManual ?? "---",
+        // ✅ NOVO
+        nome_kit: nomeKitCampo,
 
-  geracao_media:
-    projeto.modo === "manual"
-      ? `${projeto.geracaoMensalManual ?? projeto.geracaoMensal ?? "---"} kWh/mês`
-      : `${projeto.geracaoMensal ?? projeto.geracaoMensalManual ?? "---"} kWh/mês`,
+        // 📊 Consumo / geração
+        consumo_medio_mensal:
+          projeto.modo === "manual"
+            ? projeto.consumoMedioMesManual ?? projeto.consumoMedioMes ?? "---"
+            : projeto.consumoMedioMes ?? projeto.consumoMedioMesManual ?? "---",
 
-  // 🔧 Projeto
-  nome_projeto: projeto?.nomeProjeto || "---",
-  quantidade_placas:
-    projeto.modo === "manual"
-      ? projeto.qtdPlacasManual || projeto.qtdPlacas || "---"
-      : projeto.qtdPlacas || projeto.qtdPlacasManual || "---",
+        consumo_medio_diario:
+          projeto.modo === "manual"
+            ? projeto.consumoMedioDiaManual ?? projeto.consumoMedioDia ?? "---"
+            : projeto.consumoMedioDia ?? projeto.consumoMedioDiaManual ?? "---",
 
-  qtd_painel_helius:
-    projeto.modo === "manual"
-      ? projeto.qtdPlacasManual || projeto.qtdPlacas || "---"
-      : projeto.qtdPlacas || projeto.qtdPlacasManual || "---",
+        geracao_media:
+          projeto.modo === "manual"
+            ? `${projeto.geracaoMensalManual ?? projeto.geracaoMensal ?? "---"} kWh/mês`
+            : `${projeto.geracaoMensal ?? projeto.geracaoMensalManual ?? "---"} kWh/mês`,
 
-  potencia_placas: `${projeto.potenciaPlaca} W`,
-  potencia_instalada: `${
-    projeto.modo === "manual"
-      ? projeto.potenciaPicoManual ?? projeto.potenciaPico
-      : projeto.potenciaPico ?? projeto.potenciaPicoManual
-  } kWp`,
+        // 🔧 Projeto
+        nome_projeto: projeto?.nomeProjeto || "---",
+        quantidade_placas:
+          projeto.modo === "manual"
+            ? projeto.qtdPlacasManual || projeto.qtdPlacas || "---"
+            : projeto.qtdPlacas || projeto.qtdPlacasManual || "---",
 
-  area_necessaria: `${projeto.areaMinimaTotal} m²`,
+        qtd_painel_helius:
+          projeto.modo === "manual"
+            ? projeto.qtdPlacasManual || projeto.qtdPlacas || "---"
+            : projeto.qtdPlacas || projeto.qtdPlacasManual || "---",
 
-  // 🧱 Estrutura + inversor → AGORA VINDO DO PROJETO
-  estrutura: projeto.estruturaProjeto || "---",
+        potencia_placas: `${projeto.potenciaPlaca} W`,
+        potencia_instalada: `${
+          projeto.modo === "manual"
+            ? projeto.potenciaPicoManual ?? projeto.potenciaPico
+            : projeto.potenciaPico ?? projeto.potenciaPicoManual
+        } kWp`,
 
-  // 💰 Financeiro — usa valor FINAL do orçamento
-  valor_a_vista: valorFinalProjeto
-    ? `R$ ${valorFinalProjeto.toFixed(2)}`
-    : "---",
-  forma_pagamento: gerarFormaPagamento(dadosOrcamento),
-};
+        area_necessaria: `${projeto.areaMinimaTotal} m²`,
+
+        // 🧱 Estrutura + inversor → AGORA VINDO DO PROJETO
+        estrutura: projeto.estruturaProjeto || "---",
+
+        // 💰 Financeiro — usa valor FINAL do orçamento
+        valor_a_vista: valorFinalProjeto
+          ? `R$ ${valorFinalProjeto.toFixed(2)}`
+          : "---",
+        forma_pagamento: gerarFormaPagamento(dadosOrcamento),
+      };
 
       const response = await fetch("/api/gerar-docx", {
         method: "POST",
@@ -325,6 +333,13 @@ const campos = {
     if (isVazio(cliente?.telefone))
       erros.push("Telefone do cliente não informado.");
 
+    // ✅ NOVO: KIT (nome do kit)
+    const nomeKit =
+      dadosOrcamento?.kitSelecionado?.nomeProduto ||
+      dadosOrcamento?.kitSelecionado?.nome;
+
+    if (isVazio(nomeKit)) erros.push("Kit não selecionado no orçamento.");
+
     // PROJETO
     if (isVazio(projeto?.nomeProjeto))
       erros.push("Nome do projeto não informado.");
@@ -379,13 +394,12 @@ const campos = {
     if (isVazio(projeto?.estruturaProjeto))
       erros.push("Estrutura do projeto não informada.");
 
-
     const valorFinalProjeto =
-  dadosOrcamento?.financiamentoSelecionado?.valorFinalProjeto;
+      dadosOrcamento?.financiamentoSelecionado?.valorFinalProjeto;
 
-if (!valorFinalProjeto || valorFinalProjeto <= 0) {
-  erros.push("Valor final do projeto não informado.");
-}
+    if (!valorFinalProjeto || valorFinalProjeto <= 0) {
+      erros.push("Valor final do projeto não informado.");
+    }
 
     if (
       dadosOrcamento?.parcelaSelecionada !== "avista" &&
@@ -410,16 +424,15 @@ if (!valorFinalProjeto || valorFinalProjeto <= 0) {
 
   return (
     <section className="text-white px-6 py-6 space-y-8">
-     {erros.length > 0 && (
-  <div className="toast toast-top toast-end z-50">
-    {erros.map((erro, i) => (
-      <div key={i} className="alert alert-error">
-        <span>{erro}</span>
-      </div>
-    ))}
-  </div>
-)}
-
+      {erros.length > 0 && (
+        <div className="toast toast-top toast-end z-50">
+          {erros.map((erro, i) => (
+            <div key={i} className="alert alert-error">
+              <span>{erro}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <h1 className="text-3xl font-bold text-center">Proposta Comercial 📄</h1>
 
