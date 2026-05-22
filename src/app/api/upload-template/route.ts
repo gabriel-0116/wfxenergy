@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     if (!["proposta", "contrato"].includes(tipo)) {
       return NextResponse.json(
         { error: "Tipo inválido. Use 'proposta' ou 'contrato'." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -24,16 +24,14 @@ export async function POST(req: NextRequest) {
 
     if (
       !file ||
-      (
-        !file.name.endsWith(".docx") &&
+      (!file.name.endsWith(".docx") &&
         !file.name.endsWith(".html") &&
         !file.name.endsWith(".htm") &&
-        !file.name.endsWith(".pdf")
-      )
+        !file.name.endsWith(".pdf"))
     ) {
       return NextResponse.json(
         { error: "Arquivo inválido. Envie um .docx, .html, .htm ou .pdf" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -43,8 +41,8 @@ export async function POST(req: NextRequest) {
     const maxSize = 10 * 1024 * 1024;
     if (buffer.length > maxSize) {
       return NextResponse.json(
-        { error: "Arquivo muito grande (máximo 5MB)" },
-        { status: 413 }
+        { error: "Arquivo muito grande (máximo 10MB)" },
+        { status: 413 },
       );
     }
 
@@ -63,12 +61,11 @@ export async function POST(req: NextRequest) {
       nomeArquivo: file.name,
       caminho: destination,
     });
-
   } catch (error: any) {
     console.error("❌ ERRO NO UPLOAD:", error);
     return NextResponse.json(
       { error: "Erro ao fazer upload do template" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
