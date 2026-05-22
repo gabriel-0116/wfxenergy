@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const maxSize = 5 * 1024 * 1024;
+    const maxSize = 10 * 1024 * 1024;
     if (buffer.length > maxSize) {
       return NextResponse.json(
         { error: "Arquivo muito grande (máximo 5MB)" },
